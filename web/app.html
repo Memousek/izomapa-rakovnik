@@ -424,12 +424,13 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
 
   // ---------- OpenSeadragon: vrstvy po čtvercích (den podle ročního období × teplý tón × tma + světla) ----------
   // souřadnice: pixely čtverce (0, 0), šířka W = 1 v souřadnicích pohledu; ostatní čtverce jsou posunuté
-  const base = TILES.base || { x0: OV.cam.x0, y1: OV.cam.y1, mpp: OV.cam.mpp, status: 'hotovo' };
+  // UM = metry na pixel souřadnic prohlížeče (obrysy, animace: vždy 0,2); base.mpp = rozlišení dlaždic (0,2, u detailního 0,1)
+  const base = TILES.base || { x0: OV.cam.x0, y1: OV.cam.y1, mpp: OV.cam.mpp, status: 'hotovo' }, UM = OV.cam.mpp;
   const LAYERS = [{ key: 'c0_0', status: base.status, src: (v) => TILES[v], x: 0, y: 0, w: 1 }];
   for (const [key, ch] of Object.entries(TILES.chunks || {})) {
     const any = ch.autumn || ch.lights; if (!any) continue;
-    const dx = (any.x0 - base.x0) / base.mpp, dy = (base.y1 - any.y1) / base.mpp;
-    LAYERS.push({ key, status: ch.status, src: (v) => ch[v], x: dx / W, y: dy / W, w: +any.Image.Size.Width / W });
+    const dx = (any.x0 - base.x0) / UM, dy = (base.y1 - any.y1) / UM;
+    LAYERS.push({ key, status: ch.status, src: (v) => ch[v], x: dx / W, y: dy / W, w: +any.Image.Size.Width * base.mpp / UM / W });
   }
   // pořadí vrstev podle hloubky: pohled od JZ, takže čtverce dál na S a V (větší i + j) se kreslí dřív (níž)
   const far = (k) => { const [i, j] = k.slice(1).split('_').map(Number); return i + j; };
@@ -440,7 +441,8 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
   const viewer = OpenSeadragon({
     element: $('osd'), tileSources: [],
     showNavigationControl: false, imageSmoothingEnabled: false,
-    maxZoomPixelRatio: 6, minZoomImageRatio: 0.6, visibilityRatio: 0.4, animationTime: 0.6,
+    // největší přiblížení stejné v metrech (detailní dlaždice mají 2× víc pixelů, proto u nich poloviční poměr)
+    maxZoomPixelRatio: 6 * base.mpp / UM, minZoomImageRatio: 0.6, visibilityRatio: 0.4, animationTime: 0.6,
     // mobil a pomalé připojení: hrubší dlaždice, aby se mapa ukázala hned (při přiblížení se doostří)
     ...(SLOW ? { minPixelRatio: 1.2, immediateRender: true, imageLoaderLimit: 4 } : { minPixelRatio: 0.6 }),
     gestureSettingsMouse: { clickToZoom: false, dblClickToZoom: true }, gestureSettingsTouch: { pinchRotate: false }, gestureSettingsPen: { clickToZoom: false, dblClickToZoom: true },
@@ -459,7 +461,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     try {
       const pv = await fetch(`preview/${season}.json${VER}`).then((r) => r.json());
       const it = await add({ tileSource: { type: 'image', url: `preview/${season}.webp${VER}`, buildPyramid: false },
-        x: (pv.x0 - base.x0) / base.mpp / W, y: (base.y1 - pv.y1) / base.mpp / W, width: pv.w * pv.mpp / base.mpp / W, index: 0 });
+        x: (pv.x0 - base.x0) / UM / W, y: (base.y1 - pv.y1) / UM / W, width: pv.w * pv.mpp / UM / W, index: 0 });
       if (it && gen !== previewGen) { viewer.world.removeItem(it); return; }   // mezitím jiné období
       if (it) { if (previewItem) viewer.world.removeItem(previewItem); previewItem = it; viewer.world.setItemIndex(it, 0); }
     } catch {}

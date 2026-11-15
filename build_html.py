@@ -1,15 +1,17 @@
 """Z web/app.html a mesto.json vyrobí site/index.html (texty, meta, sitemap).
 Pokud existuje složka obce/*.json, vyrobí pro každou obec i site/index_<obec>.html a site/obce/<obec>/og.jpg."""
-import html, json, os, re
+import html, json, math, os, re
 from urllib.parse import urljoin
 from PIL import Image
 import geo
 from geo import MESTO
 
 
-def og_obrazek(out='site/og.jpg', W=1200, H=630, dolu=1, latlon=None):
-    """náhled pro sdílení (og:image) 1200×630: výřez středu města z letních dlaždic (o úroveň menší než plné rozlišení)"""
+def og_obrazek(out='site/og.jpg', W=1200, H=630, dolu=None, latlon=None):
+    """náhled pro sdílení (og:image) 1200×630: výřez středu města z letních dlaždic v 0,4 m/px (u základního rozlišení
+    o úroveň menší než plné, u detailního o dvě, aby byl výřez stejně velký)"""
     t = json.load(open('site/tiles.json')); base = t['base']
+    if dolu is None: dolu = 1 + round(math.log2(0.2 / base['mpp']))
     x, y = geo.to_local(latlon[1], latlon[0]) if latlon else (0, 0)
     c = geo.chunk_of(float(x), float(y)) if latlon else (0, 0)
     s = (t.get('chunks') or {}).get(f'c{c[0]}_{c[1]}', {}).get('summer') if c != (0, 0) else None
