@@ -162,9 +162,10 @@ Statický web sám hlášení uložit neumí, potřebuje malý server. Hotový j
 s databází D1 (na malou mapu stačí bezplatný tarif). Jinde to jde taky, `hlaseni/worker.js` je krátký a agent ho
 přepíše pro jiný hosting.
 
-1. V `mesto.json` nastavte `"hlaseni": true` a spusťte `python build_html.py` (v mapě se objeví tlačítko a do `site/`
+1. V `mesto.json` nastavte `"hlaseni": true` a spusťte `.venv/bin/python build_html.py` (v mapě se objeví tlačítko a do `site/`
    přibude `admin.html`).
-2. `cp hlaseni/wrangler.example.jsonc wrangler.jsonc`, doplňte název a `npx wrangler d1 create izomapa-hlaseni`
+2. `npm install` (doinstaluje nástroj wrangler, `setup.sh` ho kvůli velikosti vynechává),
+   `cp hlaseni/wrangler.example.jsonc wrangler.jsonc`, doplňte název a `npx wrangler d1 create izomapa-hlaseni`
    (vypíše `database_id`, to patří do `wrangler.jsonc`).
 3. `npx wrangler d1 migrations apply izomapa-hlaseni --remote`
 4. `npx wrangler secret put ADMIN_PASSWORD` (heslo do administrace) a `npx wrangler deploy`.

@@ -98,8 +98,18 @@ h = np.concatenate(hs)
 href = float(np.percentile(h, 25)); dno = math.floor(float(h.min()) - href - 30)
 print(f'terén {h.min():.0f}–{h.max():.0f} m n. m., nula {href:.0f} m, spodek řezu {dno} m')
 
-rod = 'á' if NAZEV.endswith('a') else 'é' if NAZEV[-1] in 'oeěí' else 'ý'
-adj = f'Izometrick{rod}'
+def rod(nazev):
+    """koncovka „Izometrick…“ podle podstatného jména v názvu obce (odhad, výpis níž připomene kontrolu):
+    přídavná jména a čísla se přeskočí (Nové Město, Mladá Boleslav, Horní Police, Praha 6); -a ženský rod,
+    -o/-e/-ě/-í/-y/-i střední rod nebo množné číslo (Brno, Pardubice, Ústí, Žleby), jinak mužský (Liberec)"""
+    slova = [w for w in re.split(r'[\s-]+', nazev) if w and not w[0].isdigit()]
+    jm = next((w for w in slova if not w.lower().endswith(('ý', 'á', 'é', 'ní'))), slova[0] if slova else nazev).lower()
+    if jm.endswith('a') or jm.endswith(('ves', 'eň', 'ouc', 'slav', 'íč', 'řim', 'yšl')): return 'á'   # Plzeň, Olomouc, Nová Ves
+    if jm[-1:] in 'oeěíyi': return 'é'
+    return 'ý'
+
+
+adj = f'Izometrick{rod(NAZEV)}'
 mesto = {
     'nazev': NAZEV,
     'titulek': f'{adj} {NAZEV}',
