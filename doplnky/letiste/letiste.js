@@ -78,23 +78,55 @@
             if (vis(nx, ny)) faces.push([[R(P0[0], P0[1], z0), R(P1[0], P1[1], z0), R(P1[0], P1[1], z1), R(P0[0], P0[1], z1)], lit(rgb, sun(nx, ny, 0)), (z0 + z1) / 2]);
           faces.push([[R(s0, t0, z1), R(s1, t0, z1), R(s1, t1, z1), R(s0, t1, z1)], lit(rgb, sun(0, 0, 1)), z1]);
         };
-        const l = T.len / 2, w = T.span / 2, C = T.col, S = T.str, GL = [64, 84, 108], DK = [44, 46, 50];
-        box(-0.25, 0.25, -0.12, 0.12, 0, 0.6, DK); box(l * 0.35 - 0.2, l * 0.35 + 0.2, -1.1, -0.9, 0, 0.5, DK); box(l * 0.35 - 0.2, l * 0.35 + 0.2, 0.9, 1.1, 0, 0.5, DK);   // podvozek
-        box(-l, l * 0.8, -0.55, 0.55, 0.55, 1.65, C);                                  // trup
-        box(-l * 0.6, l * 0.6, -0.57, 0.57, 0.95, 1.15, S);                            // pruh
-        box(l * 0.8, l, -0.42, 0.42, 0.7, 1.45, ty === 'an2' ? [70, 74, 78] : C);      // motor
-        box(l * 0.15, l * 0.55, -0.5, 0.5, 1.65, 2.0, GL);                             // kabina
-        box(-l, -l + 1.0, -1.9, 1.9, 1.25, 1.38, C);                                   // vodorovná ocasní plocha
-        box(-l, -l + 0.9, -0.07, 0.07, 1.38, 2.9, S);                                  // směrovka
-        const wz = T.high === 0 ? 0.7 : 2.0;                                           // dolnoplošník / hornoplošník
-        box(l * 0.05, l * 0.05 + (ty === 'an2' ? 2.4 : 1.5), -w, w, wz, wz + 0.16, C);
-        box(l * 0.05, l * 0.05 + 0.4, -w, -w + 0.6, wz + 0.02, wz + 0.18, S); box(l * 0.05, l * 0.05 + 0.4, w - 0.6, w, wz + 0.02, wz + 0.18, S);
-        if (ty === 'an2') {                                                            // dvojplošník: spodní křídlo a vzpěry
-          box(0, 2.0, -w * 0.78, w * 0.78, 0.7, 0.84, C);
-          for (const t of [-w * 0.6, w * 0.6]) box(0.8, 1.0, t - 0.06, t + 0.06, 0.84, 3.6, DK);
-          box(-0.2, 2.6, -w, w, 3.6, 3.76, C);
+            const l = T.len / 2, w = T.span / 2, C = T.col, S = T.str, GL = [64, 84, 108], DK = [44, 46, 50], PR = [70, 72, 76];
+        if (ty === 'an2') {
+          // An-2 „Andula“: dvouplošník, horní křídlo 18,2 m, dolní 14,2 m, hvězdicový motor v kulatém krytu, záďové kolo, vysoká kýlovka
+          box(l - 2.3, l - 1.9, -1.55, -1.25, 0, 0.75, DK); box(l - 2.3, l - 1.9, 1.25, 1.55, 0, 0.75, DK);   // hlavní podvozek
+          box(l - 2.4, l - 1.8, -1.4, -1.0, 0.7, 1.2, DK); box(l - 2.4, l - 1.8, 1.0, 1.4, 0.7, 1.2, DK);
+          box(-l + 0.3, -l + 0.6, -0.1, 0.1, 0, 0.5, DK);                                          // záďové kolo
+          box(-l + 0.6, -l + 4.5, -0.45, 0.45, 0.9, 2.1, C);                                       // zúžená zadní část trupu
+          box(-l + 4.5, l - 1.2, -0.85, 0.85, 0.75, 2.75, C);                                      // trup s kabinou pro parašutisty
+          box(-l + 4.5, l - 1.2, -0.87, 0.87, 1.55, 1.75, S);                                      // pruh
+          for (const s of [-1.5, -0.4, 0.7, 1.8]) for (const e of [-1, 1]) box(s, s + 0.55, e * 0.87 - 0.02, e * 0.87 + 0.02, 1.95, 2.35, GL);   // okénka
+          box(l - 3.2, l - 1.6, -0.75, 0.75, 2.75, 3.15, GL);                                      // kokpit
+          box(l - 1.2, l - 0.25, -0.95, 0.95, 0.85, 2.65, PR); box(l - 0.25, l, -0.7, 0.7, 1.05, 2.45, DK);   // kryt motoru + čelo
+          box(l, l + 0.05, -1.7, 1.7, 1.7, 1.9, DK); box(l, l + 0.05, -0.1, 0.1, 0.9, 2.7, DK);   // vrtule
+          box(l - 3.4, l - 1.0, -w, w, 3.75, 3.95, C);                                             // horní křídlo (18,2 m)
+          box(l - 3.4, l - 2.9, -w, -w + 1.8, 3.77, 3.97, S); box(l - 3.4, l - 2.9, w - 1.8, w, 3.77, 3.97, S);
+          box(l - 3.2, l - 1.2, -w * 0.78, w * 0.78, 0.8, 0.98, C);                               // dolní křídlo (14,2 m)
+          for (const t of [-w * 0.55, w * 0.55]) { box(l - 2.9, l - 2.75, t - 0.05, t + 0.05, 0.98, 3.75, DK); box(l - 1.75, l - 1.6, t - 0.05, t + 0.05, 0.98, 3.75, DK); }   // vzpěry
+          box(-l + 0.3, -l + 2.2, -3.6, 3.6, 2.0, 2.15, C);                                       // vodorovné ocasní plochy (7,2 m)
+          box(-l + 0.2, -l + 2.0, -0.08, 0.08, 2.1, 4.6, C); box(-l + 0.2, -l + 1.0, -0.09, 0.09, 3.6, 4.6, S);   // vysoká kýlovka
+        } else if (ty === 'c172') {
+          // Cessna 172: hornoplošník se vzpěrami, příďový podvozek s kryty kol
+          box(l - 0.8, l - 0.5, -0.09, 0.09, 0, 0.6, DK);                                          // příďové kolo
+          for (const e of [-1, 1]) { box(-0.6, 0.2, e * 1.25 - 0.13, e * 1.25 + 0.13, 0, 0.5, C); box(-0.4, 0.0, e * 0.6, e * 1.2, 0.35, 0.5, DK); }   // kryty kol a podvozková pera
+          box(-l, -l + 3.3, -0.35, 0.35, 0.95, 1.6, C);                                           // ocasní část trupu (zúžená)
+          box(-l + 3.3, l - 1.0, -0.6, 0.6, 0.55, 1.75, C);                                       // trup a kabina
+          box(-l + 3.3, l - 0.6, -0.62, 0.62, 0.95, 1.12, S);                                     // pruh
+          for (const e of [-1, 1]) box(-0.6, 1.5, e * 0.62 - 0.02, e * 0.62 + 0.02, 1.2, 1.7, GL);   // boční okna
+          box(1.4, 2.2, -0.55, 0.55, 1.4, 1.8, GL);                                               // čelní sklo
+          box(l - 1.0, l, -0.45, 0.45, 0.7, 1.4, C); box(l, l + 0.05, -0.9, 0.9, 1.0, 1.1, DK);    // motor a vrtule
+          box(-0.4, 1.2, -w, w, 1.8, 1.95, C);                                                     // křídlo nad kabinou (11 m)
+          box(-0.4, 0.1, -w, -w + 0.7, 1.81, 1.96, S); box(-0.4, 0.1, w - 0.7, w, 1.81, 1.96, S);
+          for (const e of [-1, 1]) box(0.3, 0.45, e * 0.65, e * 2.6, 0.8, 1.8, DK);               // vzpěry křídel
+          box(-l, -l + 1.3, -1.7, 1.7, 1.25, 1.36, C);                                            // vodorovná ocasní plocha
+          box(-l, -l + 1.4, -0.07, 0.07, 1.36, 2.7, C); box(-l + 0.6, -l + 1.4, -0.08, 0.08, 1.9, 2.1, S);   // šikmá kýlovka
+        } else {
+          // ultralight (dolnoplošník typu Bristell): bublinová kabina, příďový podvozek
+          box(l - 0.7, l - 0.45, -0.08, 0.08, 0, 0.5, DK);
+          for (const e of [-1, 1]) box(-0.3, 0.3, e * 1.0 - 0.1, e * 1.0 + 0.1, 0, 0.55, DK);
+          box(-l, -l + 2.6, -0.3, 0.3, 0.75, 1.3, C);
+          box(-l + 2.6, l - 0.8, -0.55, 0.55, 0.5, 1.3, C);
+          box(-l + 2.6, l - 0.6, -0.57, 0.57, 0.75, 0.9, S);
+          box(-0.6, 1.4, -0.5, 0.5, 1.3, 1.75, GL);                                              // bublinová kabina
+          box(l - 0.8, l, -0.4, 0.4, 0.6, 1.2, C); box(l, l + 0.05, -0.8, 0.8, 0.85, 0.95, DK);
+          box(-0.6, 0.9, -w, w, 0.55, 0.68, C);                                                  // dolní křídlo (9 m)
+          box(-0.6, -0.2, -w, -w + 0.6, 0.56, 0.69, S); box(-0.6, -0.2, w - 0.6, w, 0.56, 0.69, S);
+          box(-l, -l + 1.0, -1.4, 1.4, 1.1, 1.2, C);
+          box(-l, -l + 1.1, -0.07, 0.07, 1.2, 2.3, S);
         }
-        faces.sort((p, q) => p[2] - q[2]);
+    faces.sort((p, q) => p[2] - q[2]);
         let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
         for (const [pts] of faces) for (const [x, y] of pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
         x0 = Math.floor(x0) - 1; y0 = Math.floor(y0) - 1;
