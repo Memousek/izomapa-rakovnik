@@ -659,7 +659,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     $('osd').addEventListener('gesturestart', (e) => { e.preventDefault(); gs = 1; });
     $('osd').addEventListener('gesturechange', (e) => { e.preventDefault(); viewer.viewport.zoomBy(e.scale / gs); viewer.viewport.applyConstraints(); gs = e.scale; });
   }
-  initLayers();
+  const layersReady = initLayers();
   const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   function applyTime() {
     const t = state.night;
