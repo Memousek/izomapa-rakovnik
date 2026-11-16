@@ -63,6 +63,13 @@ HREBENY = json.load(open('assets/hrebeny.json')) if os.path.exists('assets/hrebe
 DMP = json.load(open('assets/dmp_vysky.json')) if os.path.exists('assets/dmp_vysky.json') else {}
 if os.path.exists('assets/dmp_rucne.json'): DMP.update({k: v for k, v in json.load(open('assets/dmp_rucne.json')).items() if not k.startswith('_')})   # ověřená měření z kontrolního seznamu
 DMP.update(UP.get('dmp', {}))                                 # ruční doplnění měření
+# vlastní modely památek (pamatky/, kreslí je render.html): skutečný vršek modelu pro obrys při najetí myší
+# (pamatky/pred_po.mjs zapíše pamatky/vrsky.json; oid v seznamu stačí začátkem). Do dlaždic jdou jen modely schválené
+# v dashboardu (pamatky/schvalene.json), proto i vršky jen jejich.
+PAM_SCHV = set(json.load(open('pamatky/schvalene.json', encoding='utf-8'))) if os.path.exists('pamatky/schvalene.json') else set()
+PAM_VRSKY = [(o, v['vrsek']) for s_, v in (json.load(open('pamatky/vrsky.json', encoding='utf-8')).items() if os.path.exists('pamatky/vrsky.json') else [])
+             if s_ in PAM_SCHV for o in v.get('oids', []) if o]
+def pam_vrsek(key): return next((v for o, v in PAM_VRSKY if str(key).startswith(o)), None)
 
 
 def h01(s):
@@ -1351,11 +1358,13 @@ for _, r in bld.iterrows():
         if dsp:
             top_ = b['e'] + (b['rh'] if b['r'] != 'flat' else 0.0)
             if b.get('dz'): top_ = max(top_, b['e'] + max(q[6] for q in b['dz']))
+        pam_ = pam_vrsek(key)                                          # vlastní model památky: vršek modelu (i s věží)
+        if pam_ is not None: top_ = pam_
         binfo.append({'id': bid, 'oid': key, 'name': nm, 'cls': CLS_CZ.get(c, 'budova' if not c else c), 'floors': floors,
                       'h': round(total, 1), 'roof': rs, 'addr': adrs, 'lon': round(float(lon), 6), 'lat': round(float(lat), 6),
-                      'ring': ring_, 'top': round(top_, 2), 'base': round(base, 2),
+                      'ring': ring_, 'top': round(top_, 2), 'base': round(base, 2), **({'pam': 1} if pam_ is not None else {}),
                       **({'roof_geometry': {'eave': b['e'], 'height': b['rh'], 'parts': b['parts']}}
-                         if not lm and rs in ('gabled', 'hipped') and b['parts'] else {})})
+                         if not lm and pam_ is None and rs in ('gabled', 'hipped') and b['parts'] else {})})
 # samostatné stavby dominant (zřícenina, rozhledna, VTE): jen věž na bodu dominanty
 for d in DOMS:
     sp = d['spec']
