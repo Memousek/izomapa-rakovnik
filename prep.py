@@ -1276,6 +1276,8 @@ for _, r in bld.iterrows():
         b = {'p': ring, 'b': round(base, 2), 'g': round(gnd, 2), 'e': round(gnd + eave, 2), 'r': rs, 'rh': round(roofh, 2),
              'parts': parts, 'wc': wc, 'rc': rc, 's': style, 'id': bid}
         if lm: b['lm'] = lm
+        if dsp and dsp.get('hangar'):          # hangár: posuvná vrata ve stěně obrácené k bodu 'face' (plocha letiště), ostatní stěny vlnitý plech
+            b['hd'] = [*[round(v, 2) for v in dsp.get('face_xy', dom['xy'])], dsp.get('vrata', 5.0)]; b['s'] = 21
         if dsp:
             b['dn'] = dom['name']
             if dsp.get('canopy'): b['cn'] = dsp['canopy']
@@ -1737,6 +1739,33 @@ wi.update({'forest': (214, 222, 232), 'scrub': (220, 226, 234), 'paved': (222, 2
            'footway': (226, 230, 236), 'cobble': (206, 210, 218), 'pool_edge': (230, 234, 238), 'grave': (222, 226, 232), 'manhole': (90, 92, 98)})
 wi.update({'plaza': (208, 212, 220), 'plaza2': (222, 226, 232), 'deck': (176, 160, 160)})
 SEASON_PAL['winter'] = wi
+
+# letiště (assets/doplnky/letiste.json, doplněk „letiste“): posekané travnaté dráhy s pásy po sečení a bílými okrajovými
+# značkami, betonová odstavná plocha ("odstavna") a asfaltová pojížděcí dráha ("pojizdeni"); body jsou [lat, lon]
+if os.path.exists('assets/doplnky/letiste.json'):
+    _L = json.load(open('assets/doplnky/letiste.json', encoding='utf-8'))
+    LL = lambda q: to_local(q[1], q[0])
+    for dr in _L.get('drahy', []):
+        (ax, ay), (bx, by) = LL(dr['a']), LL(dr['b']); L_ = math.hypot(bx - ax, by - ay); ux, uy = (bx - ax) / L_, (by - ay) / L_
+        nx_, ny_ = -uy, ux; w_ = dr.get('sirka', 24)
+        Q = lambda s, t: (ax + ux * s + nx_ * t, ay + uy * s + ny_ * t)
+        if not Polygon([Q(0, -w_ / 2), Q(L_, -w_ / 2), Q(L_, w_ / 2), Q(0, w_ / 2)]).intersects(DRAWBOX): continue
+        if dr.get('povrch', 'trava') != 'trava':                 # zpevněná dráha: asfalt s bílou osou
+            fill(Polygon([Q(0, -w_ / 2), Q(L_, -w_ / 2), Q(L_, w_ / 2), Q(0, w_ / 2)]), C['road'], block=True)
+            line(LineString([Q(30, 0), Q(L_ - 30, 0)]), C['marking'], 0.6); continue
+        fill(Polygon([Q(0, -w_ / 2), Q(L_, -w_ / 2), Q(L_, w_ / 2), Q(0, w_ / 2)]), C['park'], block=True)
+        for k in range(1, int(w_ // 4), 2):                   # pásy po sečení podél dráhy
+            fill(Polygon([Q(0, -w_ / 2 + k * 4), Q(L_, -w_ / 2 + k * 4), Q(L_, -w_ / 2 + k * 4 + 4), Q(0, -w_ / 2 + k * 4 + 4)]), C['pitch'], block=True)
+        s_ = 0.0
+        while s_ <= L_:                                        # okrajové značky (bílé desky) po 60 m
+            for t_ in (-w_ / 2, w_ / 2):
+                fill(Polygon([Q(s_ - 1.2, t_ - 0.6), Q(s_ + 1.2, t_ - 0.6), Q(s_ + 1.2, t_ + 0.6), Q(s_ - 1.2, t_ + 0.6)]), C['marking'])
+            s_ += 60.0
+        for s_ in (1.5, L_ - 1.5):                             # prahy: příčná řada značek
+            for t_ in range(-int(w_ / 2) + 3, int(w_ / 2) - 2, 5):
+                fill(Polygon([Q(s_ - 0.6, t_ - 1.2), Q(s_ + 0.6, t_ - 1.2), Q(s_ + 0.6, t_ + 1.2), Q(s_ - 0.6, t_ + 1.2)]), C['marking'])
+    if _L.get('odstavna'): fill(Polygon([LL(q) for q in _L['odstavna']]), C['industrial'], block=True)
+    if _L.get('pojizdeni'): line(LineString([LL(q) for q in _L['pojizdeni']]), C['road'], 9.0, block=True)
 
 # kontrolní ohraničení zón upřesněných podle snímků (geo.SAT_OUTLINE, po kontrole vypnout)
 if getattr(geo, 'SAT_OUTLINE', False):
