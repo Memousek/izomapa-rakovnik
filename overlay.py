@@ -7,10 +7,13 @@ import heapq, json, math
 import numpy as np
 from shapely.geometry import MultiPoint
 import os
-from geo import CAM_X, CAM_Y, CHUNKS, HALF, KX, KY, LAT0, LON0, MESTO, Image2D, chunk_center, chunk_dir, to_local
+from geo import CAM_X, CAM_Y, CHUNKS, HALF, KX, KY, LAT0, LON0, MESTO, MPP_OVERLAY, Image2D, chunk_center, chunk_dir, to_local
 
 # souřadnice obrázku = pixely čtverce (0, 0); ostatní čtverce leží mimo (záporné / větší souřadnice)
 info = json.load(open('build/tiles_autumn/info.json'))
+if info['mpp'] != MPP_OVERLAY:          # detailní rozlišení: dlaždice jsou jemnější, obrysy a animace prohlížeče zůstávají v pixelech 0,2 m
+    k = info['mpp'] / MPP_OVERLAY
+    info = {**info, 'mpp': MPP_OVERLAY, 'width': round(info['width'] * k), 'height': round(info['height'] * k)}
 im = Image2D(info)
 W, H = info['width'], info['height']
 OFF = (0.0, 0.0)          # posun aktuálně zpracovávaného čtverce (lokální -> společné souřadnice)
@@ -144,7 +147,7 @@ for chunk in chunks:
     # budovy: obrys = konvexní obal půdorysu dole a nahoře
     for b in merge_parts(src['buildings']):
         ring = np.array(b['ring'])
-        top = b['top'] + (22 if b['cls'] == 'kostel' else 0.6)
+        top = b['top'] + (22 if b['cls'] == 'kostel' and not b.get('pam') else 0.6)   # věž kostela (vlastní model památky ji má ve vršku)
         pts = [px(x, y, z)[:2] for x, y in ring for z in (b['base'], top)]
         hull = MultiPoint(pts).convex_hull
         if hull.geom_type != 'Polygon': continue
@@ -448,8 +451,12 @@ for a_n, b_n, n_ in TRAM_LINES:
     print('tramvaj', a_n, '–', b_n, round(sum(math.hypot(x1 - x0, y1 - y0) for (x0, y0), (x1, y1) in zip(on, on[1:]))), 'm', len(st), 'zastávek')
 # semafory (nastroje/semafory.py): [x, y, křižovatka] ve společných souřadnicích; silnicím je přiřadí prohlížeč
 signals = [[round(float(x), 1), round(float(y), 1), j] for la, lo, j in json.load(open('assets/semafory.json')) for x, y in [to_local(lo, la)]] if os.path.exists('assets/semafory.json') else []
+import plugins as _plugins
+def _plugin_xy(a, b, is_world=False):
+    global OFF; OFF = (0.0, 0.0); x, y = (float(a), float(b)) if is_world else to_local(float(b), float(a)); return list(px(float(x), float(y), gz(x, y))[:2])
+_doplnky = _plugins.load_and_run_plugins(MESTO, {**cam, 'w': W, 'h': H}, _plugin_xy)
 json.dump({'w': W, 'h': H, 'cam': cam, 'districts': districts, 'needs': needs, 'xmas': nam, 'chunks': {CKEY[c]: CHUNKS[c] for c in chunks}, 'bus': bus_route, 'trams': trams, 'decks': decks,
-           'streets': streets, 'places': places, 'neighbors': neighbors, **({'signals': signals} if signals else {})},
+           'streets': streets, 'places': places, 'neighbors': neighbors, **({'signals': signals} if signals else {}), **({'doplnky': _doplnky} if _doplnky else {})},
           open('site/overlay.json', 'w'), separators=(',', ':'), ensure_ascii=False)
 json.dump(addr_index, open('site/search.json', 'w'), separators=(',', ':'), ensure_ascii=False)   # adresy pro hledání, načte se až při psaní
 print('čtverců', len(chunks), 'budov', sum(len(v['buildings']) for v in per_chunk.values()), 'adres', len(addr_index),
