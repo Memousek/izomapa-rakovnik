@@ -399,6 +399,33 @@ const KAR = {
     } },
 };
 const DISKY = { ocel: DISK, alu: '#d9dce0', cerna: '#1f2023', zlata: '#c9a227' };
+
+// ---------- hotové modely auta hráče (glTF/GLB ve web/jizda_modely/ -> site/jizda/modely/) ----------
+// Kenney Car Kit 3.1 (www.kenney.nl, CC0). V souboru: předek +z, vlevo +x, nahoru +y, kola jako uzly wheel-front-left…
+// f: soubor, d: délka ve hře (m), lak: proužek palety colormap.png [sloupec 0–15, řádek 0–3], který se přebarví barvou laku
+// (null = model má vlastní barvy, např. policie), sv: přední a zadní světla [y0, y1] jako podíl výšky karoserie,
+// n: náhradní karoserie z KAR, dokud se soubor nenačte. Kreslená auta jsou vysoká a široká: výška a šířka se zmenší
+// (VYSKA, SIRKA vůči délce), kola se zmenší stejně jako výška, aby zůstala kulatá.
+export const HOTOVE = {
+  m_sedan: { f: 'sedan', d: 4.5, lak: [13, 1], n: 'sedan' },
+  m_sedan_sport: { f: 'sedan-sports', d: 4.5, lak: [13, 1], n: 'sedan' },
+  m_hatch_sport: { f: 'hatchback-sports', d: 4.2, lak: [7, 1], n: 'hatch' },
+  m_suv: { f: 'suv', d: 4.6, lak: [7, 1], n: 'suv' },
+  m_suv_lux: { f: 'suv-luxury', d: 4.8, lak: [9, 1], n: 'suv' },
+  m_van: { f: 'van', d: 5.0, lak: [15, 1], n: 'van' },
+  m_taxi: { f: 'taxi', d: 4.5, lak: null, n: 'sedan' },
+  m_policie: { f: 'police', d: 4.7, lak: null, n: 'sedan' },
+  m_zavodni: { f: 'race', d: 4.6, lak: [13, 1], n: 'sport' },
+  m_futur: { f: 'race-future', d: 4.6, lak: [15, 1], n: 'sport' },
+  m_sanitka: { f: 'ambulance', d: 5.8, lak: null, n: 'van' },
+  m_dodavka: { f: 'delivery', d: 6.2, lak: [7, 1], n: 'van' },
+  m_nakladak: { f: 'truck', d: 5.8, lak: [7, 1], n: 'pickup' },
+  m_hasici: { f: 'firetruck', d: 7.5, lak: null, n: 'van' },
+  m_popelar: { f: 'garbage-truck', d: 7.5, lak: [7, 1], n: 'van' },
+  m_traktor: { f: 'tractor', d: 3.8, lak: null, n: 'pickup' },
+};
+const SIRKA = 0.74, VYSKA = 0.8;
+const sablony = new Map(), nacitani = new Map();             // načtené šablony a rozběhnutá stahování (klíč z HOTOVE)
 function rozsir(prof, d) {                                 // profil o kousek větší (pruhy a dvoubarevný lak těsně nad lakem), bez zúžení
   const cx = prof.reduce((s, p) => s + p[0], 0) / prof.length, cy = prof.reduce((s, p) => s + p[1], 0) / prof.length;
   return prof.map(([x, y]) => { const dx = x - cx, dy = y - cy, l = Math.hypot(dx, dy) || 1; return [x + dx / l * d, y + dy / l * d]; });
@@ -637,18 +664,116 @@ export function vytvorVozidla(THREE, scene, max = 1400) {
     autoHrace,
     prestavAuto(g, a) { uvolniAuto(g); naplnAuto(g, a); },   // stejná skupina (poloha, viditelnost zůstanou), nové díly
     uvolniAuto,
+    HOTOVE,
+    nactiModel,                                              // (k) -> Promise: hotový model z HOTOVE je připravený
+    pripraveno,                                              // (a) -> false, dokud se auto staví z náhradní karoserie
   };
+
+  // ---------- hotové modely (HOTOVE): načtou se až při prvním použití, do té doby náhradní karoserie ----------
+  function nactiModel(k) {                                   // Promise se šablonou (null = není hotový model nebo se nenačetl)
+    const H = HOTOVE[k];
+    if (!H) return Promise.resolve(null);
+    if (sablony.has(k)) return Promise.resolve(sablony.get(k));
+    if (!nacitani.has(k)) nacitani.set(k, (async () => {
+      const { GLTFLoader } = await import('./three/loaders/GLTFLoader.js');
+      const gltf = await new GLTFLoader().loadAsync(new URL(`./modely/${H.f}.glb`, import.meta.url).href);
+      const t = sablona(gltf.scene, H);
+      sablony.set(k, t);
+      return t;
+    })().catch((e) => { console.warn('Model auta se nenačetl:', k, e); nacitani.delete(k); return null; }));
+    return nacitani.get(k);
+  }
+  function pripraveno(a) { return !a || typeof a !== 'object' || !HOTOVE[a.k] || sablony.has(a.k); }
+  // tvary jednou na model, převedené do souřadnic hry: předek +x, vpravo +z, počátek uprostřed na zemi
+  function sablona(koren, H) {
+    koren.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(koren), s = H.d / (box.max.z - box.min.z);
+    const R = new THREE.Matrix4().makeRotationY(Math.PI / 2);
+    const M = new THREE.Matrix4().makeScale(s * SIRKA, s * VYSKA, s).premultiply(R);                 // karoserie
+    const MK = new THREE.Matrix4().makeScale(s * SIRKA, s * VYSKA, s * VYSKA).premultiply(R);       // kolo kolem svého středu
+    const kusy = [];
+    koren.traverse((o) => {
+      if (!o.isMesh) return;
+      const g = o.geometry.clone().applyMatrix4(o.matrixWorld), kolo = /^wheel-(front|back)-(left|right)/.test(o.name), poz = new THREE.Vector3();
+      if (kolo) { g.computeBoundingBox(); g.boundingBox.getCenter(poz); g.translate(-poz.x, -poz.y, -poz.z); g.applyMatrix4(MK); poz.applyMatrix4(M); }
+      else g.applyMatrix4(M);
+      g.deleteAttribute('tangent'); g.userData.sdilena = true;
+      kusy.push({ g, mat: o.material, kolo, poz });
+    });
+    const b = new THREE.Box3(), v = new THREE.Box3();
+    for (const k of kusy) { k.g.computeBoundingBox(); v.copy(k.g.boundingBox).translate(k.poz); b.union(v); }
+    const sx = (b.min.x + b.max.x) / 2, sz = (b.min.z + b.max.z) / 2;
+    for (const k of kusy) {
+      if (k.kolo) k.poz.sub(new THREE.Vector3(sx, b.min.y, sz)); else k.g.translate(-sx, -b.min.y, -sz);
+      k.g.computeBoundingSphere();
+    }
+    const kola = kusy.filter((k) => k.kolo);
+    return { H, kusy, xf: b.max.x - sx, xr: b.min.x - sx, vyska: b.max.y - b.min.y, hw: (b.max.z - b.min.z) / 2,
+      r: kola.length ? Math.max(...kola.map((k) => k.poz.y)) : 0.35 };
+  }
+  // paleta s jedním proužkem v barvě laku (zachová přechod světla a stínu proužku)
+  function prebarvi(tx, [sl, rd], hex) {
+    const img = tx.image, cv = document.createElement('canvas');
+    cv.width = img.width; cv.height = img.height;
+    const c = cv.getContext('2d'); c.drawImage(img, 0, 0);
+    const w = img.width / 16, h = img.height / 4, x0 = Math.round(sl * w), y0 = Math.round(rd * h);
+    const d = c.getImageData(x0, y0, Math.round(w), Math.round(h)), p = d.data, [R, G, B] = rgb(hex);
+    const jas = (i) => 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2];
+    let ref = 0; for (let i = 0; i < p.length; i += 4) ref += jas(i);
+    ref = ref / (p.length / 4) || 1;
+    for (let i = 0; i < p.length; i += 4) {
+      const q = jas(i) / ref;
+      p[i] = Math.min(255, R * 255 * q); p[i + 1] = Math.min(255, G * 255 * q); p[i + 2] = Math.min(255, B * 255 * q);
+    }
+    c.putImageData(d, x0, y0);
+    const t = new THREE.CanvasTexture(cv);
+    for (const k of ['flipY', 'wrapS', 'wrapT', 'magFilter', 'minFilter', 'generateMipmaps']) t[k] = tx[k];
+    t.colorSpace = THREE.NoColorSpace; t.userData.vlastni = true;
+    return t;
+  }
+  function naplnModel(g, a, t) {                             // díly z šablony; vrací světla { m.P, m.Z, m.R } pro společnou část
+    const H = t.H, mats = new Map(), dy = a.vys === 'vysoky' ? 0.12 : a.vys === 'nizky' ? -0.035 : 0;
+    const material = (src) => {                              // materiál na auto (vlastní kvůli přebarvené paletě)
+      let m = mats.get(src);
+      if (!m) {
+        let map = src.map || null;
+        if (map) map.colorSpace = THREE.NoColorSpace;      // barvy palety bez převodu jako vertex colors ostatních aut
+        if (map && H.lak) map = prebarvi(map, H.lak, a.b1);
+        m = new THREE.MeshLambertMaterial({ map, color: map ? 0xffffff : src.color?.getHex() ?? 0xcccccc });
+        mats.set(src, m);
+      }
+      return m;
+    };
+    for (const k of t.kusy) {
+      const o = new THREE.Mesh(k.g, material(k.mat));
+      o.position.copy(k.poz);
+      if (k.kolo) o.userData.kolo = true; else o.position.y += dy;
+      o.userData.svetlo = false;
+      g.add(o);
+    }
+    // světla jen na noc (ve dne jsou nakreslená v textuře) a brzdová světla: na čele a zádi v podílu výšky
+    const m = { P: sit(), Z: sit(), R: sit(), D: sit() }, [p0, p1] = H.sv || [0.4, 0.5], hw = t.hw;
+    svetla(m, true, t.xf - 0.03, t.vyska * p0 + dy, t.vyska * p1 + dy, hw * 0.5, hw * 0.85);
+    svetla(m, false, t.xr + 0.03, t.vyska * p0 + dy, t.vyska * p1 + dy, hw * 0.55, hw * 0.85);
+    return m;
+  }
 
   function naplnAuto(g, a) {
     if (typeof a === 'string' || !a) a = { ...AUTO_ZAKLAD, b1: a || AUTO_ZAKLAD.b1 };
-    const u = univerzal(a);
+    g.userData.auto = a;
     const pridejDil = (o, svetlo) => { o.userData.svetlo = svetlo; g.add(o); return o; };
-    pridejDil(new THREE.Mesh(geom(u.m.L, true), new THREE.MeshLambertMaterial({ vertexColors: true })), false);
-    pridejDil(new THREE.Mesh(geom(u.m.D, true), matDet), false);
-    const gk = geom(koloHrace(u.kola.r, u.kola.disk, u.kola.w), true);
-    for (const x of u.kola.x) for (const z of [u.kola.z, -u.kola.z]) {
-      const k = pridejDil(new THREE.Mesh(gk, matDet), false);
-      k.position.set(x, u.kola.r, z); k.userData.kolo = true;
+    let u;
+    if (HOTOVE[a.k] && sablony.get(a.k)) u = { m: naplnModel(g, a, sablony.get(a.k)) };
+    else {
+      if (HOTOVE[a.k]) { nactiModel(a.k); a = { ...a, k: HOTOVE[a.k].n }; }   // náhrada; volající přestaví auto po načtení (nactiModel)
+      u = univerzal(a);
+      pridejDil(new THREE.Mesh(geom(u.m.L, true), new THREE.MeshLambertMaterial({ vertexColors: true })), false);
+      pridejDil(new THREE.Mesh(geom(u.m.D, true), matDet), false);
+      const gk = geom(koloHrace(u.kola.r, u.kola.disk, u.kola.w), true);
+      for (const x of u.kola.x) for (const z of [u.kola.z, -u.kola.z]) {
+        const k = pridejDil(new THREE.Mesh(gk, matDet), false);
+        k.position.set(x, u.kola.r, z); k.userData.kolo = true;
+      }
     }
     pridejDil(new THREE.Mesh(geom(spoj(u.m.P, u.m.R), true), matSv), true);   // přední světla i rampa na střeše
     pridejDil(new THREE.Mesh(geom(u.m.Z, true), matSv), true);
@@ -658,17 +783,16 @@ export function vytvorVozidla(THREE, scene, max = 1400) {
     if (mz && mp) for (const [lx, ly, lz] of [[mp.x1 - 0.02, (mp.y0 + mp.y1) / 2, mp.z], [mz.x0 + 0.02, (mz.y0 + mz.y1) / 2 + 0.02, mz.z]]) for (const strana of [-1, 1]) {
       const b = new THREE.Mesh(gBlinkr, matBlinkr); b.position.set(lx, ly, lz * strana); b.userData.blinkr = strana; b.visible = false; g.add(b);
     }
-    g.userData.auto = a;
   }
   function autoHrace(a) { const g = new THREE.Group(); naplnAuto(g, a); return g; }
   function uvolniAuto(g) {                                   // vlastní tvary a lak pryč, sdílené materiály a blinkr zůstanou
     const sdilene = new Set([matDet, matSv, matBrzda, matBlinkr]), geo = new Set(), mat = new Set();
     for (const o of g.children) {
-      if (o.geometry && o.geometry !== gBlinkr) geo.add(o.geometry);
+      if (o.geometry && o.geometry !== gBlinkr && !o.geometry.userData.sdilena) geo.add(o.geometry);   // tvary hotových modelů sdílí šablona
       for (const m of [].concat(o.material || [])) if (!sdilene.has(m)) mat.add(m);
     }
     for (const x of geo) x.dispose();
-    for (const x of mat) x.dispose();
+    for (const x of mat) { if (x.map?.userData.vlastni) x.map.dispose(); x.dispose(); }
     g.clear();
   }
 }

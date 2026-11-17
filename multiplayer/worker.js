@@ -2,11 +2,12 @@
 // Hráči posílají svou polohu 5× za sekundu (web/jizda_sit.js), místnost 5× za sekundu každému pošle hráče do 700 m.
 // Server nic nesimuluje a pohybu věří (pohodová hra), jen zahodí nesmysly a hlídá počet zpráv.
 // Návod k nasazení je v README (Multiplayer); lokálně: npx wrangler dev --config multiplayer/wrangler.jsonc
-import { dekodujStav, zakodujSnimek, vyberBlizke, vymyslJmeno, BARVY, platneAuto } from '../web/jizda_sit.js';
+import { dekodujStav, zakodujSnimek, vyberBlizke, vymyslJmeno, BARVY, platneAuto, platneJmeno } from '../web/jizda_sit.js';
 
 const MAX_HRACU = 100;                  // na jednu místnost (Worker smí exportovat jen třídy a handler)
 const TIK = 200;                         // ms mezi snímky
-const ZASTARALY = 5000;                  // hráč bez zprávy déle než 5 s se neposílá (zamrzlá karta)
+const ZASTARALY = 15000;                 // hráč bez zprávy déle než 15 s se neposílá (zamrzlá karta; na pozadí posílá aspoň za 2 s)
+const JMENO_ZA = 3000;                   // jméno jde změnit nejvýš jednou za 3 s
 const LIMIT_ZPRAV = 30;                  // zpráv za sekundu; víc se zahodí, trojnásobek = odpojit
 
 export class Mistnost {
@@ -56,17 +57,27 @@ export class Mistnost {
     h.stav = s; h.t = ted;
     this.spustTik();
   }
-  // text od hráčů: jen vzhled auta z garáže (žádný chat). Auto se ověří proti seznamu voleb a pošle ostatním.
+  // text od hráčů: vzhled auta z garáže a vlastní jméno (žádný chat). Obojí se ověří (jizda_sit.js) a pošle ostatním.
   text(ws, h, msg) {
     if (msg.length > 600) return;
     let m; try { m = JSON.parse(msg); } catch { return; }
-    if (m?.t !== 'auto') return;
-    const a = platneAuto(m.a);
-    if (!a) return;
-    h.auto = a;
-    ws.serializeAttachment?.({ id: h.id, jmeno: h.jmeno, barva: h.barva, auto: a });
-    this.vsem(JSON.stringify({ t: 'auto', id: h.id, a }), ws);
+    if (m?.t === 'auto') {
+      const a = platneAuto(m.a);
+      if (!a) return;
+      h.auto = a; this.priloha(ws, h);
+      this.vsem(JSON.stringify({ t: 'auto', id: h.id, a }), ws);
+    } else if (m?.t === 'jmeno') {
+      const ted = Date.now();
+      if (ted - (h.jmenoT || 0) < JMENO_ZA) { this.posli(ws, JSON.stringify({ t: 'chyba', co: 'jmeno', k: 'limit', d: 'Jméno jde změnit nejvýš jednou za 3 sekundy.' })); return; }
+      const j = platneJmeno(m.j);
+      if (!j) { this.posli(ws, JSON.stringify({ t: 'chyba', co: 'jmeno', k: 'neplatne', d: 'Jméno musí mít 2–20 znaků (písmena, číslice, mezera, . - _) a nesmí být sprosté.' })); return; }
+      const mala = j.toLocaleLowerCase('cs');
+      if ([...this.hraci.values()].some((o) => o !== h && o.jmeno.toLocaleLowerCase('cs') === mala)) { this.posli(ws, JSON.stringify({ t: 'chyba', co: 'jmeno', k: 'obsazene', d: 'Tohle jméno už má jiný hráč.' })); return; }
+      h.jmenoT = ted; h.jmeno = j; this.priloha(ws, h);
+      this.vsem(JSON.stringify({ t: 'jmeno', id: h.id, j }));   // i odesílateli: potvrzení
+    }
   }
+  priloha(ws, h) { ws.serializeAttachment?.({ id: h.id, jmeno: h.jmeno, barva: h.barva, auto: h.auto }); }
   webSocketClose(ws) { this.odeber(ws); }
   webSocketError(ws) { this.odeber(ws); }
 

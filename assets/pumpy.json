@@ -1,0 +1,299 @@
+[
+{
+"id": "node/11183368393",
+"lat": 50.097589,
+"lon": 13.725267,
+"druh": "pumpa",
+"paliva": []
+},
+{
+"id": "node/12182443113",
+"lat": 50.083132,
+"lon": 13.726364,
+"nazev": "Garden s.r.o - LPG a propan-butan",
+"oteviraci": "Mo-Fr 07:00-19:00; Sa-Su,PH 08:00-14:00",
+"web": "https://www.lpghurviny.cz/",
+"ulice": "Huřviny",
+"cp": "2528",
+"druh": "pumpa",
+"paliva": [
+"lpg",
+"propan"
+]
+},
+{
+"id": "node/13992908954",
+"lat": 50.145858,
+"lon": 13.76247,
+"evcs": "06917230",
+"druh": "pumpa",
+"paliva": []
+},
+{
+"id": "node/1975902001",
+"lat": 50.093426,
+"lon": 13.726334,
+"znacka": "Benzina",
+"provozovatel": "Unipetrol RPA, s.r.o. – Benzina",
+"nazev": "Benzina",
+"oteviraci": "Mo-Su 05:00-23:00",
+"druh": "pumpa",
+"paliva": [
+"95",
+"nafta",
+"lpg"
+]
+},
+{
+"id": "node/3404623235",
+"lat": 50.107956,
+"lon": 13.714205,
+"znacka": "Prim",
+"provozovatel": "PETRA s.r.o.",
+"nazev": "Prim Rakovník",
+"oteviraci": "05:00-22:00",
+"web": "http://www.csprim.cz/",
+"druh": "pumpa",
+"paliva": [
+"95",
+"nafta",
+"lpg"
+]
+},
+{
+"id": "node/3407646152",
+"lat": 50.09447,
+"lon": 13.725622,
+"provozovatel": "Stavební podnik, spol. s r.o.",
+"nazev": "Stavební podnik, spol. s r.o.",
+"oteviraci": "24/7",
+"druh": "pumpa",
+"paliva": [
+"95",
+"nafta"
+]
+},
+{
+"id": "node/3407646163",
+"lat": 50.100375,
+"lon": 13.717731,
+"provozovatel": "CS TRANS, s.r.o.",
+"nazev": "CS TRANS, s.r.o.",
+"oteviraci": "24/7",
+"ulice": "V Lubnici",
+"druh": "pumpa",
+"paliva": [
+"95",
+"nafta",
+"adblue"
+]
+},
+{
+"id": "node/693138582",
+"lat": 50.172761,
+"lon": 13.741072,
+"znacka": "Tank Ono",
+"provozovatel": "Tank Ono",
+"nazev": "Tank Ono",
+"oteviraci": "24/7",
+"druh": "pumpa",
+"paliva": [
+"95",
+"nafta",
+"adblue"
+],
+"vzduch": 1
+},
+{
+"id": "node/874308723",
+"lat": 50.102119,
+"lon": 13.739546,
+"znacka": "Benzina",
+"provozovatel": "Unipetrol RPA, s.r.o. – Benzina",
+"nazev": "Orlen",
+"oteviraci": "24/7",
+"druh": "pumpa",
+"paliva": [
+"95",
+"nafta",
+"adblue"
+],
+"vzduch": 1
+},
+{
+"id": "node/876214527",
+"lat": 50.105725,
+"lon": 13.751085,
+"provozovatel": "RoBiN OIL s.r.o.",
+"nazev": "RoBiN OIL Rakovník",
+"oteviraci": "24/7",
+"web": "http://www.robinoil.cz/index.php/cerpaci-stanice/vyhledavani-cs/63",
+"druh": "pumpa",
+"paliva": [
+"95",
+"nafta",
+"lpg"
+],
+"vzduch": 1
+},
+{
+"id": "way/1321952897",
+"lat": 50.17274,
+"lon": 13.739965,
+"nazev": "Optima Gaz Krupá",
+"druh": "pumpa",
+"paliva": []
+},
+{
+"id": "node/11194675773",
+"lat": 50.10131,
+"lon": 13.730799,
+"druh": "ev",
+"konektory": [],
+"stojanu": 2
+},
+{
+"id": "node/11551954422",
+"lat": 50.171992,
+"lon": 13.738652,
+"znacka": "E.ON Drive",
+"provozovatel": "E.ON",
+"druh": "ev",
+"konektory": [],
+"stojanu": 3
+},
+{
+"id": "node/11903244737",
+"lat": 50.097894,
+"lon": 13.724292,
+"provozovatel": "ANEXIA s.r.o.",
+"zakaznici": 1,
+"druh": "ev",
+"konektory": [
+[
+"type2_combo",
+1,
+"22 kW"
+]
+],
+"stojanu": 1
+},
+{
+"id": "node/12606858062",
+"lat": 50.102358,
+"lon": 13.746113,
+"zakaznici": 1,
+"druh": "ev",
+"konektory": [
+[
+"type2",
+1,
+"22 kW"
+]
+]
+},
+{
+"id": "node/9718687814",
+"lat": 50.109787,
+"lon": 13.737118,
+"znacka": "futurego",
+"provozovatel": "ČEZ",
+"nazev": "futurego",
+"oteviraci": "24/7",
+"druh": "ev",
+"konektory": [
+[
+"chademo",
+1,
+"50 kW"
+],
+[
+"type2",
+1,
+"32 A"
+],
+[
+"type2_combo",
+1,
+"50 kW"
+]
+],
+"stojanu": 1
+},
+{
+"id": "node/11286432922",
+"lat": 50.104389,
+"lon": 13.729538,
+"znacka": "Powerbox.one",
+"provozovatel": "Rakovník",
+"nazev": "Město Rakovník",
+"oteviraci": "24/7",
+"web": "https://powerbox.one/place/mesto-rakovnik-husovo-namesti/",
+"druh": "kolo",
+"konektory": [
+[
+"bosch_3pin",
+1,
+""
+],
+[
+"schuko",
+2,
+""
+],
+[
+"shimano_steps_5pin",
+1,
+""
+],
+[
+"xlr_3pin_cable",
+1,
+""
+]
+],
+"stojanu": 1,
+"placene": 0,
+"overeni": [
+"none"
+]
+},
+{
+"id": "node/11286432923",
+"lat": 50.100582,
+"lon": 13.736038,
+"znacka": "Powerbox.one",
+"provozovatel": "Rakovník",
+"nazev": "Městský plavecký bazén Rakovník",
+"oteviraci": "24/7",
+"web": "https://powerbox.one/place/mestsky-plavecky-bazen-rakovnik/",
+"druh": "kolo",
+"konektory": [
+[
+"bosch_3pin",
+1,
+""
+],
+[
+"schuko",
+2,
+""
+],
+[
+"shimano_steps_5pin",
+1,
+""
+],
+[
+"xlr_3pin_cable",
+1,
+""
+]
+],
+"stojanu": 1,
+"placene": 0,
+"overeni": [
+"none"
+]
+}
+]

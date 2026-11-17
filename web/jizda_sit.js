@@ -7,7 +7,7 @@
 //   u16 id, u8 režim, u8 příznaky, f32 x, f32 y, f32 z, i16 směr, i16 rychlost
 export const STAV = 1, SNIMEK = 2, VEL = 20;
 export const REZIM = { pesky: 0, auto: 1, bus: 2 };
-export const PRIZNAK = { svetla: 1, brzda: 2, vlevo: 4, vpravo: 8, klakson: 16 };
+export const PRIZNAK = { svetla: 1, brzda: 2, vlevo: 4, vpravo: 8, klakson: 16, pryc: 32 };   // pryc: karta na pozadí
 export const DOSAH = 700, MAX_BLIZKYCH = 32;                // komu se kdo posílá: do 700 m, nejvýš 32 nejbližších
 const MEZ_XY = 100000, MEZ_Z = [-500, 3000];                // rozumný rozsah souřadnic (m); jinak zprávu zahodit
 
@@ -62,7 +62,7 @@ export function vyberBlizke(ja, ostatni, dosah = DOSAH, max = MAX_BLIZKYCH) {
     .sort((a, b) => a[1] - b[1]).slice(0, max).map(([o]) => o);
 }
 
-// jména přiděluje server (volný text od hráčů zatím není: nic se nemusí moderovat)
+// jména přiděluje server; hráč si je může změnit (platneJmeno níže, server hlídá i obsazená jména)
 const PRIDAVNA = ['Rychlý', 'Líný', 'Veselý', 'Tichý', 'Bystrý', 'Statečný', 'Ospalý', 'Zvědavý', 'Mlsný', 'Chytrý', 'Hbitý',
   'Klidný', 'Noční', 'Ranní', 'Toulavý', 'Uprášený', 'Zelený', 'Modrý', 'Rozvážný', 'Nebojácný'];
 const ZVIRATA = ['jezevec', 'ježek', 'bobr', 'kos', 'čáp', 'sokol', 'rys', 'jelen', 'zajíc', 'kapr', 'sumec', 'mlok', 'dudek',
@@ -81,7 +81,11 @@ export const BARVY = ['#e8443a', '#2f8cff', '#2fbf71', '#ffb020', '#b65cff', '#0
 // ---------- univerzální auto hráče (konfigurátor jizda/garaz.js, model jizda/vozidla.js autoHrace) ----------
 // Stejná pravidla platí v prohlížeči i na serveru: cizí auto se postaví jen z hodnot z těchto seznamů a barev #rrggbb.
 export const AUTO_VOLBY = {
-  k: { hatch: 'Hatchback', sedan: 'Sedan', kombi: 'Kombi', suv: 'SUV', pickup: 'Pick-up', sport: 'Sporťák', van: 'Dodávka' },
+  k: { hatch: 'Hatchback', sedan: 'Sedan', kombi: 'Kombi', suv: 'SUV', pickup: 'Pick-up', sport: 'Sporťák', van: 'Dodávka',
+    // hotové modely (m_…, soubory a měřítko v jizda/vozidla.js HOTOVE): Kenney Car Kit, CC0
+    m_sedan: 'Sedan', m_sedan_sport: 'Sportovní sedan', m_hatch_sport: 'Hot hatch', m_suv: 'SUV', m_suv_lux: 'Luxusní SUV',
+    m_van: 'Van', m_taxi: 'Taxi', m_policie: 'Policie', m_zavodni: 'Formule', m_futur: 'Formule budoucnosti', m_sanitka: 'Sanitka',
+    m_dodavka: 'Dodávka', m_nakladak: 'Náklaďák', m_hasici: 'Hasiči', m_popelar: 'Popeláři', m_traktor: 'Traktor' },
   v: { zadny: 'Jednobarevné', pruhy: 'Závodní pruhy', bok: 'Boční pruh', strecha: 'Barevná střecha', dvoubarevne: 'Dvoubarevné' },
   kola: { ocel: 'Ocelová', alu: 'Hliníková', cerna: 'Černá', zlata: 'Zlatá', barva: 'V barvě doplňku' },
   vys: { nizky: 'Snížený', normal: 'Normální', vysoky: 'Zvýšený' },
@@ -93,8 +97,28 @@ const BARVA = /^#[0-9a-f]{6}$/;
 export function platneAuto(a) {
   if (!a || typeof a !== 'object') return null;
   const b1 = String(a.b1 || '').toLowerCase(), b2 = String(a.b2 || '').toLowerCase();
-  if (!(a.k in AUTO_VOLBY.k) || !(a.v in AUTO_VOLBY.v) || !(a.kola in AUTO_VOLBY.kola) || !(a.vys in AUTO_VOLBY.vys)) return null;
+  const ma = (klic) => typeof a[klic] === 'string' && Object.hasOwn(AUTO_VOLBY[klic], a[klic]);   // ne zděděné klíče (toString…)
+  if (!ma('k') || !ma('v') || !ma('kola') || !ma('vys')) return null;
   if (!BARVA.test(b1) || !BARVA.test(b2) || (a.dopl !== undefined && !Array.isArray(a.dopl))) return null;
   const dopl = Object.keys(AUTO_VOLBY.dopl).filter((d) => (a.dopl || []).includes(d));
   return { k: a.k, b1, b2, v: a.v, kola: a.kola, vys: a.vys, dopl };
+}
+
+// ---------- vlastní jméno hráče ----------
+// 2–20 znaků: písmena (i s diakritikou), číslice, mezera, tečka, pomlčka, podtržítko; aspoň jedno písmeno.
+// Hrubý filtr sprostých a nenávistných slov (bez diakritiky, s náhradami 0→o, 1→i, 3→e, 4→a, 5→s, @→a, $→s).
+// Nic nezachytí všechno: kdo se vyhne filtru, zůstane jen jménem nad autem, chat ve hře není.
+const ZAKAZANA = ['kurv', 'kurev', 'pica', 'picus', 'kokot', 'curak', 'zmrd', 'mrdk', 'prdel', 'hovn', 'buzna', 'buzerant',
+  'negr', 'cigan', 'cikan', 'hitler', 'nacist', 'fuck', 'shit', 'bitch', 'cunt', 'nigg', 'penis', 'vagin', 'porn', 'debil',
+  'retard', 'kreten', 'hajzl', 'sracka', 'chcip', 'admin', 'moderator'];
+const ZAKAZANA_SLOVA = ['nazi', 'dick', 'suka', 'mrd', 'pic', 'idiot', 'server'];   // krátké: jen na začátku slova (Špička, Epicentrum projdou)
+export function platneJmeno(s) {
+  if (typeof s !== 'string') return null;
+  const j = s.normalize('NFC').replace(/\s+/g, ' ').trim();
+  if (j.length < 2 || j.length > 20 || !/^[\p{L}\p{N} ._-]+$/u.test(j) || !/\p{L}/u.test(j)) return null;
+  const slova = j.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e').replace(/4/g, 'a').replace(/5/g, 's').split(/[^a-z]+/).filter(Boolean);
+  const holy = slova.join('');
+  if (ZAKAZANA.some((z) => holy.includes(z)) || slova.some((w) => ZAKAZANA_SLOVA.some((z) => w.startsWith(z)))) return null;
+  return j;
 }

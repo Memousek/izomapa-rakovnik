@@ -42,18 +42,19 @@ export function vytvorGaraz(THREE, api) {
 
   // ---------- ovládání ----------
   const prvky = [];                                          // funkce, které podle `a` nastaví stav tlačítek
-  function radek(nadpis, obsah) { const r = el('div', 'gar-r'); r.append(el('span', 'lbl', nadpis), obsah); koren.append(r); }
-  function volby(klic, nadpis) {
+  const jenVlastni = [];                                     // řádky, které u hotového modelu nemají smysl (vzor, kola, doplňky)
+  function radek(nadpis, obsah, vlastni) { const r = el('div', 'gar-r'); r.append(el('span', 'lbl', nadpis), obsah); koren.append(r); if (vlastni) jenVlastni.push(r); return r; }
+  function volby(klic, nadpis, vlastni, filtr = () => true) {
     const box = el('div', 'gar-volby'); box.setAttribute('role', 'group'); box.setAttribute('aria-label', nadpis);
-    const bt = Object.entries(AUTO_VOLBY[klic]).map(([k, txt]) => {
+    const bt = Object.entries(AUTO_VOLBY[klic]).filter(([k]) => filtr(k)).map(([k, txt]) => {
       const b = el('button', 'px-btn', txt); b.type = 'button';
       b.addEventListener('click', () => zmen({ [klic]: k }));
       box.append(b); return [k, b];
     });
     prvky.push(() => { for (const [k, b] of bt) b.setAttribute('aria-pressed', String(a[klic] === k)); });
-    radek(nadpis, box);
+    return radek(nadpis, box, vlastni);
   }
-  function barvy(klic, nadpis) {
+  function barvy(klic, nadpis, jenVl) {
     const box = el('div', 'gar-barvy'); box.setAttribute('role', 'group'); box.setAttribute('aria-label', nadpis);
     const bt = LAKY.map((c) => {
       const b = el('button'); b.type = 'button'; b.style.background = c; b.title = c; b.setAttribute('aria-label', `${nadpis} ${c}`);
@@ -64,14 +65,22 @@ export function vytvorGaraz(THREE, api) {
     vlastni.addEventListener('input', () => zmen({ [klic]: vlastni.value }));
     box.append(vlastni);
     prvky.push(() => { for (const [c, b] of bt) b.setAttribute('aria-pressed', String(a[klic] === c)); vlastni.value = a[klic]; });
-    radek(nadpis, box);
+    return radek(nadpis, box, jenVl);
   }
-  volby('k', 'Karoserie');
-  barvy('b1', 'Barva laku');
-  volby('v', 'Vzor');
-  barvy('b2', 'Barva vzoru, spoileru a doplňků');
-  volby('kola', 'Kola');
+  const hotovy = (k) => k.startsWith('m_');                 // hotové modely z jizda/vozidla.js HOTOVE
+  volby('k', 'Karoserie', false, (k) => !hotovy(k));
+  volby('k', 'Hotové modely (Kenney, CC0)', false, hotovy);
+  const rLak = barvy('b1', 'Barva laku');
+  const pLak = el('p', 'gar-pozn', 'Tenhle model má vlastní barvy.'); rLak.append(pLak);
+  volby('v', 'Vzor', true);
+  barvy('b2', 'Barva vzoru, spoileru a doplňků', true);
+  volby('kola', 'Kola', true);
   volby('vys', 'Podvozek');
+  prvky.push(() => {
+    const m = hotovy(a.k), lak = !m || api.VOZ.HOTOVE?.[a.k]?.lak;
+    for (const r of jenVlastni) r.hidden = m;
+    rLak.querySelector('.gar-barvy').hidden = !lak; pLak.hidden = !!lak;
+  });
   {
     const box = el('div', 'gar-dopl');
     const ch = Object.entries(AUTO_VOLBY.dopl).map(([k, txt]) => {
@@ -80,7 +89,7 @@ export function vytvorGaraz(THREE, api) {
       l.append(c, txt); box.append(l); return [k, c];
     });
     prvky.push(() => { for (const [k, c] of ch) c.checked = a.dopl.includes(k); });
-    radek('Doplňky', box);
+    radek('Doplňky', box, true);
   }
   const tl = el('div', 'gar-tl');
   const bNahoda = el('button', 'px-btn', 'Náhodné auto'), bVychozi = el('button', 'px-btn', 'Výchozí');
@@ -94,6 +103,10 @@ export function vytvorGaraz(THREE, api) {
   bVychozi.addEventListener('click', () => zmen({ ...AUTO_VYCHOZI }));
   tl.append(bNahoda, bVychozi);
   koren.append(tl, el('p', 'gar-pozn', 'Auto se uloží v tomhle prohlížeči. Ve hře s ostatními ho všichni vidí přesně takhle.'));
+  const kredit = el('p', 'gar-pozn', 'Hotové modely: Kenney Car Kit (');
+  const odkaz = el('a', '', 'kenney.nl'); odkaz.href = 'https://kenney.nl/assets/car-kit'; odkaz.target = '_blank'; odkaz.rel = 'noopener';
+  kredit.append(odkaz, ', licence CC0).');
+  koren.append(kredit);
   api.panel.append(koren);
 
   // ---------- náhled: vlastní malé plátno, auto se pomalu otáčí, tažením ho otočíš ----------
@@ -110,6 +123,7 @@ export function vytvorGaraz(THREE, api) {
     scena.add(zem);
     kam = new THREE.PerspectiveCamera(32, 2, 0.1, 50);
     auto = api.VOZ.autoHrace(a); scena.add(auto); svetlaPryc();
+    if (!api.VOZ.pripraveno(a)) { const cil = a; api.VOZ.nactiModel(a.k).then((t) => { if (t && a === cil) { api.VOZ.prestavAuto(auto, a); svetlaPryc(); } }); }
     return true;
   }
   function svetlaPryc() { for (const o of auto.children) if (o.userData.svetlo || o.userData.brzda || o.userData.blinkr !== undefined) o.visible = false; }
@@ -140,6 +154,10 @@ export function vytvorGaraz(THREE, api) {
     for (const f of prvky) f();
     if (auto) { api.VOZ.prestavAuto(auto, a); svetlaPryc(); }
     api.zmena(a);
+    if (!api.VOZ.pripraveno(a)) {                            // hotový model se teprve stahuje: zatím náhradní karoserie, pak znovu
+      const cil = a;
+      api.VOZ.nactiModel(a.k).then((t) => { if (t && a === cil) { if (auto) { api.VOZ.prestavAuto(auto, a); svetlaPryc(); } api.zmena(a); } });
+    }
   }
   for (const f of prvky) f();
 

@@ -1,0 +1,274 @@
+{
+ "stazeno": "2026-11-17 19:53",
+ "zdroj": "https://www.mesto-rakovnik.cz/aktualne/uzavirky-komunikaci/",
+ "uzavirky": [
+  {
+   "nazev": "Budovcova",
+   "line": [
+    [
+     50.107539,
+     13.71583
+    ],
+    [
+     50.107491,
+     13.715806
+    ],
+    [
+     50.107379,
+     13.715755
+    ],
+    [
+     50.107283,
+     13.715742
+    ],
+    [
+     50.107216,
+     13.715749
+    ],
+    [
+     50.107096,
+     13.715803
+    ],
+    [
+     50.107067,
+     13.715804
+    ],
+    [
+     50.107041,
+     13.715797
+    ],
+    [
+     50.106859,
+     13.715659
+    ]
+   ],
+   "od": "2026-09-21",
+   "do": "2026-11-22",
+   "popis": "Úplná uzavírka, 3. etapa: ul. Budovcova v úseku od ul. Dukelských hrdinů po křižovatku s ul. Pod Nemocnicí, včetně této křižovatky. Důvod: provádění stavebních prací při rekonstrukci uvedených místních komunikacích.",
+   "objizdka": "po přilehlých místních komunikacích a silnici č. II/227 (ul. Dukel. hrdinů) dle aktuální etapy.",
+   "zdroj": "Město Rakovník",
+   "url": "https://www.mesto-rakovnik.cz/aktualne/uzavirky-komunikaci/ul-vackova-pod-nemocnici-a-budovcova/",
+   "auto": 1,
+   "puvod": "web"
+  },
+  {
+   "nazev": "V Jamce",
+   "line": [
+    [
+     50.106646,
+     13.730035
+    ],
+    [
+     50.10667,
+     13.730086
+    ],
+    [
+     50.106694,
+     13.73013
+    ],
+    [
+     50.10675,
+     13.730229
+    ],
+    [
+     50.106816,
+     13.730348
+    ],
+    [
+     50.10694,
+     13.730564
+    ],
+    [
+     50.10696,
+     13.730537
+    ],
+    [
+     50.106986,
+     13.730528
+    ],
+    [
+     50.107013,
+     13.730533
+    ],
+    [
+     50.107038,
+     13.730547
+    ],
+    [
+     50.107054,
+     13.730573
+    ],
+    [
+     50.107061,
+     13.730601
+    ],
+    [
+     50.107186,
+     13.730571
+    ],
+    [
+     50.107516,
+     13.730408
+    ],
+    [
+     50.10781,
+     13.73026
+    ],
+    [
+     50.107823,
+     13.730254
+    ],
+    [
+     50.107923,
+     13.730207
+    ],
+    [
+     50.107962,
+     13.730191
+    ],
+    [
+     50.108152,
+     13.730097
+    ],
+    [
+     50.108404,
+     13.729975
+    ],
+    [
+     50.108758,
+     13.729852
+    ],
+    [
+     50.108838,
+     13.729824
+    ],
+    [
+     50.108888,
+     13.729817
+    ],
+    [
+     50.108944,
+     13.729809
+    ],
+    [
+     50.10906,
+     13.729848
+    ],
+    [
+     50.10909,
+     13.72988
+    ],
+    [
+     50.109131,
+     13.729934
+    ],
+    [
+     50.109168,
+     13.730022
+    ],
+    [
+     50.109186,
+     13.730131
+    ],
+    [
+     50.10922,
+     13.730341
+    ],
+    [
+     50.109216,
+     13.730415
+    ],
+    [
+     50.109199,
+     13.730485
+    ],
+    [
+     50.10917,
+     13.730546
+    ],
+    [
+     50.109133,
+     13.730587
+    ],
+    [
+     50.108892,
+     13.730718
+    ]
+   ],
+   "od": "2026-09-30",
+   "do": "2026-11-30",
+   "popis": "Úplná uzavírka, 3. etapa: od křižovatky se silnicí. č. II/229 po vjezd na parkoviště u č. p. 2380-1. Důvod: rekonstrukce inženýrských sítí – vodovodu a kanalizace",
+   "objizdka": "z ul. V Jamce na silnici č. II/229 (ul. Havlíčkova a ul. Lišanská) k okružní křižovatce u TESCA a dále po silnici č. III/22913 směrem na Olešnou a odbočením vlevo do ulice V Jamce.",
+   "zdroj": "Město Rakovník",
+   "url": "https://www.mesto-rakovnik.cz/aktualne/uzavirky-komunikaci/ul-v-jamce-rakovnik-1/",
+   "auto": 1,
+   "puvod": "web"
+  },
+  {
+   "nazev": "Čechova",
+   "line": [
+    [
+     50.106973,
+     13.726582
+    ],
+    [
+     50.106495,
+     13.726756
+    ],
+    [
+     50.106471,
+     13.726765
+    ],
+    [
+     50.106425,
+     13.726782
+    ]
+   ],
+   "od": "2026-09-14",
+   "do": "2026-11-30",
+   "popis": "Úplná uzavírka: úplná uzavírka ul. Čechova. Důvod: Obnova vodovodního řadu a vodovodních přípojek",
+   "objizdka": "Nebude vyznačena.",
+   "zdroj": "Město Rakovník",
+   "url": "https://www.mesto-rakovnik.cz/aktualne/uzavirky-komunikaci/ul-cechova-rakovnik/",
+   "auto": 1,
+   "puvod": "web"
+  },
+  {
+   "nazev": "Lišanská",
+   "line": [
+    [
+     50.110296,
+     13.733899
+    ],
+    [
+     50.110347,
+     13.733877
+    ],
+    [
+     50.110766,
+     13.733848
+    ],
+    [
+     50.111735,
+     13.733718
+    ],
+    [
+     50.111854,
+     13.7337
+    ],
+    [
+     50.112174,
+     13.734034
+    ]
+   ],
+   "od": "2026-09-16",
+   "do": "2026-12-20",
+   "popis": "Úplná uzavírka: úplná uzavírka silnice č. II/229 – ul. Lišanská v Rakovníku v úseku od okružní křižovatky s ul. Luženská ke křižovatce s odbočkou zásobovací komunikace do STOP SHOP Rakovník (nové okružní křižovatce nového obchvatu B3). Důvod: provádění stavby „II/229 Rakovník, připojení na II/237 (obchvat města, trasa B3)“.",
+   "objizdka": "po místní komunikaci – ul. Luženská a dále po zprovozněné části obchvatu.",
+   "zdroj": "Město Rakovník",
+   "url": "https://www.mesto-rakovnik.cz/aktualne/uzavirky-komunikaci/ul-lisanska-rakovnik-dokonceni/",
+   "auto": 1,
+   "puvod": "web"
+  }
+ ]
+}

@@ -3,7 +3,7 @@
 python overlay.py  ->  site/overlay.json (společné: kamera, místa, ulice, index adres)
                        site/overlay/<čtverec>.json (budovy, komíny, silnice, voda; prohlížeč je načte až při přiblížení)
 """
-import heapq, json, math
+import heapq, json, math, sys
 import numpy as np
 from shapely.geometry import MultiPoint
 import os
@@ -304,8 +304,12 @@ for s in SOUS_RAW:
         item['target_lat'] = float(s['cil'][0]); item['target_lon'] = float(s['cil'][1])
     neighbors.append(item)
 
-# čerpací stanice a nabíječky (nastroje/pumpy.py -> assets/pumpy.json, ceny z assets/ceny_paliv.json) do site/pumpy.json
+# uzavírky silnic: ruční (assets/upresneni.json) + automatické z webu města (nastroje/uzavirky.py) do site/uzavirky.json.
+# Prohlížeč si soubor načte za běhu, aktualizace uzavírek tak nepotřebuje overlay.py ani render.
 sys.path.append('nastroje')
+import uzavirky as _uz
+print('uzavírek', len(_uz.zapsat()))
+# čerpací stanice a nabíječky (nastroje/pumpy.py -> assets/pumpy.json, ceny z assets/ceny_paliv.json) do site/pumpy.json
 import pumpy as _pu
 print('pump a nabíječek', len(_pu.zapsat()))
 

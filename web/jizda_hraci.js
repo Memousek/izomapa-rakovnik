@@ -2,11 +2,12 @@
 // Spojení se serverem multiplayer/worker.js (adresa z mesto.json "multiplayer"), zprávy v jizda/sit.js.
 // Duchové zatím nekolidují s ničím: projedou autem i člověkem, nikdo nikoho nesrazí.
 // Svět: x na východ, y na sever, z nahoru; three pozice = (x, z, -y).
-import { zakodujStav, dekodujSnimek, REZIM, PRIZNAK, platneAuto } from './sit.js';
+import { zakodujStav, dekodujSnimek, REZIM, PRIZNAK, platneAuto, platneJmeno } from './sit.js';
 
-const KLIC = 'izo-3d-mp';
+const KLIC = 'izo-3d-mp', KLIC_JMENO = 'izo-3d-jmeno';
 const ODESLAT = 200;            // ms mezi polohami (5× za s, server posílá stejně často)
-const DRZET = 2000;             // stojí-li hráč, poloha se pošle aspoň jednou za 2 s (server po 5 s ticha hráče skryje)
+const DRZET = 2000;             // stojí-li hráč, poloha se pošle aspoň jednou za 2 s (server po 15 s ticha hráče skryje)
+const NA_POZADI = 240000;       // karta na pozadí: 4 min ji ostatní vidí stát s „pryč“, pak se odpojí (Chrome po 5 min časovače skoro zastaví)
 const ZPOZDENI = 320;           // ms: duchové se kreslí trochu v minulosti, ať je mezi čím plynule interpolovat
 const ZTRACEN = 3000;           // ms bez snímku = duch zmizí
 const POPISEK_DO = 260;         // m: jméno nad hlavou jen zblízka
@@ -17,6 +18,11 @@ const CSS = `
 .mp-sek .mp-tecka { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; box-shadow: 0 0 0 1px #0d1220; }
 .mp-sek ul { list-style: none; margin: 4px 0 0; padding: 0; font-size: 12px; max-height: 120px; overflow: auto; }
 .mp-sek li { padding: 1px 0; }
+.mp-sek .mp-jm { display: flex; gap: 4px; margin-top: 6px; }
+.mp-sek .mp-jm input { flex: 1; min-width: 0; font: inherit; padding: 4px 6px; border-radius: 4px; border: 1px solid #4a5670; background: #1b2333; color: var(--fg); }
+.mp-sek .mp-jm input:focus-visible { outline: 2px solid #29c8ff; outline-offset: 1px; }
+.mp-sek .mp-jm button { flex: 0 0 auto; }
+.mp-sek .mp-chyba { color: #ff8a7a; font-size: 12px; min-height: 0; }
 `;
 
 // api: url, VOZ (jizda/vozidla.js: autoHrace, prestavAuto, uvolniAuto), mojeAuto() -> konfigurace z garáže, jenVeDne, panel, toast,
@@ -28,7 +34,8 @@ export function vytvorHrace(THREE, scene, api) {
   let zapnuto = true;
   try { zapnuto = localStorage.getItem(KLIC) !== '0'; } catch { /* bez úložiště výchozí */ }
   let ws = null, pripojeno = false, ja = null, pokus = 0, znovuT = null, skrytoT = null;
-  let posledni = null, posledniT = 0, stavText = 'připojuji…';
+  let posledni = null, posledniT = 0, stavText = 'připojuji…', jmenoChyba = '', zeZalohy = null, zkousky = 0;
+  const ulozeneJmeno = () => { try { return localStorage.getItem(KLIC_JMENO) || ''; } catch { return ''; } };
   const duchove = new Map();     // id -> { id, jmeno, barva, vzorky: [{ t, x, y, z, yaw, v, rezim, flags }], g, postava, auto, popisek, videnT }
   const znami = new Map();       // id -> { jmeno, barva } (i ti mimo dosah: seznam v panelu)
 
@@ -47,14 +54,15 @@ export function vytvorHrace(THREE, scene, api) {
     const ruce = [-1, 1].map((s) => d(gRuka, triko, 0, 1.44, s * 0.29));
     return { g, nohy, ruce, dily, triko };
   }
-  function popisek(text, barva) {
+  function popisek(text, barva, pryc) {
     const c = document.createElement('canvas'); c.width = 384; c.height = 72;
     const x = c.getContext('2d');
     x.font = '700 34px system-ui, sans-serif';
-    const w = Math.min(384, x.measureText(text).width + 44);
+    const s = pryc ? `${text} · pryč` : text;
+    const w = Math.min(384, x.measureText(s).width + 44);
     x.fillStyle = 'rgba(20,26,39,.85)'; x.fillRect((384 - w) / 2, 6, w, 60);
     x.fillStyle = barva; x.fillRect((384 - w) / 2, 6, 10, 60);
-    x.fillStyle = '#eef1f5'; x.textBaseline = 'middle'; x.textAlign = 'center'; x.fillText(text, 192 + 5, 37, 340);
+    x.fillStyle = pryc ? '#9aa3b2' : '#eef1f5'; x.textBaseline = 'middle'; x.textAlign = 'center'; x.fillText(s, 192 + 5, 37, 340);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.NoColorSpace;
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false, transparent: true }));
     sp.scale.set(0.16, 0.03, 1); sp.center.set(0.5, 0); sp.renderOrder = 10;
@@ -71,7 +79,14 @@ export function vytvorHrace(THREE, scene, api) {
     scene.add(g);
     const d = { id, ...z, vzorky: [], g, postava: p, auto: a, popisek: pop, tela, videnT: performance.now(), faze: 0 };
     duchove.set(id, d);
+    poNacteni(d, z.auto);
     return d;
+  }
+  function obnovPopisek(d) {                                // nové jméno nebo příznak „pryč“
+    const stary = d.popisek, novy = popisek(d.jmeno, d.barva, d.pryc);
+    novy.position.copy(stary.position); novy.visible = stary.visible;
+    d.g.remove(stary); stary.material.map.dispose(); stary.material.dispose();
+    d.g.add(novy); d.popisek = novy;
   }
   const telaAuta = (a) => a.children.filter((o) => !o.userData.svetlo && !o.userData.brzda && o.userData.blinkr === undefined);
   function prestavDucha(d, cfg) {                         // hráč si v garáži změnil auto
@@ -81,6 +96,12 @@ export function vytvorHrace(THREE, scene, api) {
     const nova = telaAuta(d.auto);
     d.tela = d.tela.filter((o) => !stara.has(o)).concat(nova);
     api.jenVeDne.push(...nova);
+    poNacteni(d, cfg);
+  }
+  function poNacteni(d, cfg) {                              // hotový model (jizda/vozidla.js HOTOVE) se stahuje: pak duchovi přestavět auto
+    d.cfg = cfg;
+    if (!cfg || api.VOZ.pripraveno(cfg)) return;
+    api.VOZ.nactiModel(cfg.k).then((t) => { if (t && duchove.get(d.id) === d && d.cfg === cfg) prestavDucha(d, cfg); });
   }
   function smazDucha(d) {
     scene.remove(d.g);
@@ -130,6 +151,9 @@ export function vytvorHrace(THREE, scene, api) {
       for (const h of m.hraci || []) znami.set(h.id, { jmeno: String(h.jmeno), barva: String(h.barva), auto: platneAuto(h.auto) });
       stavText = ''; posledni = null; ukazPanel();
       posliAuto();
+      const j = ulozeneJmeno();                            // jméno, které si hráč dřív zvolil
+      zkousky = 0;
+      if (j && j !== ja.jmeno) { zeZalohy = j; posliJmeno(j); }
     } else if (m.t === 'novy') {
       znami.set(m.id, { jmeno: String(m.jmeno), barva: String(m.barva) });
       if (pripojeno) api.toast?.(`${m.jmeno} přijel do města`, 'info');
@@ -139,6 +163,22 @@ export function vytvorHrace(THREE, scene, api) {
       if (!z || !a) return;
       z.auto = a;
       const d = duchove.get(m.id); if (d) prestavDucha(d, a);
+    } else if (m.t === 'jmeno') {
+      const j = platneJmeno(m.j); if (!j) return;
+      if (ja && m.id === ja.id) {
+        ja.jmeno = j; jmenoChyba = ''; zeZalohy = null;
+        try { localStorage.setItem(KLIC_JMENO, j); } catch { /* jen do zavření */ }
+        if (document.activeElement !== jmIn) jmIn.value = j;
+      } else {
+        const z = znami.get(m.id); if (z) z.jmeno = j;
+        const d = duchove.get(m.id); if (d) { d.jmeno = j; obnovPopisek(d); }
+      }
+      ukazPanel();
+    } else if (m.t === 'chyba' && m.co === 'jmeno') {
+      // uložené jméno po znovunačtení stránky: staré spojení ho může chvíli držet (dokud server nepozná, že je pryč)
+      if (zeZalohy && m.k === 'obsazene' && zkousky++ < 4) { const j = zeZalohy; setTimeout(() => { if (ja && ja.jmeno !== j) posliJmeno(j); }, 5000); return; }
+      zeZalohy = null;
+      jmenoChyba = String(m.d || 'Jméno nejde použít.'); ukazPanel();
     } else if (m.t === 'pryc') {
       const d = duchove.get(m.id); if (d) smazDucha(d);
       znami.delete(m.id); ukazPanel();
@@ -157,18 +197,26 @@ export function vytvorHrace(THREE, scene, api) {
     for (const d of [...duchove.values()]) if (!vSnimku.has(d.id)) smazDucha(d);   // mimo dosah (prázdný snímek nebo už není mezi blízkými)
   }
 
+  function posliJmeno(j) {
+    if (pripojeno && ws && ws.readyState === 1) try { ws.send(JSON.stringify({ t: 'jmeno', j })); } catch { /* zavírá se */ }
+  }
   function odesli(now) {
     if (!pripojeno || !ws || ws.readyState !== 1 || now - posledniT < ODESLAT) return;
-    const s = api.stav();
+    const s = { ...api.stav() };
+    if (document.hidden) s.flags |= PRIZNAK.pryc;
     const stejne = posledni && Math.abs(s.x - posledni.x) < 0.05 && Math.abs(s.y - posledni.y) < 0.05 && Math.abs(uhel(s.yaw - posledni.yaw)) < 0.01
       && s.rezim === posledni.rezim && s.flags === posledni.flags;
     if (stejne && now - posledniT < DRZET) return;
     try { ws.send(zakodujStav(s)); posledni = s; posledniT = now; } catch { /* zavírá se */ }
   }
 
-  // karta schovaná déle než minutu: odpojit (server neplatí za nikoho, kdo nehraje), po návratu zase připojit
+  // karta na pozadí: prohlížeč zastaví vykreslování, tak polohu drží časovač (aspoň za 2 s) a ostatní hráče vidí stát
+  // s „pryč“; po 4 min odpojit (server neplatí za nikoho, kdo nehraje), po návratu zase připojit
+  setInterval(() => { if (document.hidden) odesli(performance.now()); }, 1000);
+  addEventListener('pagehide', () => { if (ws) try { ws.close(1000); } catch { /* nic */ } });   // znovunačtení, odchod: hned pryč
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { skrytoT = setTimeout(() => { odpoj(); stavText = 'pozastaveno (karta na pozadí)'; ukazPanel(); }, 60000); }
+    posledniT = 0; odesli(performance.now());               // příznak „pryč“ hned
+    if (document.hidden) { clearTimeout(skrytoT); skrytoT = setTimeout(() => { odpoj(); stavText = 'pozastaveno (karta na pozadí)'; ukazPanel(); }, NA_POZADI); }
     else { clearTimeout(skrytoT); if (zapnuto && !ws) { pokus = 0; pripoj(); } }
   });
 
@@ -217,6 +265,8 @@ export function vytvorHrace(THREE, scene, api) {
         d.postava.nohy[0].rotation.z = sw; d.postava.nohy[1].rotation.z = -sw;
         d.postava.ruce[0].rotation.z = -sw * 0.8; d.postava.ruce[1].rotation.z = sw * 0.8;
       }
+      const pryc = !!(p.flags & PRIZNAK.pryc);
+      if (pryc !== !!d.pryc) { d.pryc = pryc; obnovPopisek(d); }
       d.popisek.position.y = auto ? 2.1 : bus ? 3.6 : 2.0;
       d.popisek.visible = Math.hypot(p.x - cx, p.y - cy) < POPISEK_DO;
       d.posledni = p;
@@ -235,7 +285,22 @@ export function vytvorHrace(THREE, scene, api) {
   lbl.append(chk, document.createTextNode(' Hrát s ostatními'));
   const stEl = document.createElement('div'); stEl.className = 'hra-st';
   const ul = document.createElement('ul');
-  sek.append(h2, jaEl, lbl, ul, stEl);
+  // vlastní jméno: 2–20 znaků, kontrola tady i na serveru (jizda/sit.js platneJmeno), pamatuje se v prohlížeči
+  const jmForm = document.createElement('form'); jmForm.className = 'mp-jm';
+  const jmIn = document.createElement('input'); jmIn.type = 'text'; jmIn.maxLength = 20; jmIn.autocomplete = 'off'; jmIn.spellcheck = false;
+  jmIn.setAttribute('aria-label', 'Tvoje jméno ve hře'); jmIn.placeholder = 'Tvoje jméno';
+  const jmBt = document.createElement('button'); jmBt.type = 'submit'; jmBt.textContent = 'Změnit jméno';
+  jmForm.append(jmIn, jmBt);
+  const jmErr = document.createElement('div'); jmErr.className = 'mp-chyba'; jmErr.setAttribute('role', 'alert');
+  jmForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const j = platneJmeno(jmIn.value);
+    if (!j) { jmenoChyba = 'Jméno musí mít 2–20 znaků (písmena, číslice, mezera, . - _) a nesmí být sprosté.'; ukazPanel(); return; }
+    if (ja && j === ja.jmeno) { jmenoChyba = ''; ukazPanel(); return; }
+    jmenoChyba = ''; zeZalohy = null; posliJmeno(j); ukazPanel();
+  });
+  for (const ev of ['keydown', 'keyup']) jmIn.addEventListener(ev, (e) => { if (e.key !== 'Escape') e.stopPropagation(); });   // psaní neřídí auto
+  sek.append(h2, jaEl, jmForm, jmErr, lbl, ul, stEl);
   api.panel?.append(sek);
   chk.addEventListener('change', () => {
     zapnuto = chk.checked;
@@ -247,6 +312,8 @@ export function vytvorHrace(THREE, scene, api) {
   function ukazPanel() {
     jaEl.replaceChildren();
     if (ja) { const b = document.createElement('b'); b.textContent = ja.jmeno; b.style.color = ja.barva; jaEl.append(tecka(ja.barva), 'Jsi ', b); }
+    jmForm.hidden = !ja; jmErr.textContent = jmenoChyba;
+    if (ja && document.activeElement !== jmIn && !jmIn.value) jmIn.value = ja.jmeno;
     ul.replaceChildren(...[...znami.values()].map((h) => { const li = document.createElement('li'); li.append(tecka(h.barva), h.jmeno); return li; }));
     const n = znami.size, kolik = n === 1 ? 'je ještě 1 hráč' : n < 5 ? `jsou ještě ${n} hráči` : `je ještě ${n} hráčů`;
     stEl.textContent = stavText || (n ? `Ve městě ${kolik}.` : 'Zatím tu jezdíš sám.');

@@ -1,4 +1,4 @@
-// Uzavírky silnic ve 3D jízdě: ruční seznam z assets/upresneni.json ("uzavirky", nastroje/jizda.py -> uzavirky.json).
+// Uzavírky silnic ve 3D jízdě: ruční z assets/upresneni.json a automatické z webu města (../uzavirky.js, functions/api/uzavirky.js).
 // Položka: { line: [[lat, lon], …] (úsek po ose silnice), od, do (YYYY-MM-DD, obojí nepovinné), popis, zdroj, objizdka }.
 // Uzavřený kus silnice: navigace ho objede, auta do něj neodbočí. Na obou koncích stojí zábrana Z2 se značkou B1
 // (zákaz vjezdu všech vozidel) a oranžovými výstražnými světly, do zábrany se nedá projet.
@@ -26,7 +26,12 @@ export function vytvorUzavirky(THREE, scene, api) {
     zabrany = []; hotovo = true;
     for (const f of posluchaci) f();
   }
-  pripraveno = fetch('jizda/uzavirky.json').then((r) => (r.ok ? r.json() : [])).catch(() => []).then(nastav);
+  // ../uzavirky.js: statický seznam hned, čerstvá oznámení z webu města (api/uzavirky) když dorazí; částečné uzavírky průjezd nezavírají
+  const statický = () => fetch('jizda/uzavirky.json').then((r) => (r.ok ? r.json() : [])).catch(() => []).then(nastav);
+  pripraveno = import('../uzavirky.js').then((m) => new Promise((ok) => {
+    let prvni = true;
+    m.nactiUzavirky('', (d) => { nastav(d.filter((u) => !u.castecna)); if (prvni) { prvni = false; ok(); } }).catch(() => { if (prvni) { prvni = false; statický().then(ok); } });
+  })).catch(statický);
 
   // je kus silnice (lomená čára w) uzavřený? Počítá se jen délka, která vede podél čáry uzavírky (ne křížící ulice).
   function kryje(w) {

@@ -22,6 +22,7 @@ for s in summer autumn winter spring; do node render.mjs mpp=0.2 dir=build seaso
 python preview.py
 [ -f assets/pumpy.json ] || python nastroje/pumpy.py || true      # čerpací stanice a nabíječky z OSM
 python overlay.py
+[ -f assets/koleje.json ] || ! ls build/vlaky/JR*.zip >/dev/null 2>&1 || python nastroje/koleje.py || true   # koleje vlaků ve stanicích (volitelné)
 python mhd.py || true                                         # jízdní řády jen když je v mesto.json mhd.gtfs
 python set_status.py hotovo
 python build_html.py

@@ -157,6 +157,11 @@ def main():
     shutil.copy('node_modules/three/build/three.module.min.js', f'{OUT}/three.module.js')
     for f in os.listdir('web'):                               # moduly 3D režimu (vozidla, lidé…): web/jizda_*.js -> site/jizda/
         if f.startswith('jizda_') and f.endswith('.js'): shutil.copy(f'web/{f}', f'{OUT}/{f[6:]}')
+    # hotové modely aut do garáže (glTF, jizda/vozidla.js HOTOVE) a jejich načítání (GLTFLoader z three, cesty jako v examples/jsm)
+    shutil.copytree('web/jizda_modely', f'{OUT}/modely', dirs_exist_ok=True)
+    for f in ('loaders/GLTFLoader.js', 'utils/BufferGeometryUtils.js'):
+        os.makedirs(os.path.dirname(f'{OUT}/three/{f}'), exist_ok=True)
+        shutil.copy(f'node_modules/three/examples/jsm/{f}', f'{OUT}/three/{f}')
     if os.path.exists('assets/custom_models.js'): shutil.copy('assets/custom_models.js', f'{OUT}/custom_models.js')
     else: open(f'{OUT}/custom_models.js', 'w').write('// město nemá vlastní modely (assets/custom_models.js)\nexport {};\n')
     if os.path.exists('assets/znacky.json'): shutil.copy('assets/znacky.json', f'{OUT}/znacky.json')   # dopravní značky z OSM (nastroje/znacky.py)
@@ -172,14 +177,10 @@ def main():
             o = json.load(open(f'obce/{f}', encoding='utf-8'))
             if o.get('pohled') and o.get('nazev'): mista.append({'nazev': o['nazev'], 'lat': o['pohled'][0], 'lon': o['pohled'][1], 'druh': 'obec'})
     json.dump(mista, open(f'{OUT}/mista.json', 'w', encoding='utf-8'), ensure_ascii=False)
-    # ruční uzavírky silnic (assets/upresneni.json, "uzavirky"): platnost od–do hlídá prohlížeč, prošlé se sem nedostanou
-    uz = []
-    if os.path.exists('assets/upresneni.json'):
-        dnes = time.strftime('%Y-%m-%d')
-        for u in json.load(open('assets/upresneni.json', encoding='utf-8')).get('uzavirky', []):
-            if len(u.get('line') or []) < 2 or (u.get('do') and str(u['do']) < dnes): continue
-            uz.append({k: u[k] for k in ('line', 'od', 'do', 'popis', 'zdroj', 'objizdka') if u.get(k)})
-    json.dump(uz, open(f'{OUT}/uzavirky.json', 'w', encoding='utf-8'), ensure_ascii=False)
+    # uzavírky silnic: ruční + automatické z webu města (nastroje/uzavirky.py), prošlé se sem nedostanou, platnost hlídá i prohlížeč
+    sys.path.append('nastroje')
+    import uzavirky as _uz
+    uz = _uz.zapsat()
     if uz: print('uzavírek', len(uz))
     for c in [] if JEN_STRANKA else sorted(geo.CHUNKS):
         src, dst = geo.chunk_dir(c), f'{OUT}/c{c[0]}_{c[1]}'

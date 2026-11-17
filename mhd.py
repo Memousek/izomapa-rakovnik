@@ -9,7 +9,7 @@ python mhd.py [--stahnout]   stáhne build/gtfs.zip (při --stahnout nebo když 
 Krajské GTFS (např. IDS JMK) se ořízne: jen autobusy a tramvaje, jejichž trasa vede územím mapy.
 Prohlížeč z toho podle skutečného času dopočítá, kde je každé vozidlo. Bez mhd.gtfs skript nic neudělá.
 """
-import csv, io, json, os, subprocess, sys, time, zipfile
+import csv, io, json, os, re, subprocess, sys, time, zipfile
 import shapely
 from nastroje.gtfs_casy import cekani_na_konecne, dopln_mezicasy
 from geo import CHUNKS, HALF, MESTO, chunk_center, to_local
@@ -100,6 +100,42 @@ if MESTO.get('vlak') and os.path.exists('build/vlaky/vlaky_mhd.json'):
     for t in _v['trips']:
         z_ = t[6]; out.append([t[0] + _r, t[1] + _s, t[2], t[3], t[4], nid(t[5]), [q for i in range(0, len(z_), 2) for q in (nid(z_[i]), z_[i + 1])]])
     print('vlaků z celostátního jízdního řádu', len(_v['trips']))
+# vlak ve stanici po své koleji (assets/koleje.json z nastroje/koleje.py: kolej z celostátního jízdního řádu, očíslované koleje z OSM).
+# GTFS má pro všechny vlaky jednu trasu přes stanici, takže by všechny stály na jedné koleji; pro každou kombinaci kolejí vznikne vlastní tvar.
+KOL = json.load(open('assets/koleje.json', encoding='utf-8')) if os.path.exists('assets/koleje.json') else None
+_KVAR, _kol_stat = {}, {'na koleji': 0, 'bez koleje v OSM': 0}
+if KOL:
+    from nastroje.koleje import po_koleji
+    _KL = {}
+    for _k in KOL['koleje']: _KL.setdefault(_k['ref'], []).append(shapely.LineString([tuple(float(v) for v in to_local(lo, la)) for la, lo in _k['line']]))
+def tvar_trasy(t, s, k):
+    """index tvaru trasy spoje t; vlak se známou kolejí jede ve stanicích po ní"""
+    i = SI[t['shape_id']]
+    if not KOL or routes[RI[t['route_id']]][1] != 2: return i
+    zk = KOL['vlaky'].get(re.sub(r'\D', '', t.get('trip_short_name') or ''))
+    if not zk: return i
+    tvar = shapely.LineString(shapes[i])
+    cile = []
+    for (_, _, _, dist, nm) in s:
+        ref = zk.get(nm)
+        if not ref or ref not in _KL: continue
+        pt = tvar.interpolate(min(dist * k, tvar.length))          # stanice na trase spoje
+        kand = [l for l in _KL[ref] if l.distance(pt) < 400]
+        if not kand: _kol_stat['bez koleje v OSM'] += 1; continue
+        slouceno = shapely.line_merge(shapely.MultiLineString(kand)) if len(kand) > 1 else kand[0]
+        casti = list(getattr(slouceno, 'geoms', [slouceno]))
+        nej = min(casti, key=lambda l: l.distance(pt))
+        if nej.distance(pt) > 60: _kol_stat['bez koleje v OSM'] += 1; continue
+        cile.append((nm, ref, nej))
+    if not cile: return i
+    klic = (i, tuple((nm, ref) for nm, ref, _ in cile))
+    if klic not in _KVAR:
+        body = [tuple(q) for q in shapes[i]]
+        for _, _, kol in cile: body = po_koleji(body, list(kol.coords))
+        _KVAR[klic] = len(shapes)
+        shapes.append([[round(a, 1), round(b, 1)] for a, b in shapely.simplify(shapely.LineString(body), 0.4).coords])
+    _kol_stat['na koleji'] += 1
+    return _KVAR[klic]
 for t in trips:
     if routes[RI[t['route_id']]][1] != 2 and len(routes[RI[t['route_id']]][0]) > 4: continue   # poptávková doprava apod. bez pravidelné trasy; vlaky mají dlouhá čísla
     s = st.get(t['trip_id'], [])
@@ -115,7 +151,7 @@ for t in trips:
         seq += [a - t0, round(dist * k)]
         if d > a: seq += [d - t0, round(dist * k)]              # pobyt v zastávce
         if not pruj: zs += [nid(nm), a - t0]
-    out.append([RI[t['route_id']], SI[t['shape_id']], t['service_id'], t0, seq, nid(t['trip_headsign'] or s[-1][4]), zs])
+    out.append([RI[t['route_id']], tvar_trasy(t, s, k), t['service_id'], t0, seq, nid(t['trip_headsign'] or s[-1][4]), zs])
     TID[id(out[-1])] = t['trip_id']                            # spárování s polohami vozidel v reálném čase (GTFS-RT)
 # čekání na konečné (q[7] = s do odjezdu, kdy vůz už stojí na první zastávce): GTFS čekání nezná, spoj začíná až odjezdem
 print('spojů s čekáním na konečné', cekani_na_konecne(out, lambda q: routes[q[0]][1]))
@@ -123,6 +159,7 @@ print('spojů s čekáním na konečné', cekani_na_konecne(out, lambda q: route
 _vl = [q for q in out if routes[q[0]][1] == 2 and not q[7]]
 for q in _vl: q[7] = 900
 print('vlaků přistavených předem bez příjezdu', len(_vl))
+if KOL: print('vlaky po svých kolejích:', _kol_stat, 'variant tras', len(_KVAR))
 out.sort(key=lambda q: q[3])
 # zastávky na mapě (prohlížeč z nich po kliknutí ukáže odjezdy, hledání je najde): [jméno, x, y, druh 0 tramvaj / 3 autobus / 2 jen vlak]
 # i železniční stanice (když jsou v mapě vlaky): odjezdy vlaků, popisky zastávek sledovaného vlaku

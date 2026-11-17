@@ -1,7 +1,7 @@
 // Multiplayer 3D jízdy bez Cloudflare: kódování zpráv (web/jizda_sit.js) a místnost (multiplayer/worker.js)
 // s napodobenými sokety. Spuštění: node tests/test-multiplayer.mjs
 import assert from 'node:assert/strict';
-import { zakodujStav, dekodujStav, zakodujSnimek, dekodujSnimek, vyberBlizke, vymyslJmeno, REZIM, PRIZNAK, platneAuto, AUTO_VYCHOZI } from '../web/jizda_sit.js';
+import { zakodujStav, dekodujStav, zakodujSnimek, dekodujSnimek, vyberBlizke, vymyslJmeno, REZIM, PRIZNAK, platneAuto, AUTO_VYCHOZI, platneJmeno } from '../web/jizda_sit.js';
 import { Mistnost } from '../multiplayer/worker.js';
 import worker from '../multiplayer/worker.js';
 
@@ -65,9 +65,10 @@ assert.deepEqual(B.snimky().at(-1).map((z) => z.id), [1]);
 M.webSocketMessage(B, poloha(5000, 0)); clearInterval(M.casovac); M.casovac = null;
 M.tik(t0); const nA = A.snimky().length; assert.deepEqual(A.snimky().at(-1), []);
 M.tik(t0); assert.equal(A.snimky().length, nA, 'prázdný snímek se neopakuje');
-// zamrzlý hráč (bez zprávy 5 s) se neposílá
+// hráč, který stojí nebo má kartu na pozadí, posílá aspoň za 2 s: 10 s ticha ho neskryje, 16 s ano (zamrzlá karta)
 M.webSocketMessage(B, poloha(10, 0)); clearInterval(M.casovac); M.casovac = null;
-M.tik(t0 + 6000); assert.deepEqual(A.snimky().at(-1), []);
+M.tik(t0 + 10000); assert.deepEqual(A.snimky().at(-1).map((z) => z.id), [2]);
+M.tik(t0 + 16000); assert.deepEqual(A.snimky().at(-1), []);
 
 // odchod: ostatní dostanou zprávu, id se uvolní
 M.webSocketClose(B);
@@ -95,7 +96,8 @@ r = await worker.fetch(new Request('http://x/mistnost/Rakovnik'), env('')); asse
 // auto z garáže: kontrola voleb a barev, server ho pošle ostatním a pamatuje si ho pro nově příchozí
 assert.deepEqual(platneAuto({ ...AUTO_VYCHOZI, b1: '#ABCDEF', dopl: ['box', 'raketa', 'spoiler'] }).dopl, ['spoiler', 'box']);
 assert.equal(platneAuto({ ...AUTO_VYCHOZI, b1: '#ABCDEF' }).b1, '#abcdef');
-for (const zle of [{ k: 'tank' }, { b1: 'red' }, { b2: '#12345' }, { v: '<script>' }, { dopl: 'box' }, { vys: 'let' }]) assert.equal(platneAuto({ ...AUTO_VYCHOZI, ...zle }), null, JSON.stringify(zle));
+assert.equal(platneAuto({ ...AUTO_VYCHOZI, k: 'm_hasici' }).k, 'm_hasici', 'hotový model');
+for (const zle of [{ k: 'tank' }, { k: 'toString' }, { k: '__proto__' }, { kola: 'constructor' }, { b1: 'red' }, { b2: '#12345' }, { v: '<script>' }, { dopl: 'box' }, { vys: 'let' }]) assert.equal(platneAuto({ ...AUTO_VYCHOZI, ...zle }), null, JSON.stringify(zle));
 assert.equal(platneAuto(null), null);
 {
   const M3 = new Mistnost({ getWebSockets: () => [] }, {}), P = new Soket(), Q = new Soket();
@@ -111,4 +113,26 @@ assert.equal(platneAuto(null), null);
   assert.equal(P.pr.auto.k, 'suv', 'auto přežije hibernaci (příloha soketu)');
   clearInterval(M3.casovac);
 }
-console.log('OK: auto z garáže (kontrola, rozeslání, příchozí, hibernace); kódování stavu a snímku, blízcí hráči, jména, místnost (příchod, snímky, odchod, hibernace, limit), původ');
+// vlastní jméno: kontrola, obsazené jméno, limit změn, rozeslání všem i odesílateli, příloha pro hibernaci
+assert.equal(platneJmeno('  Pepa   z Lužné '), 'Pepa z Lužné');
+for (const zle of ['A', 'x'.repeat(21), '123', '<b>', 'K0k0t', 'Admin', 'ty kurvo', 42, null]) assert.equal(platneJmeno(zle), null, String(zle));
+for (const dobre of ['Kyselý Pepa', 'Epicentrum', 'Špička', 'Lukas_99', 'Jan-Novák.']) assert.equal(platneJmeno(dobre), dobre);
+{
+  const M4 = new Mistnost({ getWebSockets: () => [] }, {}), P = new Soket(), Q = new Soket();
+  const hp = M4.pripoj(P), hq = M4.pripoj(Q);
+  M4.webSocketMessage(P, JSON.stringify({ t: 'jmeno', j: ' Pepa  z Lužné ' }));
+  assert.deepEqual(P.json().at(-1), { t: 'jmeno', id: hp.id, j: 'Pepa z Lužné' }, 'potvrzení odesílateli');
+  assert.deepEqual(Q.json().at(-1), { t: 'jmeno', id: hp.id, j: 'Pepa z Lužné' });
+  assert.equal(P.pr.jmeno, 'Pepa z Lužné', 'jméno přežije hibernaci');
+  M4.webSocketMessage(P, JSON.stringify({ t: 'jmeno', j: 'Jiné jméno' }));
+  assert.equal(P.json().at(-1).t, 'chyba', 'nejvýš jednou za 3 s');
+  M4.webSocketMessage(Q, JSON.stringify({ t: 'jmeno', j: 'PEPA Z LUŽNÉ' }));
+  assert.match(Q.json().at(-1).d, /jiný hráč/, 'obsazené jméno (bez ohledu na velikost písmen)');
+  M4.webSocketMessage(Q, JSON.stringify({ t: 'jmeno', j: 'kokot' }));
+  assert.equal(Q.json().at(-1).t, 'chyba');
+  assert.equal([...M4.hraci.values()].find((h) => h.id === hq.id).jmeno, hq.jmeno, 'neplatné jméno nic nezmění');
+  const R = new Soket(); M4.pripoj(R);
+  assert.equal(R.json()[0].hraci.find((h) => h.id === hp.id).jmeno, 'Pepa z Lužné', 'nový hráč dostane změněné jméno');
+  assert.equal(PRIZNAK.pryc, 32);
+}
+console.log('OK: vlastní jméno (kontrola, obsazené, limit, rozeslání), hráč na pozadí; auto z garáže (kontrola, rozeslání, příchozí, hibernace); kódování stavu a snímku, blízcí hráči, jména, místnost (příchod, snímky, odchod, hibernace, limit), původ');
