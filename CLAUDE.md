@@ -102,13 +102,20 @@ Ukazuj uživateli výřezy před a po.
   Při nasazení uživateli řekni, ať nastaví i tajný `SALT` (`npx wrangler secret put SALT`, dlouhý náhodný řetězec):
   bez něj se otisk IP počítá s veřejnou výchozí solí a z uniklé databáze jde IP dopočítat. `TURNSTILE_SECRET` nezapínej,
   formulář v mapě neposílá token a všechna hlášení by pak selhala.
+- **Multiplayer ve 3D jízdě** (volitelné, výchozí vypnuto): `"multiplayer": "wss://…/mistnost/<město>"` v `mesto.json`,
+  pak `nastroje/jizda.py --stranka`. Ostatní hráči jsou ve 3D jako duchové (postava nebo auto v barvě, jméno od serveru,
+  bez chatu a bez kolizí). Server je samostatný Worker s Durable Object v `multiplayer/` (návod v README, Multiplayer),
+  nasazuje ho uživatel sám (`npx wrangler deploy --config multiplayer/wrangler.jsonc`) a do `POVOLENE_ORIGINY` patří adresa mapy.
+  Protokol je ve `web/jizda_sit.js`, klient ve `web/jizda_hraci.js`, testy `node tests/test-multiplayer.mjs`.
+  Doprava (`web/jizda_doprava.js`) má stabilní uid silnic a aut a semínka (`sd`) místo `Math.random`, aby šla později
+  synchronizovat i NPC (simuluje vlastník oblasti, ostatní přijímají stav).
 
 ## Nasazení na Cloudflare Pages
 
 Doporučený hosting je Cloudflare Pages: snese hodně souborů (limit 25 MiB na soubor a 20 000 souborů na Free) a spustí
 `functions/api/*.js` (MHD v reálném čase, letadla). Ty jsou Pages Functions, takže je **nahrání složky přes dashboard
-ani Vercel nespustí** (na Vercelu by se musely přepsat na `api/*.js`, hlášení i s jinou databází místo D1). Do budoucna
-se sem hodí i multiplayer přes Durable Objects (trvalé WebSockety); serverless funkce Vercelu WebSocket neudrží.
+ani Vercel nespustí** (na Vercelu by se musely přepsat na `api/*.js`, hlášení i s jinou databází místo D1). Multiplayer
+(trvalé WebSockety přes Durable Objects) je samostatný Worker v `multiplayer/`; serverless funkce Vercelu WebSocket neudrží.
 
 Postup (vše z kořene repa, `wrangler` je v `devDependencies`):
 

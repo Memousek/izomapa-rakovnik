@@ -204,6 +204,7 @@ def main():
     mhd = M.get('mhd') or {}
     t = (t.replace('{{TITULEK}}', html.escape(M['titulek'])).replace('{{MESTO}}', html.escape(M['nazev'])).replace('{{OBDOBI}}', json.dumps(OBDOBI))
           .replace('{{MHD_RT}}', json.dumps(mhd.get('realtime') if mhd.get('gtfs') else None))
+          .replace('{{MULTIPLAYER}}', json.dumps(M.get('multiplayer') or None))   # adresa místnosti multiplayeru (multiplayer/worker.js)
           .replace('{{VLAK}}', json.dumps(M['vlak'] if isinstance(M.get('vlak'), dict) else {'vychozi': M['vlak'], 'linky': {}} if M.get('vlak') else None))
           .replace('{{MHD_ZDROJ}}', f', jízdní řády{" a polohy vozidel" if mhd.get("realtime") else ""} © <a href="{html.escape(mhd["zdroj_url"] or "")}" target="_blank" rel="noopener">{html.escape(mhd["zdroj"])}</a>'
                    if mhd.get('gtfs') and mhd.get('zdroj') else ''))

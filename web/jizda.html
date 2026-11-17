@@ -354,10 +354,14 @@ import { vytvorUlici } from './jizda/ulice.js';
 import { vytvorZnacky } from './jizda/znacky.js';
 import { vytvorUzavirky } from './jizda/uzavirky.js';
 import { vytvorDopravu, nah } from './jizda/doprava.js';
+import { vytvorHrace } from './jizda/hraci.js';
 THREE.ColorManagement.enabled = false;
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const OBDOBI = {{OBDOBI}}, MHD_RT = {{MHD_RT}}, VLAK = {{VLAK}};   // z nastroje/jizda.py (mesto.json)
+// multiplayer: mesto.json "multiplayer" = adresa místnosti (wss://…/mistnost/<město>, server multiplayer/worker.js);
+// na tomto počítači jde zkusit i bez ní: jizda.html?mp=ws://127.0.0.1:8787/mistnost/test
+const MP_URL = (() => { const q = new URLSearchParams(location.search).get('mp'); return q && /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /^wss?:\/\//.test(q) ? q : {{MULTIPLAYER}}; })();
 
 // ---------- mapa: souřadnice a čtverce (overlay.json z overlay.py) ----------
 // svět: x na východ, y na sever, z výška (m, stejně jako scene.json a silnice); three: (x, z, -y)
@@ -1311,7 +1315,8 @@ function kresliMapu() {
   if (!MAPA.open) return;
   const cv = mapaPlatno(), dpr = +cv.dataset.dpr;
   const hh = hrac.vAuto && hrac.car ? { x: hrac.car.x, y: hrac.car.y, h: hrac.car.h } : { x: hrac.x, y: hrac.y, h: hrac.yaw };
-  NAV.velkaMapa(cv, { cx: MAPA.cx, cy: MAPA.cy, m: MAPA.m / dpr }, MAPA.body, hh);
+  const hraci = HRACI.mapa().map((o) => ({ x: o.x, y: o.y, label: o.jmeno, druh: 'Hráč', barva: o.barva, velikost: 7, vyrazny: true }));
+  NAV.velkaMapa(cv, { cx: MAPA.cx, cy: MAPA.cy, m: MAPA.m / dpr }, hraci.length ? MAPA.body.concat(hraci) : MAPA.body, hh);
 }
 function seznamMist() {
   const hh = hrac.vAuto && hrac.car ? hrac.car : hrac;
@@ -1796,10 +1801,12 @@ const LIDE_API = { gz, hitBuilding, roads, along, hrac, nah, doba: () => DOBA.n,
   prechody: { na: (r) => ZNACKY.prechodyNa(r), blizko: (x, y, R) => ZNACKY.prechodBlizko(x, y, R) } };   // chodci přecházejí na přechodech (jizda/znacky.js)
 const LIDE = vytvorLidi(THREE, scene3, LIDE_API);
 jenVeDne.push(...LIDE.telesa);
+let HRACI = null;                                            // ostatní hráči (jizda/hraci.js), vzniká níž
 const NAV = vytvorNavigaci(THREE, scene3, { CAM, OV, gz, hrac, chunks: CHUNKS, zastavky: () => ZAST, panel: $('navpanel'), mapa: $('minimapa'),
   jedu: () => (hrac.bus !== null || SLED.i !== null ? 'bus' : hrac.vAuto ? 'auto' : 'pesky'),
   mapaVozidla: () => [...MHD.poz].map(([i, p]) => ({ x: p.x, y: p.y, typ: p.typ, sel: i === SLED.i || i === hrac.bus })),
-  mapaTrasa: () => (SLED.i !== null ? { body: MHD.shapes[MHD.trips[SLED.i][1]].w, barva: druhSpoje(SLED.i) === 'vlak' ? '#ff9f1c' : '#2f8cff' } : null) });
+  mapaTrasa: () => (SLED.i !== null ? { body: MHD.shapes[MHD.trips[SLED.i][1]].w, barva: druhSpoje(SLED.i) === 'vlak' ? '#ff9f1c' : '#2f8cff' } : null),
+  mapaHraci: () => (HRACI ? HRACI.mapa() : []) });
 
 // ---------- hra (jizda/hra.js: mise, pravidla, pokuty) a zvuky (jizda/zvuky.js) ----------
 const LIM = { t: -1e9, v: null };
@@ -1847,6 +1854,16 @@ const ULICE = vytvorUlici(THREE, scene3, { hrac, cars, roads, carPose, along, LI
   doba: () => DOBA.n, pocasi: () => WXI, obdobi: OBD, mojeAuto, jenVeDne, panel: $('hrapanel'), canvas: renderer.domElement, camera, stav: ULICE_STAV, nastoupit,
   mesto: document.querySelector('#hud h1')?.firstChild?.textContent.trim() || 'Město', dotyk: DOTYK, start: ULICE_START, parkovana, skryjParkovane,
   navigace: { zvol: (e) => NAV.zvol(e), adresy: () => NAV.adresy(), trasa: (a, b, c, d, e) => NAV.trasa(a, b, c, d, e) } });
+// ostatní hráči: posílá se poloha (auto: i světla, brzda, blinkry, klakson), v autobuse nebo při sledování spoje jen místo
+HRACI = vytvorHrace(THREE, scene3, { url: MP_URL, auto: (barva) => VOZ.mojeAuto(barva), jenVeDne, panel: $('hrapanel'), toast, doba: () => DOBA.n,
+  stav: () => {
+    const c = hrac.car;
+    if (hrac.vAuto && c && SLED.i === null) {
+      const f = (DOBA.n > 0.3 ? 1 : 0) | (hrac.brzdi ? 2 : 0) | (BL.strana === 2 || BL.strana === 6 ? 4 : 0) | (BL.strana === 4 || BL.strana === 6 ? 8 : 0) | (keys.has('KeyH') ? 16 : 0);
+      return { rezim: 1, x: c.x, y: c.y, z: mojeAuto.position.y, yaw: c.h, v: c.v, flags: f };
+    }
+    return { rezim: hrac.bus !== null || SLED.i !== null ? 2 : 0, x: hrac.x, y: hrac.y, z: hrac.z, yaw: hrac.yaw, v: 0, flags: 0 };
+  } });
 
 // ---------- hlavní smyčka ----------
 await spravaCtvercu();
@@ -1939,6 +1956,7 @@ function frame(now) {
   UZ.update(now);
   NAV.update(now);
   HRA.update(dt, now);
+  HRACI.update(dt, now, camera);
   ZVUK.update(dt);
   // kamera
   if (hrac.vAuto) {
@@ -2009,7 +2027,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') window.__jizda = { FSD, fsdPrepni, UZ, CAM, carPose, MRIZ, GARAZ, KUZELY, BL, OKNA, hodina, ULICE, ZNACKY, nastavGrafiku, parkovana, PARK, DETAIL, KVALITA, rtDen, slozeni, POVRCH, STROMY, HRA, ZVUK, hustota, hrac, orbit, gz, vyska, DOBA, NAV, LIDE, ZAST, busBlizko, cars, roads, DOPR, CH, SIG, sigPosts, MHD, RT, keys, camera, scene3, renderer, nastoupit, snimek: (ms = 16) => { last = performance.now() - ms; frame(performance.now()); } };
+if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') window.__jizda = { FSD, fsdPrepni, UZ, CAM, carPose, MRIZ, GARAZ, KUZELY, BL, OKNA, hodina, ULICE, ZNACKY, nastavGrafiku, parkovana, PARK, DETAIL, KVALITA, rtDen, slozeni, POVRCH, STROMY, HRA, ZVUK, hustota, hrac, orbit, gz, vyska, DOBA, NAV, LIDE, ZAST, busBlizko, cars, roads, DOPR, HRACI, CH, SIG, sigPosts, MHD, RT, keys, camera, scene3, renderer, nastoupit, snimek: (ms = 16) => { last = performance.now() - ms; frame(performance.now()); } };
 </script>
 </body>
 </html>

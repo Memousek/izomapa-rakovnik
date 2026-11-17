@@ -7,6 +7,7 @@ const ek = (x, y) => Math.round(x) + ',' + Math.round(y);
 
 export function vytvorNavigaci(THREE, scene, api) {
   // api = { CAM, OV, gz, hrac, chunks: [[i, j]], zastavky: () => [{ nazev, x, y }], panel: Element, mapa: HTMLCanvasElement, jedu: () => 'auto'|'pesky'|'bus' }
+  //   volitelně mapaVozidla, mapaTrasa, mapaHraci: () => [{ x, y, barva }] (ostatní hráči na minimapě)
   const { CAM } = api;
   // ---------- obrázek mapy -> svět (inverze promítání z web/app.html toImg, výška z terénu) ----------
   const X = CAM.X, Y = CAM.Y;
@@ -233,6 +234,12 @@ export function vytvorNavigaci(THREE, scene, api) {
       ctx.fillStyle = v.typ === 2 ? '#3fbf6f' : '#2f8cff'; ctx.strokeStyle = '#0d1220'; ctx.lineWidth = 1.5;
       ctx.fillRect(u - 4, w - 4, 8, 8); ctx.strokeRect(u - 4, w - 4, 8, 8);
       if (v.sel) { ctx.strokeStyle = '#ffd27a'; ctx.lineWidth = 2; ctx.strokeRect(u - 7, w - 7, 14, 14); }
+    }
+    for (const o of api.mapaHraci ? api.mapaHraci() : []) {   // ostatní hráči: kolečko v jejich barvě
+      const [u, w] = P([o.x, o.y]);
+      if (u * u + w * w > W * W / 4) continue;
+      ctx.fillStyle = o.barva; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(u, w, 5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
     }
     ctx.restore();
     ctx.fillStyle = '#e2643f'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;

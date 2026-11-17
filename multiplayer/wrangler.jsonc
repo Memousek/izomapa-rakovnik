@@ -1,0 +1,11 @@
+{
+  // Server pro multiplayer 3D jízdy (Durable Object na Workers Free stačí). Jeden server zvládne víc měst:
+  // každé má vlastní místnost /mistnost/<město>. Nasazení: npx wrangler deploy --config multiplayer/wrangler.jsonc
+  // Adresy map, které se smí připojit, patří do POVOLENE_ORIGINY (např. "https://izomapa-rakovnik.pages.dev").
+  "name": "izomapa-mp",
+  "main": "worker.js",
+  "compatibility_date": "2025-09-01",
+  "durable_objects": { "bindings": [{ "name": "MISTNOST", "class_name": "Mistnost" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Mistnost"] }],
+  "vars": { "POVOLENE_ORIGINY": "" }
+}
