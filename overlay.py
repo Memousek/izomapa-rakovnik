@@ -304,6 +304,11 @@ for s in SOUS_RAW:
         item['target_lat'] = float(s['cil'][0]); item['target_lon'] = float(s['cil'][1])
     neighbors.append(item)
 
+# čerpací stanice a nabíječky (nastroje/pumpy.py -> assets/pumpy.json, ceny z assets/ceny_paliv.json) do site/pumpy.json
+sys.path.append('nastroje')
+import pumpy as _pu
+print('pump a nabíječek', len(_pu.zapsat()))
+
 cam = {'x0': info['x0'], 'y1': info['y1'], 'mpp': info['mpp'], 'X': list(map(float, CAM_X)), 'Y': list(map(float, CAM_Y)),
        'half': HALF, 'grounds': grounds}
 # vánoční strom na náměstí (zima): mesto.json vanocni_strom = [lat, lon] (příp. více stromů z obce/*.json)

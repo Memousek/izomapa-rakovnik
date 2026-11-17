@@ -20,6 +20,7 @@ rm -rf site/tiles && mkdir -p site/tiles && rm -f site/tiles.json
 ./render_par.sh                                               # scény, render a dlaždice: několik čtverců najednou podle paměti (./render_par.sh 1 = po jednom)
 for s in summer autumn winter spring; do node render.mjs mpp=0.2 dir=build season=$s alpha=1 stromy=site/stromy > /dev/null; done   # kresby stromů: auta se schovají přesně za ně
 python preview.py
+[ -f assets/pumpy.json ] || python nastroje/pumpy.py || true      # čerpací stanice a nabíječky z OSM
 python overlay.py
 python mhd.py || true                                         # jízdní řády jen když je v mesto.json mhd.gtfs
 python set_status.py hotovo

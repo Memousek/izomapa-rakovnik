@@ -126,6 +126,11 @@ input[type="range"] { width: 100%; accent-color: var(--lamp); }
 .places { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 1px; }
 .places button { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; padding: 6px 8px; font-size: .9rem; }
 .places button:hover, .places button:focus-visible { background: var(--panel-2); outline: 1px solid var(--edge); }
+.pu-list button { display: grid; grid-template-columns: 16px 1fr; column-gap: 8px; align-items: start; }
+.pu-list .pu-ico { width: 16px; height: 16px; margin-top: 1px; display: grid; place-items: center; font: 700 10px/1 var(--body); color: #fff; border: 1px solid rgba(0,0,0,.45); }
+.pu-list .pu-ico.pumpa { background: #1f6f8b; } .pu-list .pu-ico.ev { background: #2c9a4b; } .pu-list .pu-ico.kolo { background: #2f6fd0; }
+.pu-list small { grid-column: 2; font-size: .78rem; color: var(--muted); }
+.pu-list .pu-nej small { color: #7fe0a0; }
 .about p { margin: 6px 0 0; font-size: .8rem; line-height: 1.45; color: var(--muted); }
 .about strong { color: var(--ink); }
 .about .author { color: var(--ink); }
@@ -361,6 +366,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
       <label><input type="checkbox" id="l-traffic" checked> Doprava</label>
       <label><input type="checkbox" id="l-smoke" checked> Kouř z&nbsp;komínů</label>
       <label><input type="checkbox" id="l-hover" checked> Zvýraznit budovy</label>
+      <label id="l-pumpy-row" hidden><input type="checkbox" id="l-pumpy" checked> Pumpy a&nbsp;nabíječky</label>
       <label id="l-trasy-row" hidden><input type="checkbox" id="l-trasy"> Turistické a cyklotrasy</label>
     </div>
   </div>
@@ -370,6 +376,11 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
   <details class="sec" id="placesBox">
     <summary>Místa a&nbsp;příběhy</summary>
     <ul class="places" id="places"></ul>
+  </details>
+
+  <details class="sec" id="puBox" hidden>
+    <summary>Pumpy a&nbsp;nabíječky <span class="sum-val" id="puVal"></span></summary>
+    <ul class="places pu-list" id="puList"></ul>
   </details>
 
   <details class="sec about">
@@ -978,6 +989,8 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     const [ix, iy] = vpToImg(e.position);
     const st = stopAt(ix, iy);
     if (st) { showStop(st); return; }
+    const pu = puAt(ix, iy, 16 / imgScale());
+    if (pu) { showPumpa(pu); return; }
     const b = hit(ix, iy);
     if (b) showBuilding(b); else showPoint(ix, iy);
   });
@@ -991,7 +1004,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     if (!$('l-hover').checked || e.pointerType === 'touch') { state.hover = null; $('osd').style.cursor = ''; return; }
     const [ix, iy] = vpToImg(new OpenSeadragon.Point(mx, my));
     state.hover = hit(ix, iy);
-    $('osd').style.cursor = state.hover || stopAt(ix, iy) ? 'pointer' : '';
+    $('osd').style.cursor = state.hover || stopAt(ix, iy) || puAt(ix, iy, 16 / imgScale()) ? 'pointer' : '';
   });
 
 
@@ -1234,6 +1247,162 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     ctx.restore();
   }
   // silniční graf
+  // ---------- čerpací stanice a nabíječky (nastroje/pumpy.py -> site/pumpy.json, načte se za běhu) ----------
+  // Ikona na sloupku nad místem, při přiblížení název a cena Naturalu 95 (jen když jsou ceny z ověřeného zdroje, assets/ceny_paliv.json).
+  const PALIVO = { 95: 'Natural 95', 98: 'Natural 98', 100: 'Natural 100', nafta: 'Nafta', lpg: 'LPG', cng: 'CNG', lng: 'LNG', adblue: 'AdBlue', propan: 'Propan-butan' };
+  const KONEKTOR = { type2: 'Type 2', type2_cable: 'Type 2 (kabel)', type2_combo: 'CCS', chademo: 'CHAdeMO', type1: 'Type 1', type1_combo: 'CCS1', tesla_supercharger: 'Tesla',
+    tesla_standard: 'Tesla', gb_dc: 'GB/T', schuko: 'zásuvka 230 V', bosch_3pin: 'Bosch', bosch_5pin: 'Bosch', shimano_steps_5pin: 'Shimano', xlr_3pin_cable: 'XLR' };
+  const PU_BARVA = { pumpa: '#1f6f8b', ev: '#2c9a4b', kolo: '#2f6fd0' };
+  let PUMPY = [], PU_ZDROJ = {};
+  const DNY_OH = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  // OSM opening_hours: jen běžné tvary (24/7, „Mo-Fr 07:00-19:00; Sa-Su,PH 08:00-14:00“, „05:00-22:00“); jiné -> null (neznámo)
+  function ohOtevreno(s, d = new Date()) {
+    if (!s) return null; s = s.trim();
+    if (s === '24/7') return true;
+    const den = d.getDay(), min = d.getHours() * 60 + d.getMinutes();
+    let res = false;
+    for (const cast of s.split(';')) {
+      const m = cast.trim().match(/^(?:((?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:[-,](?:Mo|Tu|We|Th|Fr|Sa|Su|PH))*)\s+)?(off|closed|(?:\d\d:\d\d-\d\d:\d\d)(?:,\s*\d\d:\d\d-\d\d:\d\d)*)$/);
+      if (!m) return null;
+      if (m[1]) {
+        const dny = new Set();
+        for (const r of m[1].split(',')) {
+          const [a, b] = r.split('-'); if (a === 'PH') continue;
+          const ia = DNY_OH.indexOf(a), ib = b ? DNY_OH.indexOf(b) : ia; if (ia < 0 || ib < 0) return null;
+          for (let i = ia, n = 0; n < 8; i = (i + 1) % 7, n++) { dny.add(i); if (i === ib) break; }
+        }
+        if (!dny.has(den)) continue;
+      }
+      if (/off|closed/.test(m[2])) { res = false; continue; }
+      res = m[2].split(',').some((t) => {
+        const [a, b] = t.trim().split('-').map((q) => { const [h, mm] = q.split(':').map(Number); return h * 60 + mm; });
+        return b > a ? min >= a && min < b : min >= a || min < b;
+      });
+    }
+    return res;
+  }
+  const MES_OH = { Jan: 'led', Feb: 'úno', Mar: 'bře', Apr: 'dub', May: 'kvě', Jun: 'čvn', Jul: 'čvc', Aug: 'srp', Sep: 'zář', Oct: 'říj', Nov: 'lis', Dec: 'pro' };
+  const ohCz = (s) => s.trim() === '24/7' ? 'nonstop' : s.replace(/\b(Mo|Tu|We|Th|Fr|Sa|Su|PH)\b/g, (m) => ({ Mo: 'po', Tu: 'út', We: 'st', Th: 'čt', Fr: 'pá', Sa: 'so', Su: 'ne', PH: 'svátky' })[m])
+    .replace(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b/g, (m) => MES_OH[m]).replace(/(\d\d:\d\d)-(\d\d:\d\d)/g, '$1–$2').replace(/;\s*/g, ', ');
+  const kc = (v) => v.toFixed(2).replace('.', ',') + ' Kč';
+  const puNazev = (p) => p.nazev || p.znacka || p.provozovatel || (p.druh === 'pumpa' ? 'Čerpací stanice' : p.druh === 'ev' ? 'Nabíječka elektromobilů' : 'Nabíječka elektrokol');
+  const puStari = (p) => p.cas ? (Date.now() - new Date(p.cas).getTime()) / 3600000 : Infinity;     // hodin od zjištění ceny
+  const puCena = (p) => (p.ceny && puStari(p) < 168 ? p.ceny['95'] ?? p.ceny.nafta ?? p.ceny.lpg ?? null : null);
+  const puPred = (h) => h < 1 ? 'před chvílí' : h < 24 ? `před ${Math.round(h)} h` : `před ${Math.round(h / 24)} ${Math.round(h / 24) === 1 ? 'dnem' : 'dny'}`;
+  function puKonektory(p) {
+    return (p.konektory || []).map(([s, n, v]) => `${n > 1 ? n + '× ' : ''}${KONEKTOR[s] || s}${v ? ' ' + v : ''}`).join(', ');
+  }
+  function puPopis(p) {                                       // krátký řádek do seznamu
+    if (p.druh === 'pumpa') {
+      const c = puCena(p);
+      if (c !== null) return Object.entries(p.ceny).map(([k, v]) => `${k === 'nafta' ? 'N' : k.toUpperCase()} ${v.toFixed(2).replace('.', ',')}`).join(' · ');
+      return (p.paliva || []).map((k) => PALIVO[k] || k).join(', ') || 'paliva neuvedena';
+    }
+    return puKonektory(p) || (p.druh === 'kolo' ? 'pro elektrokola' : 'nabíječka');
+  }
+  function showPumpa(p) {
+    const rows = [], ot = ohOtevreno(p.oteviraci);
+    let text = '', link = p.web, linkText = 'Web provozovatele ↗';
+    if (p.druh === 'pumpa') {
+      if (p.ceny && puStari(p) < 168) {
+        for (const [k, v] of Object.entries(p.ceny)) rows.push([PALIVO[k] || k, kc(v)]);
+        const zd = PU_ZDROJ.zdroj || 'ceník';
+        rows.push(['Ceny', `${puStari(p) > 48 ? 'starší údaj, ' : ''}${puPred(puStari(p))} · zdroj ${zd}`]);
+        if (p.ceny_url || PU_ZDROJ.zdroj_url) { link = p.ceny_url || PU_ZDROJ.zdroj_url; linkText = `Ceny na ${zd} ↗`; }
+      } else rows.push(['Paliva', (p.paliva || []).map((k) => PALIVO[k] || k).join(', ') || 'neuvedeno']);
+      const sluzby = [p.obchod && 'obchod', p.myci && 'myčka', p.vzduch && 'vzduch'].filter(Boolean).join(', ');
+      if (sluzby) rows.push(['Služby', sluzby]);
+    } else {
+      text = p.druh === 'kolo' ? 'Nabíjecí box pro elektrokola.' : '';
+      rows.push(['Konektory', puKonektory(p) || 'neuvedeno']);
+      if (p.stojanu) rows.push(['Míst k nabíjení', String(p.stojanu)]);
+      if (p.placene !== undefined) rows.push(['Nabíjení', p.placene ? 'placené' : 'zdarma']);
+    }
+    if (p.oteviraci) rows.push(['Otevřeno', ohCz(p.oteviraci) + (ot === null ? '' : ot ? ' (teď otevřeno)' : ' (teď zavřeno)')]);
+    if (p.zakaznici) rows.push(['Přístup', 'jen pro zákazníky']);
+    if (p.provozovatel && p.provozovatel !== puNazev(p)) rows.push(['Provozovatel', p.provozovatel]);
+    if (p.ulice) rows.push(['Adresa', p.ulice + (p.cp ? ' ' + p.cp : '')]);
+    showCard({ title: puNazev(p), text, lon: p.lon, lat: p.lat, k: p.k, rows, link, linkText, target: '_blank' });
+  }
+  function puAt(ix, iy, tol) {
+    if (!PUMPY.length || !$('l-pumpy').checked) return null;
+    let best = null, bd = tol;
+    for (const p of PUMPY) {
+      if (!shown(p.k)) continue;
+      const d = Math.min(Math.hypot(ix - p.ix, iy - p.iy), Math.hypot(ix - p.ix, iy - (p.iy - p.zv)));   // pata i ikona na sloupku
+      if (d < bd) { bd = d; best = p; }
+    }
+    return best;
+  }
+  function puIkona(x, y, r, druh) {                            // čtvereček s piktogramem: stojan (pumpa) nebo blesk (nabíječka)
+    const q = Math.round(r);
+    ctx.fillStyle = 'rgba(15,18,26,.75)'; ctx.fillRect(Math.round(x - q) - 1, Math.round(y - q) - 1, q * 2 + 2, q * 2 + 2);
+    ctx.fillStyle = PU_BARVA[druh]; ctx.fillRect(Math.round(x - q), Math.round(y - q), q * 2, q * 2);
+    ctx.fillStyle = '#fff';
+    const u = Math.max(1, Math.round(q / 5)), X = Math.round(x - q), Y = Math.round(y - q);
+    if (druh === 'pumpa') {
+      ctx.fillRect(X + u * 2, Y + u * 2, u * 4, u * 7);              // tělo stojanu
+      ctx.fillStyle = PU_BARVA.pumpa; ctx.fillRect(X + u * 3, Y + u * 3, u * 2, u * 2); ctx.fillStyle = '#fff';   // okénko
+      ctx.fillRect(X + u * 6, Y + u * 4, u, u); ctx.fillRect(X + u * 7, Y + u * 4, u, u * 4); ctx.fillRect(X + u * 6, Y + u * 8, u * 2, u);   // hadice
+    } else {
+      ctx.beginPath(); ctx.moveTo(x + q * 0.15, y - q * 0.8); ctx.lineTo(x - q * 0.5, y + q * 0.1); ctx.lineTo(x - q * 0.02, y + q * 0.1);
+      ctx.lineTo(x - q * 0.2, y + q * 0.8); ctx.lineTo(x + q * 0.5, y - q * 0.15); ctx.lineTo(x + q * 0.02, y - q * 0.15); ctx.closePath(); ctx.fill();
+    }
+  }
+  function kresliPumpy(sx, ox, oy, cw, ch) {
+    if (!PUMPY.length || !$('l-pumpy').checked || sx < 0.06) return;
+    const popisky = $('l-labels').checked;
+    ctx.save();
+    for (const p of PUMPY) {
+      if (!shown(p.k) || (p.druh === 'kolo' && sx < 0.3)) continue;
+      const x = ox + p.ix * sx, y = oy + p.iy * sx;
+      if (x < -60 || y < -60 || x > cw + 160 || y > ch + 60) continue;
+      if (sx < 0.15) { ctx.fillStyle = 'rgba(15,18,26,.75)'; ctx.fillRect(Math.round(x) - 3, Math.round(y) - 3, 6, 6); ctx.fillStyle = PU_BARVA[p.druh]; ctx.fillRect(Math.round(x) - 2, Math.round(y) - 2, 4, 4); continue; }
+      const r = Math.min(11, Math.max(6, 9 * Math.sqrt(sx))) * (p.druh === 'kolo' ? 0.8 : 1), top = y - Math.max(10, p.zv * sx);
+      ctx.fillStyle = 'rgba(15,18,26,.7)'; ctx.fillRect(Math.round(x) - 1, Math.round(top), 2, Math.round(y - top));   // sloupek
+      puIkona(x, top - r, r, p.druh);
+      const c = puCena(p);
+      const txt = c !== null && sx > 0.22 ? `${p.ceny['95'] !== undefined ? '95' : p.ceny.nafta !== undefined ? 'N' : 'LPG'} ${c.toFixed(2).replace('.', ',')}` : popisky && sx > 0.55 ? puNazev(p) : '';
+      if (!txt) continue;
+      ctx.font = `600 ${Math.round(11 + Math.min(2, sx))}px system-ui, sans-serif`;
+      const w = Math.ceil(ctx.measureText(txt).width) + 8, tx = Math.round(x + r + 3), ty = Math.round(top - r * 2);
+      ctx.fillStyle = 'rgba(15,18,26,.82)'; ctx.fillRect(tx, ty, w, r * 2);
+      if (p.nej) { ctx.fillStyle = '#35e06f'; ctx.fillRect(tx, ty, 3, r * 2); }
+      ctx.fillStyle = c !== null && puStari(p) > 48 ? '#a9b3c4' : '#fff'; ctx.textBaseline = 'middle'; ctx.fillText(txt, tx + 5, ty + r);
+    }
+    ctx.restore();
+  }
+  function puNastav(data) {
+    const st = (data && data.stanice) || [];
+    PU_ZDROJ = (data && data.zdroj) || {};
+    PUMPY = st.map((p) => {
+      const x = (p.lon - cam.lon0) * cam.kx, y = (p.lat - cam.lat0) * cam.ky, h = gz(x, y), [ix, iy] = toImg(x, y, h), [, iy2] = toImg(x, y, h + 9);
+      return { ...p, x, y, ix, iy, zv: iy - iy2, k: `c${Math.round(x / (2 * cam.half))}_${Math.round(y / (2 * cam.half))}` };
+    }).filter((p) => cam.grounds.some((q) => Math.abs(p.x - q.cx) <= cam.half && Math.abs(p.y - q.cy) <= cam.half));
+    if (!PUMPY.length) return;
+    const sCenou = PUMPY.filter((p) => p.druh === 'pumpa' && puCena(p) !== null && p.ceny['95'] !== undefined);
+    if (sCenou.length > 1) { const m = Math.min(...sCenou.map((p) => p.ceny['95'])); for (const p of sCenou) p.nej = p.ceny['95'] === m; }
+    const poradi = { pumpa: 0, ev: 1, kolo: 2 };
+    PUMPY.sort((a, b) => (poradi[a.druh] - poradi[b.druh]) || ((puCena(a) ?? 999) - (puCena(b) ?? 999)) || puNazev(a).localeCompare(puNazev(b), 'cs'));
+    $('l-pumpy-row').hidden = false; $('puBox').hidden = false;
+    const np = PUMPY.filter((p) => p.druh === 'pumpa').length, ne = PUMPY.length - np;
+    $('puVal').textContent = `${np} + ${ne}`;
+    for (const p of PUMPY) {
+      const li = document.createElement('li'), b = document.createElement('button'); b.type = 'button';
+      if (p.nej) li.className = 'pu-nej';
+      const ico = document.createElement('span'); ico.className = 'pu-ico ' + p.druh; ico.setAttribute('aria-hidden', 'true'); ico.textContent = p.druh === 'pumpa' ? 'P' : '⚡';
+      const nm = document.createElement('span'); nm.textContent = puNazev(p);
+      const sm = document.createElement('small'); sm.textContent = (p.nej ? 'Nejlevnější · ' : '') + puPopis(p);
+      b.append(ico, nm, sm);
+      b.addEventListener('click', () => { if (!$('l-pumpy').checked) $('l-pumpy').checked = true; goTo(p.ix, p.iy, 1.2); showPumpa(p); });
+      li.appendChild(b); $('puList').appendChild(li);
+      const druh = p.druh === 'pumpa' ? 'benzínka' : 'nabíječka';
+      index.push({ label: puNazev(p), kind: druh, k: p.k, n: norm(`${puNazev(p)} ${p.znacka || ''} ${druh} ${p.druh === 'pumpa' ? 'pumpa cerpaci stanice benzin nafta' : 'nabijecka dobijeci stanice elektro'}`),
+        go: () => { goTo(p.ix, p.iy, 1.2); showPumpa(p); } });
+    }
+  }
+  fetch('pumpy.json').then((r) => (r.ok ? r.json() : null)).catch(() => null).then(puNastav);
+
   const roads = [], ends = new Map(), cars = [];
   // vjezd na kruhový objezd: auto dá přednost autům na okruhu (25 m před vjezdem nebo právě v něm)
   function yieldZ(r, y) {
@@ -3016,6 +3185,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
         }
       }
     }
+    kresliPumpy(sx, ox, oy, cw, ch);
     // mraky (jen při oddálení); při dešti a sněžení tmavší a víc
     {
       const fade = Math.max(0, Math.min(1, (0.45 - sx) / 0.25));

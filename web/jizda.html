@@ -353,6 +353,7 @@ import { vytvorStromy } from './jizda/stromy.js';
 import { vytvorUlici } from './jizda/ulice.js';
 import { vytvorZnacky } from './jizda/znacky.js';
 import { vytvorUzavirky } from './jizda/uzavirky.js';
+import { vytvorPumpy } from './jizda/pumpy.js';
 import { vytvorDopravu, nah } from './jizda/doprava.js';
 import { vytvorHrace } from './jizda/hraci.js';
 THREE.ColorManagement.enabled = false;
@@ -584,6 +585,7 @@ function krokPocasi(dt, cas) {
 }
 const slozScena = new THREE.Scene(); slozScena.add(slozeni);
 const slozCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+let PUMPY = null;                                            // čerpací stanice a nabíječky (jizda_pumpy.js), vzniká níž
 let UZ = null;                                               // uzavírky silnic (jizda_uzavirky.js), vzniká níž
 const jenVeDne = [];                                        // naše tělesa bez vlastního světla: v obrazu světel se kreslí černě
 const CERNA = new THREE.MeshBasicMaterial({ color: 0x000000 });
@@ -1302,6 +1304,7 @@ function bodyMapy() {
   const videno = new Set();
   for (const z of ZAST) { if (videno.has(z.nazev)) continue; videno.add(z.nazev); b.push({ x: z.x, y: z.y, label: z.nazev, druh: 'Zastávka', barva: '#2f8cff', tvar: 'ctverec', velikost: 5, min: 4, popisekMin: 1.2 }); }
   for (const u of UZ ? UZ.seznam : []) { const p = u.body[Math.floor(u.body.length / 2)]; b.push({ x: p[0], y: p[1], label: 'Uzavírka' + (u.popis ? ': ' + u.popis : ''), druh: 'Uzavírka', barva: '#e5484d', tvar: 'ctverec', velikost: 6, vyrazny: true, popisekMin: 4 }); }
+  for (const p of PUMPY ? PUMPY.seznam : []) b.push({ x: p.x, y: p.y, label: PUMPY.nazev(p), druh: p.druh === 'pumpa' ? 'Benzínka' : 'Nabíječka', barva: p.druh === 'pumpa' ? '#1f6f8b' : '#2c9a4b', tvar: 'ctverec', velikost: 6, vyrazny: true, popisekMin: 2 });
   if (ULICE.on) { const M = ULICE._mista(); for (const o of M.obchody || []) b.push({ x: o.x, y: o.y, label: 'Večerka', druh: 'Večerka', barva: '#3be07a', velikost: 5, min: 3, popisekMin: 1 }); if (M.vrak) b.push({ x: M.vrak.x, y: M.vrak.y, label: 'Vrakoviště', druh: 'Vrakoviště', barva: '#ffd23a', velikost: 7, vyrazny: true }); }
   return b;
 }
@@ -1770,6 +1773,8 @@ const ZNACKY = vytvorZnacky(THREE, scene3, { roads, ends, ek, along, jenVeDne, h
 
 // uzavírky silnic (assets/upresneni.json -> jizda/uzavirky.json): navigace je objede, auta do nich neodbočí, na koncích zábrany
 UZ = vytvorUzavirky(THREE, scene3, { CAM, roads, along, gz, hrac, jenVeDne, toast: (t, k) => toast(t, k) });
+// čerpací stanice a nabíječky (pumpy.json z nastroje/pumpy.py): cenový totem, stojan nabíječky, panel při zastavení
+PUMPY = vytvorPumpy(THREE, scene3, { CAM, roads, gz, hrac, jenVeDne, hitBuilding });
 function oznacUzavirky(i0 = 0) {
   if (!UZ) return;
   for (let i = i0; i < roads.length; i++) roads[i].uz = !!UZ.kryje(roads[i].w);
@@ -1954,6 +1959,7 @@ function frame(now) {
   kresliMapu();
   ZNACKY.update(now);
   UZ.update(now);
+  PUMPY.update(now);
   NAV.update(now);
   HRA.update(dt, now);
   HRACI.update(dt, now, camera);
