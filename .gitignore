@@ -35,7 +35,13 @@ assets/oblasti.json
 assets/ruian_budovy.json
 assets/kominy.json
 assets/prejezdy.json
+assets/znacky.json
 assets/potrubi.json
+assets/semafory.json
+assets/trasy.json
+assets/letiste.json
+# lokální spouštění náhledu (absolutní cesty tohoto počítače)
+.claude/launch.json
 
 # soukromé podklady a tajemství (nikdy do veřejného repa)
 podklady-soukrome/

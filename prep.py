@@ -381,7 +381,7 @@ for _, r in seg.iterrows():
     tp = tunnel_parts(r)
     if tp is None: _rows.append(r); continue
     for i, (a, b_) in enumerate(tp):
-        q = r.copy(); q['geom'] = shapely.ops.substring(r.geom, a, b_, normalized=True); _rows.append(q)
+        q = r.copy(); q['geom'] = shapely.ops.substring(r.geom, a, b_, normalized=True); q['_rng'] = (a, b_); _rows.append(q)
     if r['class'] == 'trunk':                           # portály na koncích tunelu
         for a, b_ in tp:
             for t, sg in ((a, 1), (b_, -1)):
@@ -396,6 +396,12 @@ def bridge_parts(r):
     br = [f.get('between') for f in fl if 'is_bridge' in list(f.get('values'))]
     if not br: return None
     rng = sorted((0.0, 1.0) if t is None else (float(t[0]), float(t[1])) for t in br)
+    kus = r.get('_rng')                         # kus úseku mezi tunely: 'between' platí pro celý původní úsek, přepočítat na kus
+    if isinstance(kus, tuple):
+        k0, k1 = kus
+        rng = [(max(0.0, (t0 - k0) / (k1 - k0)), min(1.0, (t1 - k0) / (k1 - k0))) for t0, t1 in rng]
+        rng = [(t0, t1) for t0, t1 in rng if t1 > t0]
+        if not rng: return None
     out, a = [], 0.0
     for t0, t1 in rng:
         if t0 > a: out.append((a, t0, False))
@@ -508,12 +514,17 @@ for g0, r in bridge_segs:
         ds0 = LineString(pre[::-1] + bc[:1]).length if pre else 0.0
         ds1 = ds0 + l.length
         lz = ext.segmentize(4.0); xy = np.array(lz.coords)[:, :2]
+        d = np.concatenate([[0], np.cumsum(np.hypot(*np.diff(xy, axis=0).T))])
+        _dd = np.unique(np.concatenate([d, [ds0, ds1]]))          # přesné body začátku a konce mostu (hranice most / násyp)
+        xy = np.array([ext.interpolate(float(v)).coords[0][:2] for v in _dd])
         d = np.concatenate([[0], np.cumsum(np.hypot(*np.diff(xy, axis=0).T))]); L = d[-1]
         gz = ground(xy[:, 0], xy[:, 1])
         span = (d >= ds0 - 0.01) & (d <= ds1 + 0.01)
         req = gz + 0.15
         ends = l.boundary.buffer(1.5)
-        _pod = [int(j) for j in _under.query(l) if _under.geometries[j].intersects(l) and not _under.geometries[j].intersects(ends)]
+        _stopa = l.buffer(w / 2 + 3)            # cesta celá v šířce mostu (přechod pro chodce bez značky mostu) vede po mostě, ne pod ním
+        _pod = [int(j) for j in _under.query(l) if _under.geometries[j].intersects(l) and not _under.geometries[j].intersects(ends)
+                and _under.geometries[j].difference(_stopa).length > 1.0]
         # pod mostem: silnice a tratě chtějí podjezdnou výšku, chodník nebo stezka (často podél potoka pod mostem) jen průchod
         cross = [_under.geometries[j] for j in _pod if roads[j][2] not in FOOT]
         cross = shapely.unary_union(cross).buffer(w / 2 + 3) if cross else None     # silnice a tratě, které vedou pod mostem
@@ -540,7 +551,14 @@ for g0, r in bridge_segs:
         i0 = min(max(int(hi[0]) - 1, 0) if len(hi) else si[0], si[0]); i1 = max(min(int(hi[-1]) + 1, len(d) - 1) if len(hi) else si[-1], si[-1])
         _cut(A0, ds0 - d[i0]); _cut(A1, d[i1] - ds1)
         lz = LineString(xy[i0:i1 + 1]); d = d[i0:i1 + 1] - d[i0]
-        DECKS.append((lz, d, z[i0:i1 + 1], gz[i0:i1 + 1], w, kind, c, sname(r), int(l.intersects(_water))))
+        # span: body skutečného mostu (1); nájezdy mimo něj jsou ve skutečnosti násyp (0), terén z laseru je hrubý a úzký násyp v něm chybí.
+        # 2 = most a pod ním cesta, trať nebo voda: tam render nestaví pilíř
+        _volno = [_under.geometries[j].buffer(roads[j][3] / 2 + 2) for j in _pod] + [_water]
+        _volno = shapely.unary_union(_volno)
+        fl = span.astype(int)
+        for i in np.where(span)[0]:
+            if _volno.contains(Point(xy[i][0], xy[i][1])): fl[i] = 2
+        DECKS.append((lz, d, z[i0:i1 + 1], gz[i0:i1 + 1], w, kind, c, sname(r), int(l.intersects(_water)), fl[i0:i1 + 1]))
 for qb in UP.get('bridges', []):
     bl = LineString([to_local(lo, la) for la, lo in qb['line']]).segmentize(2.0)
     if bl.intersects(DRAWBOX):
@@ -549,7 +567,7 @@ for qb in UP.get('bridges', []):
         bgz = ground(bxy[:, 0], bxy[:, 1])
         t_ = bd / max(bd[-1], 0.1)
         bz = bgz + 0.35 + qb.get('h', 1.2) * np.sin(np.pi * t_)
-        DECKS.append((bl, bd, bz, bgz, qb.get('w', 2.5), qb.get('k', 'foot'), qb.get('c', 'footway'), None, 1))
+        DECKS.append((bl, bd, bz, bgz, qb.get('w', 2.5), qb.get('k', 'foot'), qb.get('c', 'footway'), None, 1, np.ones(len(bd), int)))
 print('mostů', len(DECKS), 'z toho lávek', sum(k[5] == 'foot' for k in DECKS), 'nájezdů', len(_rcut))
 def _rest(l_, cuts):                       # cesta bez úseků pod mostovkami
     out, a = [], 0.0
@@ -1788,7 +1806,7 @@ json.dump({'chunk': CHUNK, 'center': [CX, CY], 'half': HALF, 'step': STEP, 'n': 
            'buildings': buildings, 'trees': trees, 'props': props, 'cars': cars, 'buses': buses, 'portals': portals, 'lines': lines_out,
            'herds': herds_out,
            'bridges': [{'p': run, 'w': D[4], 'k': D[5], 'c': D[6], 'wtr': D[8] if len(D) > 8 else 0} for D in DECKS if D[0].intersects(EXT)
-                       for run in deck_runs([[*q, round(float(g_), 2)] for q, g_ in zip(deck_line(D), D[3])])]},
+                       for run in deck_runs([[*q, round(float(g_), 2), int(s_)] for q, g_, s_ in zip(deck_line(D), D[3], D[9])])]},
           open(f'{OUT}/scene.json', 'w'), separators=(',', ':'))
 
 # podklady pro interaktivní vrstvu prohlížeče

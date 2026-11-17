@@ -21,6 +21,13 @@ class TestSemafory(unittest.TestCase):
     def test_daleko_od_silnice_nic(self):
         self.assertEqual(semafory.na_kusu(self.P, [(50, 20, 'k')]), [])
 
+    def test_dva_uzly_krizovatky_jedna_stop_cara(self):
+        # OSM: semafor na nájezdu (90 m) i uprostřed křižovatky (99 m) -> jen jedna stop čára, ta dřívější
+        out = semafory.na_kusu(self.P, [(86, 1, 'k'), (99, 0, 'k')])
+        self.assertEqual([o[0] for o in out], [86.0])
+        out = semafory.na_kusu(self.P, [(14, 1, 'k'), (1, 0, 'k')])     # u začátku kusu (směr -1): zůstane větší staničení
+        self.assertEqual([o[0] for o in out], [14.0])
+
     def test_dvojice_blizko_jen_jednou(self):
         self.assertEqual(len(semafory.na_kusu(self.P, [(97, 1, 'k'), (98.5, -1, 'k')])), 1)
 

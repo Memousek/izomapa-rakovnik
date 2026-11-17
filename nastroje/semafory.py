@@ -29,7 +29,18 @@ def na_kusu(p, body):
             else: smer = 1 if s > L / 2 else -1                            # u křižovatky: jen auta, která do ní vjíždějí
             out.append([round(s, 1), round(qx, 1), round(qy, 1), k, smer, rd[0] if rd else 0])
         acc += seg
-    return sorted(out)
+    return sloucit(sorted(out))
+
+
+def sloucit(out):
+    """OSM má semafor jedné křižovatky často na několika uzlech (nájezd i střed): stejný směr do 12 m = jedna stop čára.
+    Zůstane ta, ke které auto dojede dřív (směr 1: menší staničení, směr -1: větší)."""
+    res = []
+    for o in out:
+        i = next((k for k, q in enumerate(res) if q[4] == o[4] and abs(q[0] - o[0]) < 12), None)
+        if i is None: res.append(o)
+        elif o[4] == -1: res[i] = o
+    return res
 
 
 if __name__ == '__main__':

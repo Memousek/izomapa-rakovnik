@@ -354,6 +354,21 @@ export function vytvorVozidla(THREE, scene, max = 1400) {
   const matDet = new THREE.MeshLambertMaterial({ vertexColors: true });
   const matSv = new THREE.MeshBasicMaterial({ vertexColors: true });
   const telesa = [], typy = {}, seznam = [];
+  // brzdová světla a blinkry: vlastní instance (svítí i ve dne), poloha z modelu (zadní světla, rohy u předních a zadních)
+  const matBrzda = new THREE.MeshBasicMaterial({ color: 0xff2414, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const matBlinkr = new THREE.MeshBasicMaterial({ color: 0xffa31a });
+  const gBlinkr = new THREE.BoxGeometry(0.13, 0.1, 0.13);
+  const meze = (sit_) => {
+    const a = sit_.p; if (!a.length) return null;
+    const m = { x0: 1e9, x1: -1e9, y0: 1e9, y1: -1e9, z: 0 };
+    for (let i = 0; i < a.length; i += 3) { m.x0 = Math.min(m.x0, a[i]); m.x1 = Math.max(m.x1, a[i]); m.y0 = Math.min(m.y0, a[i + 1]); m.y1 = Math.max(m.y1, a[i + 1]); m.z = Math.max(m.z, Math.abs(a[i + 2])); }
+    return m;
+  };
+  const instance = (g, mat, n) => {
+    const im = new THREE.InstancedMesh(g, mat, n);
+    im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.frustumCulled = false; im.count = 0; im.visible = false; scene.add(im);
+    return im;
+  };
 
   for (const druh in MODELY) {
     const m = MODELY[druh](), t = { n: 0, lak: null, det: null, sv: null, im: null, ic: null, ced: CEDULE[druh] || null };
@@ -375,6 +390,14 @@ export function vytvorVozidla(THREE, scene, max = 1400) {
     t.det = pridejSit(geom(m.D, true), matDet);
     telesa.push(t.det);
     if (m.P.p.length + m.Z.p.length) t.sv = pridejSit(geom(spoj(m.P, m.Z), true), matSv);
+    const mz = meze(m.Z), mp = meze(m.P), ml = meze(m.L);
+    t.nb = 0; t.nl = 0;
+    if (mz) t.brz = instance(geom(m.Z, false), matBrzda, max);
+    const zadni = mz || ml, predni = mp || ml;
+    if (zadni && predni) {                                   // blinkry: přední roh, zadní roh (na straně ±z)
+      t.bl = instance(gBlinkr, matBlinkr, max * 2);
+      t.blBody = [[predni.x1 - 0.02, (predni.y0 + predni.y1) / 2, Math.max(predni.z, 0.6)], [zadni.x0 + 0.02, (zadni.y0 + zadni.y1) / 2 + 0.02, Math.max(zadni.z, 0.6)]];
+    }
     typy[druh] = t; seznam.push(t);
   }
 
@@ -410,11 +433,13 @@ export function vytvorVozidla(THREE, scene, max = 1400) {
   };
   const fronty = [fronta(CEDULI, DOSAH_CEDULE), fronta(CEDULI_VLAK, DOSAH_VLAK)];   // autobusy, vlaky
   const oko = new THREE.Vector3();
+  let blik = true;
 
   return {
     telesa,
-    zacni() { for (let i = 0; i < seznam.length; i++) seznam[i].n = 0; fronty[0].n = 0; fronty[1].n = 0; },
-    pridej(druh, x, y, z, h, barva, linka) {
+    zacni() { for (let i = 0; i < seznam.length; i++) { seznam[i].n = 0; seznam[i].nb = 0; seznam[i].nl = 0; } fronty[0].n = 0; fronty[1].n = 0; blik = Math.floor(performance.now() / 380) % 2 === 0; },
+    // fl: 1 brzdí, 2 blinkr vlevo, 4 blinkr vpravo (obojí = výstražná světla); blinkr svítí jen v sudé fázi (blik)
+    pridej(druh, x, y, z, h, barva, linka, fl) {
       const t = typy[druh] || typy.car;
       if (t.n >= max) return;
       const i = t.n++, a = t.im.array, o = i * 16, c = Math.cos(h), s = Math.sin(h);
@@ -422,6 +447,20 @@ export function vytvorVozidla(THREE, scene, max = 1400) {
       a[o + 4] = 0; a[o + 5] = 1; a[o + 6] = 0; a[o + 7] = 0;
       a[o + 8] = s; a[o + 9] = 0; a[o + 10] = c; a[o + 11] = 0;
       a[o + 12] = x; a[o + 13] = z; a[o + 14] = -y; a[o + 15] = 1;
+      if (fl) {
+        if (fl & 1 && t.brz) { const b = t.brz.instanceMatrix.array, ob = t.nb++ * 16; for (let k = 0; k < 16; k++) b[ob + k] = a[o + k]; }
+        if (fl & 6 && t.bl && blik) {
+          const b = t.bl.instanceMatrix.array;
+          for (const strana of [fl & 2 ? -1 : 0, fl & 4 ? 1 : 0]) {
+            if (!strana) continue;                           // +z = vpravo
+            for (const [lx, ly, lz] of t.blBody) {
+              const ob = t.nl++ * 16, zz = lz * strana;
+              for (let k = 0; k < 12; k++) b[ob + k] = a[o + k];
+              b[ob + 12] = x + c * lx + s * zz; b[ob + 13] = z + ly; b[ob + 14] = -y - s * lx + c * zz; b[ob + 15] = 1;
+            }
+          }
+        }
+      }
       if (t.ic) { const q = rgb(barva), b = t.ic.array, k = i * 3; b[k] = q[0]; b[k + 1] = q[1]; b[k + 2] = q[2]; }
       if (t.ced && linka !== undefined && linka !== null && linka !== '') {   // poloha cedule rovnou ve světě three
         const f = fronty[t.ced[2]];
@@ -434,6 +473,7 @@ export function vytvorVozidla(THREE, scene, max = 1400) {
         if (t.lak) { t.lak.count = n; t.lak.visible = n > 0; }
         t.det.count = n; t.det.visible = n > 0;
         if (t.sv) { t.sv.count = sviti ? n : 0; t.sv.visible = sviti && n > 0; }
+        for (const [im, k] of [[t.brz, t.nb], [t.bl, t.nl]]) if (im) { im.count = k; im.visible = k > 0; if (k) im.instanceMatrix.needsUpdate = true; }
         if (n) {
           t.im.clearUpdateRanges(); t.im.addUpdateRange(0, n * 16); t.im.needsUpdate = true;
           if (t.ic) { t.ic.clearUpdateRanges(); t.ic.addUpdateRange(0, n * 3); t.ic.needsUpdate = true; }
@@ -474,6 +514,12 @@ export function vytvorVozidla(THREE, scene, max = 1400) {
       }
       pridejDil(new THREE.Mesh(geom(m.P, true), matSv), true);
       pridejDil(new THREE.Mesh(geom(m.Z, true), matSv), true);
+      // brzdová světla a blinkry hráče (jizda.html je zapíná podle brzdy a odbočování)
+      const br = new THREE.Mesh(geom(m.Z, false), matBrzda); br.userData.brzda = true; br.visible = false; g.add(br);
+      const mz = meze(m.Z), mp = meze(m.P);
+      if (mz && mp) for (const [lx, ly, lz] of [[mp.x1 - 0.02, (mp.y0 + mp.y1) / 2, mp.z], [mz.x0 + 0.02, (mz.y0 + mz.y1) / 2 + 0.02, mz.z]]) for (const strana of [-1, 1]) {
+        const b = new THREE.Mesh(gBlinkr, matBlinkr); b.position.set(lx, ly, lz * strana); b.userData.blinkr = strana; b.visible = false; g.add(b);
+      }
       return g;
     },
   };

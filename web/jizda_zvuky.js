@@ -64,9 +64,6 @@ export function vytvorZvuky(api) {
     n.busG = gain(0);
     n.busO = osc('sawtooth', 50, filtr('lowpass', 160, 0.7, n.busG));
     sum().connect(filtr('lowpass', 250, 0.5, n.busG));
-    // policejní siréna (pouliční režim): dva tóny střídavě, hlasitost podle vzdálenosti nejbližšího vozu
-    n.sirG = gain(0);
-    n.sirO = osc('sawtooth', 650, filtr('lowpass', 2200, 0.7, n.sirG));
     n.master = master;
     N = n;
     return true;
@@ -104,7 +101,8 @@ export function vytvorZvuky(api) {
     try { localStorage.setItem(KLIC, zap ? '1' : '0'); } catch (e) { /* nic */ }
     popisek();
     if (zap) { start(); pripojGesta(); } else {
-      if (N) { for (const k of ['motG', 'pneuG', 'vitrG', 'mestoG', 'mijG', 'ptakG', 'dest', 'snih', 'tikG', 'busG', 'motSumG', 'sirG']) N[k].gain.setTargetAtTime(0, ctx.currentTime, 0.05); }
+      if (N) { for (const k of ['motG', 'pneuG', 'vitrG', 'mestoG', 'mijG', 'ptakG', 'dest', 'snih', 'tikG', 'busG', 'motSumG']) N[k].gain.setTargetAtTime(0, ctx.currentTime, 0.05); }
+      for (const z of zdroje) z.ticho();
       try { if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel(); } catch (e) { /* nic */ }
     }
   });
@@ -229,11 +227,66 @@ export function vytvorZvuky(api) {
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(hlas || 0.2, t + 0.01);
     g.gain.exponentialRampToValueAtTime(0.001, t + trv);
-    o.connect(g); g.connect(N.master);
+    o.connect(g); g.connect(cilV || N.master);
     o.start(t); o.stop(t + trv + 0.05);
   }
-  function hraj(nazev) {
+  // prostorový zvuk: posluchač je kamera, zdroj v souřadnicích three (x, výška, -y)
+  let cilV = null;
+  function panner(x, y, z, ref) {
+    const p = ctx.createPanner();
+    p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = ref || 6; p.maxDistance = 2000; p.rolloffFactor = 1.3;
+    if (p.positionX) { p.positionX.value = x; p.positionY.value = y; p.positionZ.value = z; } else p.setPosition(x, y, z);
+    p.connect(N.master);
+    return p;
+  }
+  function poslech(px, py, pz, fx, fy, fz) {
     if (!bezi()) return;
+    const L = ctx.listener, t = ctx.currentTime;
+    if (L.positionX) {
+      L.positionX.setTargetAtTime(px, t, 0.02); L.positionY.setTargetAtTime(py, t, 0.02); L.positionZ.setTargetAtTime(pz, t, 0.02);
+      L.forwardX.setTargetAtTime(fx, t, 0.02); L.forwardY.setTargetAtTime(fy, t, 0.02); L.forwardZ.setTargetAtTime(fz, t, 0.02);
+      L.upX.value = 0; L.upY.value = 1; L.upZ.value = 0;
+    } else { L.setPosition(px, py, pz); L.setOrientation(fx, fy, fz, 0, 1, 0); }
+  }
+  // trvalý zdroj (siréna, motor): nastav(x, y, z, k) každý snímek; k = rychlost přibližování (m/s) pro Dopplerův jev
+  const zdroje = [];
+  function zdroj(druh) {
+    const z = { ticho() {}, nastav() {}, konec() {} };
+    if (!bezi()) return z;
+    const p = panner(0, -1e4, 0, druh === 'sirena' ? 14 : 5), g = ctx.createGain(); g.gain.value = 0; g.connect(p);
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = druh === 'sirena' ? 2600 : 380; f.Q.value = 0.7; f.connect(g);
+    const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = druh === 'sirena' ? 650 : 55; o.connect(f); o.start();
+    const faze = Math.random();
+    const pos = (x, y, zz) => { const t = ctx.currentTime; if (p.positionX) { p.positionX.setTargetAtTime(x, t, 0.03); p.positionY.setTargetAtTime(y, t, 0.03); p.positionZ.setTargetAtTime(zz, t, 0.03); } else p.setPosition(x, y, zz); };
+    Object.assign(z, {
+      nastav(x, y, zz, priblizovani, param) {
+        if (!bezi()) return;
+        const t = ctx.currentTime, dop = 343 / Math.max(200, 343 - mez(priblizovani || 0, -60, 60));
+        pos(x, y, zz);
+        if (druh === 'sirena') {
+          o.frequency.setTargetAtTime((Math.floor(t * 1.5 + faze * 2) % 2 ? 880 : 660) * dop, t, 0.015);
+          g.gain.setTargetAtTime(param === false ? 0 : 0.11, t, 0.08);
+        } else {                                              // motor: param = rychlost m/s
+          const v = Math.abs(param || 0);
+          o.frequency.setTargetAtTime((42 + v * 2.6) * dop, t, 0.1);
+          g.gain.setTargetAtTime(0.05 + Math.min(0.1, v * 0.006), t, 0.1);
+        }
+      },
+      ticho() { if (ctx) g.gain.setTargetAtTime(0, ctx.currentTime, 0.05); },
+      konec() { try { g.gain.setTargetAtTime(0, ctx.currentTime, 0.05); o.stop(ctx.currentTime + 0.3); setTimeout(() => p.disconnect(), 500); } catch (e) { /* nic */ } const i = zdroje.indexOf(z); if (i >= 0) zdroje.splice(i, 1); },
+    });
+    zdroje.push(z);
+    return z;
+  }
+  function hraj(nazev, poz) {
+    if (!bezi()) return;
+    if (poz) {                                               // jednorázový zvuk v místě (úder, náraz, alarm, klakson, výbuch)
+      cilV = panner(poz[0], poz[1], poz[2], nazev === 'vybuch' ? 25 : nazev === 'alarm' || nazev === 'klakson' ? 8 : 4);
+      const p = cilV; setTimeout(() => { try { p.disconnect(); } catch (e) { /* nic */ } }, 7000);
+    }
+    try { hraj1(nazev); } finally { cilV = null; }
+  }
+  function hraj1(nazev) {
     if (nazev === 'pokuta') { pip(220, 0, 0.25, 'square', 0.12); pip(220, 0.32, 0.25, 'square', 0.12); }
     else if (nazev === 'odmena') { pip(523, 0, 0.5, 'sine', 0.2); pip(659, 0.1, 0.5, 'sine', 0.2); pip(784, 0.2, 0.7, 'sine', 0.2); pip(1568, 0.2, 0.7, 'sine', 0.05); }
     else if (nazev === 'nastup') { pip(880, 0, 0.5, 'sine', 0.2); pip(660, 0.35, 0.7, 'sine', 0.2); }
@@ -243,6 +296,8 @@ export function vytvorZvuky(api) {
     else if (nazev === 'naraz') { bum(0.45, 1400, 0.6); pip(70, 0, 0.4, 'sawtooth', 0.25, 35); }
     else if (nazev === 'vybuch') { bum(1.6, 700, 0.9); pip(55, 0, 1.4, 'sawtooth', 0.4, 25); }
     else if (nazev === 'klakson') { pip(415, 0, 0.45, 'square', 0.08); pip(523, 0, 0.45, 'square', 0.06); }
+    else if (nazev === 'alarm') { for (let i = 0; i < 14; i++) pip(i % 2 ? 1250 : 950, i * 0.35, 0.3, 'square', 0.07); }
+    else if (nazev === 'blinkr') { pip(2600, 0, 0.018, 'square', 0.035); pip(1300, 0.012, 0.02, 'triangle', 0.03); }
     else if (nazev === 'sebrat') { pip(988, 0, 0.12, 'square', 0.08); pip(1319, 0.08, 0.18, 'square', 0.08); }
     else if (nazev === 'hvezda') { pip(330, 0, 0.25, 'square', 0.12); pip(247, 0.22, 0.4, 'square', 0.12); }
     else if (nazev === 'zatcen') { pip(392, 0, 0.3, 'square', 0.14); pip(330, 0.3, 0.3, 'square', 0.14); pip(262, 0.6, 0.8, 'square', 0.14); }
@@ -253,14 +308,7 @@ export function vytvorZvuky(api) {
     for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2);
     const s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain();
     s.buffer = b; fl.type = 'lowpass'; fl.frequency.value = f; g.gain.value = hlas;
-    s.connect(fl); fl.connect(g); g.connect(N.master); s.start(t);
-  }
-  // siréna: v = 0 (ticho) až 1 (vůz těsně u hráče)
-  function sirena(v) {
-    if (!bezi()) return;
-    const t = ctx.currentTime;
-    N.sirO.frequency.setTargetAtTime(Math.floor(t * 1.6) % 2 ? 870 : 650, t, 0.02);
-    N.sirG.gain.setTargetAtTime(mez(v, 0, 1) * 0.07, t, 0.15);
+    s.connect(fl); fl.connect(g); g.connect(cilV || N.master); s.start(t);
   }
 
   function hlaseni(text) {
@@ -279,5 +327,5 @@ export function vytvorZvuky(api) {
     } catch (e) { /* jen gong */ }
   }
 
-  return { update, hraj, hlaseni, tlacitko, sirena };
+  return { update, hraj, hlaseni, tlacitko, zdroj, poslech, get bezi() { return !!bezi(); } };
 }

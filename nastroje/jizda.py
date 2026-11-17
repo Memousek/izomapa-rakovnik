@@ -11,7 +11,7 @@ python nastroje/jizda.py --stranka  jen stránka a svet.js, data čtverců se ne
 -> site/jizda.html               stránka z web/jizda.html (texty z mesto.json)
 Spouštět z kořene repa po ./postav.sh (potřebuje build/**/scene.json a ground_*.png).
 """
-import html, json, os, shutil, sys
+import html, json, os, shutil, sys, time
 sys.path.insert(0, '.')
 import geo
 from PIL import Image
@@ -51,9 +51,12 @@ def svet_js():
     kod = jednou(kod, 'uniform sampler2D uTex, uLmap;', 'uniform sampler2D uTex, uLmap; uniform float uMokro, uSnih;')
     # ---- kvalita obrazu zblízka (mapa je kreslená pro pohled shora po 0,2 m na pixel, chodec se dívá z 1,7 m) ----
     # detailní textura (stránka: O.uDet, dlaždicový šum s mipmapami; O.uDetS = 0 vše vypne) pro všechny materiály světa
-    kod = jednou(kod, 'uniform float uLights; uniform vec2 uOff;', 'uniform float uLights; uniform vec2 uOff; uniform sampler2D uDet; uniform float uDetS;')
+    kod = jednou(kod, 'uniform float uLights; uniform vec2 uOff;', 'uniform float uLights; uniform vec2 uOff; uniform sampler2D uDet; uniform float uDetS; uniform float uOkna;')
     kod = jednou(kod, 'uOff: { value: new THREE.Vector2(OFFX, -OFFY) }, ...extra,',
-                 'uOff: { value: new THREE.Vector2(OFFX, -OFFY) }, uDet: O.uDet || { value: null }, uDetS: O.uDetS || { value: 0 }, ...extra,')
+                 'uOff: { value: new THREE.Vector2(OFFX, -OFFY) }, uDet: O.uDet || { value: null }, uDetS: O.uDetS || { value: 0 }, uOkna: O.uOkna || { value: 1 }, ...extra,')
+    # okna v noci: podíl rozsvícených podle hodin (stránka: O.uOkna, 1 = jako v mapě, méně = k půlnoci zhasínají)
+    kod = jednou(kod, 'if (hh > 0.52) e = vec3(1.0, 0.80, 0.46)', 'if (hh > 1.0 - 0.48 * uOkna) e = vec3(1.0, 0.80, 0.46)')
+    kod = jednou(kod, 'else if (hh > 0.44) e = vec3(0.62, 0.74, 1.0)', 'else if (hh > 1.0 - 0.56 * uOkna) e = vec3(0.62, 0.74, 1.0)')
     # stíny: stínová mapa má texel přes půl metru, ostré porovnání dělá na hranách stínu zuby a trojúhelníky (hlavně na fasádách).
     # Čtyři vzorky s bilineární vahou a práh 0,5 dají hladký obrys; stín zůstane ostrý (pixel-art), jen bez schodů.
     kod = jednou(kod, 'return (c.z - 0.00025 > texture2D(uShadow, c.xy).r) ? 0.0 : 1.0;', '''if (uDetS < 0.01) return (c.z - 0.00025 > texture2D(uShadow, c.xy).r) ? 0.0 : 1.0;
@@ -156,6 +159,28 @@ def main():
         if f.startswith('jizda_') and f.endswith('.js'): shutil.copy(f'web/{f}', f'{OUT}/{f[6:]}')
     if os.path.exists('assets/custom_models.js'): shutil.copy('assets/custom_models.js', f'{OUT}/custom_models.js')
     else: open(f'{OUT}/custom_models.js', 'w').write('// město nemá vlastní modely (assets/custom_models.js)\nexport {};\n')
+    if os.path.exists('assets/znacky.json'): shutil.copy('assets/znacky.json', f'{OUT}/znacky.json')   # dopravní značky z OSM (nastroje/znacky.py)
+    # zajímavá místa pro mapu (klávesa M): dominanty, příběhy míst, obce; jen název a poloha
+    mista = []
+    if os.path.exists('assets/dominanty.json'):
+        mista += [{'nazev': d['name'], 'lat': d['lat'], 'lon': d['lon'], 'druh': 'dominanta'} for d in json.load(open('assets/dominanty.json', encoding='utf-8')) if d.get('name') and d.get('lat')]
+    if os.path.exists('mista.json'):
+        mista += [{'nazev': d['nazev'], 'lat': d['lat'], 'lon': d['lon'], 'druh': 'misto'} for d in json.load(open('mista.json', encoding='utf-8')) if d.get('nazev')]
+    if os.path.isdir('obce'):
+        for f in sorted(os.listdir('obce')):
+            if not f.endswith('.json'): continue
+            o = json.load(open(f'obce/{f}', encoding='utf-8'))
+            if o.get('pohled') and o.get('nazev'): mista.append({'nazev': o['nazev'], 'lat': o['pohled'][0], 'lon': o['pohled'][1], 'druh': 'obec'})
+    json.dump(mista, open(f'{OUT}/mista.json', 'w', encoding='utf-8'), ensure_ascii=False)
+    # ruční uzavírky silnic (assets/upresneni.json, "uzavirky"): platnost od–do hlídá prohlížeč, prošlé se sem nedostanou
+    uz = []
+    if os.path.exists('assets/upresneni.json'):
+        dnes = time.strftime('%Y-%m-%d')
+        for u in json.load(open('assets/upresneni.json', encoding='utf-8')).get('uzavirky', []):
+            if len(u.get('line') or []) < 2 or (u.get('do') and str(u['do']) < dnes): continue
+            uz.append({k: u[k] for k in ('line', 'od', 'do', 'popis', 'zdroj', 'objizdka') if u.get(k)})
+    json.dump(uz, open(f'{OUT}/uzavirky.json', 'w', encoding='utf-8'), ensure_ascii=False)
+    if uz: print('uzavírek', len(uz))
     for c in [] if JEN_STRANKA else sorted(geo.CHUNKS):
         src, dst = geo.chunk_dir(c), f'{OUT}/c{c[0]}_{c[1]}'
         if not os.path.exists(f'{src}/scene.json'): print('chybí scéna', c); continue

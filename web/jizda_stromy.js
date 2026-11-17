@@ -38,10 +38,11 @@ export function vytvorStromy(THREE, scene, opts = {}) {
    *       'if (dot(dq, dq) < uBlizko.w * uBlizko.w) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);');
    *   // (c0 je střed instance = základna stromu; musí to být za náhradou řádku s `vec4 w`, kde c0 vzniká)
    */
-  const blizko = opts.blizko || 70;
+  let blizko = opts.blizko || 70;                           // dohled 3D stromů (m), mění volba kvality (nastavDosah)
   const odstup = opts.odstup === undefined ? 0.4 : opts.odstup;   // rezerva kolem koruny pro kameru (m)
   let obdobi = opts.obdobi || 'summer';
-  const cap = opts.max || MAX_INSTANCI;
+  const kapacita = opts.max || MAX_INSTANCI;               // velikost bufferů instancí
+  let cap = Math.min(kapacita, opts.limit || kapacita);
 
   const uBlizko = { value: new THREE.Vector4(0, -1e9, 0, 0) };   // poloměr 0 = nic se neskryje
   const skupina = new THREE.Group();
@@ -122,8 +123,8 @@ export function vytvorStromy(THREE, scene, opts = {}) {
   const casti = {};      // název -> { mesh, n }
   const telesa = [];
   for (const k of Object.keys(GEO)) {
-    const mesh = new THREE.InstancedMesh(GEO[k], mat, cap);
-    mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3);
+    const mesh = new THREE.InstancedMesh(GEO[k], mat, kapacita);
+    mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(kapacita * 3), 3);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
     mesh.count = 0; mesh.frustumCulled = false; mesh.name = 'strom_' + k;
@@ -239,9 +240,10 @@ export function vytvorStromy(THREE, scene, opts = {}) {
     uBlizko.value.set(cx, camZ, -cy, blizko);
   }
   function update(camX, camY, camZ) {
-    if (!mamKotvu || spinave || Math.hypot(camX - ax, camY - ay) > POSUN_PRESTAVBY) prestav(camX, camY, camZ);
+    if (!mamKotvu || spinave || Math.hypot(camX - ax, camY - ay) > Math.max(POSUN_PRESTAVBY, blizko * 0.1)) prestav(camX, camY, camZ);
   }
   function nastavObdobi(o) { if (o !== obdobi) { obdobi = o; spinave = true; } }
+  function nastavDosah(m, max) { blizko = m; cap = Math.min(kapacita, max || kapacita); spinave = true; }
 
   // ---------- test překážky (úsečka A->B proti korunám) ----------
   // vrací t ∈ [0,1], kde úsečka poprvé vstoupí do koruny, jinak 1; stromy, v jejichž koruně začíná A, ignoruje
@@ -297,7 +299,7 @@ export function vytvorStromy(THREE, scene, opts = {}) {
   }
 
   return {
-    pridejCtverec, odeberCtverec, update, telesa, uBlizko, prekazka, nastavObdobi, zrus,
+    pridejCtverec, odeberCtverec, update, telesa, uBlizko, prekazka, nastavObdobi, nastavDosah, zrus,
     skupina,
     get pocetInstanci() { return kand.length; },       // kolik stromů je teď 3D
     get pocetStromu() { return pocetStromu; },

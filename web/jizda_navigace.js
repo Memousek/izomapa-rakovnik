@@ -61,7 +61,7 @@ export function vytvorNavigaci(THREE, scene, api) {
   zrus.addEventListener('click', () => konec());
 
   // ---------- silniční síť celé mapy (pro trasu i minimapu) ----------
-  let SIT = null, sitLoad = null;
+  let SIT = null, sitLoad = null, UZF = null;            // UZF: je kus uzavřený? (jizda_uzavirky.js)
   function sit() {
     if (sitLoad) return sitLoad;
     sitLoad = Promise.all(api.chunks.map(([i, j]) => fetch(`overlay/c${i}_${j}.json`).then((r) => r.json()).then((d) => d.roads).catch(() => []))).then((all) => {
@@ -83,6 +83,7 @@ export function vytvorNavigaci(THREE, scene, api) {
       R.forEach((r, k) => { adj[r.a].push(k); adj[r.b].push(k); });
       const grid = new Map(), G = 100;                     // kusy po buňkách 100 m (minimapa, nejbližší silnice)
       R.forEach((r, k) => { const cells = new Set(r.w.map((p) => Math.floor(p[0] / G) + ',' + Math.floor(p[1] / G))); for (const c of cells) { if (!grid.has(c)) grid.set(c, []); grid.get(c).push(k); } });
+      if (UZF) for (const r of R) r.uz = !!UZF(r.w);
       SIT = { R, pos, adj, grid, G };
       return SIT;
     });
@@ -143,7 +144,7 @@ export function vytvorNavigaci(THREE, scene, api) {
       }
       for (const k of adj[n]) {
         const r = R[k], dir = r.a === n ? 1 : -1, m = dir > 0 ? r.b : r.a;
-        if (!smi(r, dir) || (auto && r.c === 'service' && k !== B.k)) continue;
+        if (!smi(r, dir) || (auto && r.c === 'service' && k !== B.k) || (auto && r.uz && k !== B.k)) continue;   // uzavírku objet
         const c = g.get(n) + r.L / v(r) + (auto ? 2 : 0);   // malá přirážka za křižovatku: radši rovně
         if (c < (g.get(m) ?? Infinity)) { g.set(m, c); from.set(m, [n, k, dir > 0 ? 0 : r.L, dir > 0 ? r.L : 0]); push(c + hh(m), m); }
       }
@@ -219,7 +220,7 @@ export function vytvorNavigaci(THREE, scene, api) {
     const P = (p) => [(p[0] - x) * S, -(p[1] - y) * S];
     if (SIT) for (const k of kusyKolem(x, y, 270)) {
       const r = SIT.R[k], big = r.c === 'primary' || r.c === 'secondary' || r.c === 'trunk';
-      ctx.strokeStyle = big ? '#e9d79a' : r.c === 'service' ? '#55617a' : '#c9d1dd'; ctx.lineWidth = big ? 4 : r.c === 'service' ? 1.5 : 2.5;
+      ctx.strokeStyle = r.uz ? '#e5484d' : big ? '#e9d79a' : r.c === 'service' ? '#55617a' : '#c9d1dd'; ctx.lineWidth = big ? 4 : r.c === 'service' ? 1.5 : 2.5;
       ctx.beginPath(); r.w.forEach((p, i) => { const [u, v] = P(p); if (i) ctx.lineTo(u, v); else ctx.moveTo(u, v); }); ctx.stroke();
     }
     if (N.body) { ctx.strokeStyle = '#29c8ff'; ctx.lineWidth = 4; ctx.beginPath(); N.body.forEach((p, i) => { const [u, v] = P(p); if (i) ctx.lineTo(u, v); else ctx.moveTo(u, v); }); ctx.stroke(); }
@@ -241,12 +242,66 @@ export function vytvorNavigaci(THREE, scene, api) {
     ctx.fillText('S', W / 2 + R * Math.sin(th), W / 2 - R * Math.cos(th));
   }
 
+
+  // ---------- velká mapa (klávesa M ve jizda.html): celé území, sever nahoře, posun a přiblížení, zajímavá místa ----------
+  // V: { cx, cy, m } střed a metry na pixel; body: [{ x, y, label, druh, barva, tvar, min }] (min = od jakého přiblížení se kreslí)
+  function velkaMapa(cv, V, body, hrac) {
+    const g = cv.getContext('2d'), W = cv.width, H = cv.height, S = 1 / V.m, dpr = cv.dataset.dpr ? +cv.dataset.dpr : 1;
+    g.fillStyle = '#1b2333'; g.fillRect(0, 0, W, H);
+    const P = (p) => [W / 2 + (p[0] - V.cx) * S, H / 2 - (p[1] - V.cy) * S];
+    const R = Math.hypot(W, H) / 2 * V.m + 30;
+    if (SIT) {
+      const kusy = [...kusyKolem(V.cx, V.cy, R)].map((k) => SIT.R[k]);
+      const sirka = (r) => (r.c === 'primary' || r.c === 'trunk' || r.c === 'motorway' ? 9 : r.c === 'secondary' ? 7.5 : r.c === 'tertiary' ? 6 : r.c === 'service' ? 3 : 5);
+      for (const vrstva of [0, 1]) for (const r of kusy) {           // obrys, pak výplň (silnice čitelné jako na plánku)
+        if (r.c === 'service' && V.m > 2.5) continue;
+        const big = r.c === 'primary' || r.c === 'secondary' || r.c === 'trunk' || r.c === 'motorway';
+        const w = Math.max(big ? 2.2 : 1.2, sirka(r) * S) * dpr;
+        g.strokeStyle = vrstva ? (r.uz ? '#e5484d' : big ? '#e9d79a' : r.c === 'service' ? '#6a7690' : '#c9d1dd') : '#0d1220';
+        g.lineWidth = vrstva ? w : w + 2 * dpr; g.lineCap = 'round'; g.lineJoin = 'round';
+        g.beginPath(); r.w.forEach((p, i) => { const [u, v] = P(p); if (i) g.lineTo(u, v); else g.moveTo(u, v); }); g.stroke();
+      }
+    }
+    if (N.body) { g.strokeStyle = '#29c8ff'; g.lineWidth = 5 * dpr; g.lineCap = 'round'; g.beginPath(); N.body.forEach((p, i) => { const [u, v] = P(p); if (i) g.lineTo(u, v); else g.moveTo(u, v); }); g.stroke(); }
+    const popisky = [];
+    for (const b of body) {
+      if (b.min && V.m > b.min) continue;
+      const [u, v] = P([b.x, b.y]); if (u < -20 || v < -20 || u > W + 20 || v > H + 20) continue;
+      const r = (b.velikost || 6) * dpr;
+      g.fillStyle = b.barva; g.strokeStyle = '#0d1220'; g.lineWidth = 2 * dpr;
+      g.beginPath();
+      if (b.tvar === 'ctverec') g.rect(u - r * 0.8, v - r * 0.8, r * 1.6, r * 1.6);
+      else if (b.tvar === 'kosoctverec') { g.moveTo(u, v - r); g.lineTo(u + r, v); g.lineTo(u, v + r); g.lineTo(u - r, v); g.closePath(); }
+      else g.arc(u, v, r, 0, 6.283);
+      g.fill(); g.stroke();
+      if (b.label && (!b.popisekMin || V.m <= b.popisekMin)) popisky.push([u, v + r + 3 * dpr, b.label, b.vyrazny]);
+    }
+    if (N.cil) { const [u, v] = P([N.cil.x, N.cil.y]); g.fillStyle = '#29c8ff'; g.strokeStyle = '#fff'; g.lineWidth = 2 * dpr; g.beginPath(); g.arc(u, v, 8 * dpr, 0, 6.283); g.fill(); g.stroke(); }
+    // popisky: bez překryvu (od nejvýraznějších)
+    g.font = `600 ${12 * dpr}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'top';
+    const zabrano = [];
+    for (const [u, v, t, vyr] of popisky.sort((a, b) => (b[3] ? 1 : 0) - (a[3] ? 1 : 0))) {
+      const w = g.measureText(t).width + 8 * dpr, h = 16 * dpr, bx = [u - w / 2, v, u + w / 2, v + h];
+      if (zabrano.some((z) => !(bx[2] < z[0] || bx[0] > z[2] || bx[3] < z[1] || bx[1] > z[3]))) continue;
+      zabrano.push(bx);
+      g.fillStyle = 'rgba(13, 18, 32, .82)'; g.fillRect(bx[0], bx[1], w, h);
+      g.fillStyle = vyr ? '#f2c66d' : '#eef1e6'; g.fillText(t, u, v + 2 * dpr);
+    }
+    if (hrac) {                                             // hráč: šipka ve směru pohledu / jízdy
+      const [u, v] = P([hrac.x, hrac.y]), a = -hrac.h, k = 11 * dpr;
+      g.save(); g.translate(u, v); g.rotate(a);
+      g.fillStyle = '#e2643f'; g.strokeStyle = '#fff'; g.lineWidth = 2 * dpr;
+      g.beginPath(); g.moveTo(k, 0); g.lineTo(-k * 0.7, k * 0.6); g.lineTo(-k * 0.35, 0); g.lineTo(-k * 0.7, -k * 0.6); g.closePath(); g.fill(); g.stroke();
+      g.restore();
+    }
+  }
   return {
     update(now) {
       const h = api.hrac, mode = api.jedu(), car = mode === 'auto' && h.car, x = car ? h.car.x : h.x, y = car ? h.car.y : h.y, head = car ? h.car.h : mode === 'bus' && h.busH !== undefined ? h.busH : h.yaw;
       if (now - mapaT > 100) { mapaT = now; minimapa(x, y, head); }
-      if (!N.cil || !N.body) return;
+      if (!N.cil || !N.body) { N.odb = null; return; }
       const p = pokyny(x, y), dc = Math.hypot(N.cil.x - x, N.cil.y - y);
+      N.odb = p.odb || null;                                 // další odbočka (blinkr hráče v jizda.html)
       if (dc < 25 || p.zbyva < 20) { pokyn.textContent = `Jsi v cíli: ${N.cil.label}`; if (!N.hotovo) N.hotovo = now; if (now - N.hotovo > 6000) { konec(); N.hotovo = 0; } return; }
       N.hotovo = 0;
       if (p.bd > 35 && now - N.prepocet > 2500) { prepocitej(); return; }   // sjel z trasy: nová trasa
@@ -257,9 +312,14 @@ export function vytvorNavigaci(THREE, scene, api) {
     konec,
     trasa: (x0, y0, x1, y1, auto) => (SIT ? trasa(x0, y0, x1, y1, auto) : null),
     nactiSit: sit,
+    velkaMapa, zObrazu,
+    get cesta() { return N.body ? { body: N.body, delky: N.delky } : null; },   // body trasy pro FSD
+    get hledam() { return !!N.cil && !N.body; },
+    uzavirky(fn) { UZF = fn; if (SIT) for (const r of SIT.R) r.uz = !!fn(r.w); },
+    get sit() { return SIT; },
     hledej: async (t) => { await index(); return najdi(t); },
     adresy: async () => { await index(); return INDEX; },   // všechna místa pro hledání (adresy, zastávky, ulice) – mise ve hře
     zvol,
-    stav: () => ({ cil: N.cil && N.cil.label, bodu: N.body ? N.body.length : 0, delka: N.delky ? Math.round(N.delky[N.delky.length - 1]) : 0, text: pokyn.textContent }),
+    stav: () => ({ odb: N.odb || null, cil: N.cil && N.cil.label, bodu: N.body ? N.body.length : 0, delka: N.delky ? Math.round(N.delky[N.delky.length - 1]) : 0, text: pokyn.textContent }),
   };
 }

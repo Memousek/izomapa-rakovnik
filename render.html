@@ -998,8 +998,8 @@ function roofDeco(b, X, eave, rc) {
     pushQuad(L, A(x0 + nx, y0 + ny, z0 + H1), A(x1 + nx, y1 + ny, z1 + H1), A(x1 - nx, y1 - ny, z1 + H1), A(x0 - nx, y0 - ny, z0 + H1), col.map((v) => v * 1.15), aw);
     for (let d = 0; d < len; d += 9) { const t = d / len; pushBox(L, frameAt(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, z0 + (z1 - z0) * t, 0), -0.15, 0.15, -0.15, 0.15, -0.3, H0, [0.33, 0.24, 0.20], [0, 1, 0, 0]); }
   }
-  // mosty a lávky (prep: scene.bridges, body [x, y, mostovka, terén]): souvislý pás (společné rohy na spojích, vyhlazená výška),
-  // nad terénem most s boky, zábradlím a pilíři, nízko nad terénem zemní násyp
+  // mosty a lávky (prep: scene.bridges, body [x, y, mostovka, terén, nájezd 0 / most 1 / most nad cestou či vodou 2]): souvislý pás (společné rohy na spojích, vyhlazená výška),
+  // nad terénem most s boky, zábradlím a pilíři, nízko nad terénem a na nájezdech mimo skutečný most zemní násyp
   // půdorysy úseků všech mostovek (kvůli souběžným mostovkám: kde se dotýkají, vnitřní zábradlí a boky se nekreslí)
   const DQ = [];
   (scene.bridges || []).forEach((br, bi) => {
@@ -1058,7 +1058,8 @@ function roofDeco(b, X, eave, rc) {
           A(x1 + n1[0] * k1 + uy * 0.07, y1 + n1[1] * k1 - ux * 0.07, z1 + 0.12), A(x1 + n1[0] * k1 - uy * 0.07, y1 + n1[1] * k1 + ux * 0.07, z1 + 0.12), [0.30, 0.29, 0.28], [0, 0, 0, 0]);
       }
       const ext = [1, -1].map((sg) => !covered(bi, (x0 + x1) / 2 + (n0[0] + n1[0]) / 2 * sg * (1 + 0.5 / hw), (y0 + y1) / 2 + (n0[1] + n1[1]) / 2 * sg * (1 + 0.5 / hw), (z0 + z1) / 2));   // volná hrana?
-      if (Math.max(z0 - g0, z1 - g1) < (br.wtr ? 0.32 : EMB)) {                                                                         // násyp (u mostů přes vodu jen konce)
+      const najezd = P[i][4] === 0 || P[i + 1][4] === 0;                                                                                 // mimo skutečný most (prep: 5. hodnota bodu) je nájezd vždy násyp
+      if (najezd || Math.max(z0 - g0, z1 - g1) < (br.wtr ? 0.32 : EMB)) {                                                               // násyp (u mostů přes vodu jen konce)
         for (const sg of [1, -1]) if (ext[sg > 0 ? 0 : 1]) slope(x0 + n0[0] * sg, y0 + n0[1] * sg, z0, g0, x1 + n1[0] * sg, y1 + n1[1] * sg, z1, g1, [M[i][0] * sg, M[i][1] * sg], [M[i + 1][0] * sg, M[i + 1][1] * sg]);
         run += len; while (run >= nextPier) nextPier += foot ? 15 : 22;
         continue;
@@ -1079,9 +1080,9 @@ function roofDeco(b, X, eave, rc) {
         }
       }
       run += len;
-      while (run >= nextPier) {                                                                                                         // pilíře po ~22 m, jen kde je pod mostem místo
+      while (run >= nextPier) {                                                                                                         // pilíře po ~22 m, jen kde je pod mostem místo (ne v silnici, na trati ani ve vodě)
         const t = 1 - (run - nextPier) / len, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t, z = z0 + (z1 - z0) * t, g = g0 + (g1 - g0) * t;
-        if (z - g > 2.5 && !(foot && br.w < 4 && run < 30)) pushBox(L, frameAt(x, y, g - 0.5, Math.atan2(uy, ux)), -0.7, 0.7, -hw * 0.75, hw * 0.75, 0, z - th - g + 0.5, side.map((v) => v * 0.92), [0, 1, 0, 0]);
+        if (z - g > 2.5 && !(foot && br.w < 4 && run < 30) && P[i][4] !== 2 && P[i + 1][4] !== 2) pushBox(L, frameAt(x, y, g - 0.5, Math.atan2(uy, ux)), -0.7, 0.7, -hw * 0.75, hw * 0.75, 0, z - th - g + 0.5, side.map((v) => v * 0.92), [0, 1, 0, 0]);
         nextPier += foot ? 15 : 22;
       }
     }

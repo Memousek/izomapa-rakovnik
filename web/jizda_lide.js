@@ -32,6 +32,24 @@ export function vytvorLidi(THREE, scene, api) {
     scene.add(m); telesa.push(m); return m;
   }
   const mNohaA = cast(true), mNohaB = cast(true), mRukaA = cast(true), mRukaB = cast(true), mTorzo = cast(false), mHlava = cast(false), mVlasy = cast(false);
+  // deštníky (za deště), psi na vodítku: vlastní instance s vlastním počtem
+  const ostatni = [];
+  function inst(geo, mat, n) {
+    const m = new THREE.InstancedMesh(geo, mat, n);
+    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.setColorAt(0, new THREE.Color(0xffffff));
+    m.count = 0; m.frustumCulled = false; scene.add(m); ostatni.push(m); return m;
+  }
+  const mDestnik = inst(new THREE.ConeGeometry(0.62, 0.3, 8), new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }), MAX);
+  const mPesTelo = inst(box(false), new THREE.MeshLambertMaterial({ color: 0xffffff }), MAX);
+  const mPesHlava = inst(box(false), new THREE.MeshLambertMaterial({ color: 0xffffff }), MAX);
+  const mPesNohy = inst(box(true), new THREE.MeshLambertMaterial({ color: 0xffffff }), MAX * 4);
+  const vodGeo = new THREE.BufferGeometry(); vodGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX * 6), 3));
+  const voditka = new THREE.LineSegments(vodGeo, new THREE.LineBasicMaterial({ color: 0x2a2a2a })); voditka.frustumCulled = false; scene.add(voditka);
+  const DESTNIKY = [0x1f1f24, 0xc83a3a, 0x2f5fa8, 0xe0b13a, 0x3c8a4c, 0x8a4aa0, 0xd86a8a, 0x4aa8b0];
+  const PSI = [0x6b4a2a, 0x1c1410, 0xd2b36a, 0xf0ece4, 0x8a5a2a, 0x3a3a3a];
+  const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), v3 = new THREE.Vector3(), s3 = new THREE.Vector3(1, 1, 1), osaY = new THREE.Vector3(0, 1, 0), bv = new THREE.Color();
+  // děti cestou do školy a ze školy (všední den 7–8:15 a 11:45–14:30): víc dětí venku
+  const skolniCas = () => { const h = api.hodina ? api.hodina() : 12; return !(api.vikend && api.vikend()) && ((h >= 7 && h < 8.25) || (h >= 11.75 && h < 14.5)); };
   const barva = new THREE.Color();
   const barvy = (i, p) => {
     barva.setHex(p.cTrika); mTorzo.setColorAt(i, barva); mRukaA.setColorAt(i, barva); mRukaB.setColorAt(i, barva);
@@ -65,9 +83,30 @@ export function vytvorLidi(THREE, scene, api) {
     stezky.set(key, a); prepoc();
   }
   function odeberCtverec(key) {
+    if (lavicky.delete(key)) { lavVse = [...lavicky.values()].flat(); for (const p of lide) if (p.lav && p.lav.k === key) p.mrtvy = true; }
     if (!stezky.delete(key)) return;
     prepoc();
-    for (const p of lide) if (p.tr.foot && p.tr.k === key) p.mrtvy = true;
+    for (const p of lide) if (p.tr && p.tr.foot && p.tr.k === key) p.mrtvy = true;
+  }
+  // lavičky ze scény čtverce: ve dne (a když neprší) na nich lidé sedí
+  const lavicky = new Map();
+  let lavVse = [], tLavicky = 0;
+  function pridejLavicky(key, a) {
+    lavicky.set(key, a.map(([x, y, z, u], i) => ({ x, y, z, a: u, n: 0, cil: (i * 7 + 3) % 3, k: key })));
+    lavVse = [...lavicky.values()].flat();
+  }
+  function zrodNaLavicce() {
+    if (api.doba() > 0.55 || (api.dest && api.dest() > 0.15)) return;
+    for (const b of lavVse) {
+      const d = Math.hypot(b.x - hr.x, b.y - hr.y);
+      if (d > 120 || d < 22 || b.n >= b.cil) continue;
+      const c = Math.cos(b.a), s = Math.sin(b.a), strana = b.n ? -0.42 : 0.42;
+      const fx = -s, fy = c;                                 // lavička: sedí se k místní -z (opěradlo je vzadu)
+      const p = novy();
+      p.mod = 2; p.sedi = true; p.lav = b; p.tr = null; p.pes = false;
+      p.x = b.x + c * strana + fx * 0.12; p.y = b.y + s * strana + fy * 0.12; p.z = b.z; p.h = Math.atan2(fy, fx); p.v = 0;
+      b.n++; pridej(p); return;
+    }
   }
 
   let cas = 0;
@@ -118,12 +157,14 @@ export function vytvorLidi(THREE, scene, api) {
     p.mrtvy = false; p.mod = 0; p.cx = 0; p.cy = 0;
     p.ex = 0; p.ey = 0; p.blok = 0; p.bloky = 0; p.hint = 1; p.stop = -1;
     p.faze = Math.random() * 6.28; p.bob = 0;
-    const kid = Math.random() < 0.08;
+    const kid = Math.random() < (skolniCas() ? 0.3 : 0.08);
     p.sc = kid ? 0.62 + Math.random() * 0.18 : 0.95 + Math.random() * 0.13;
     p.hl = kid ? 1.25 : 1;
     p.v = (1.1 + Math.random() * 0.5) * (kid ? 0.9 : 1);
     p.cKoze = pick(KOZE); p.cVlasy = pick(VLASY); p.cTrika = pick(TRIKA); p.cKalh = pick(KALHOTY);
-    p.typ = 0; p.stav = null; p.hp = HP[0]; p.lezi = 0; p.utok = 0; p.uder = 0; p.vf = 0; p.vytrv = 0; p._tr = null; p._nej = undefined; p._zas = 0; p._pruchod = 0;
+    p.typ = 0; p.stav = null; p.hp = HP[0]; p.lezi = 0; p.utok = 0; p.uder = 0; p.vf = 0; p.vytrv = 0; p._tr = null; p._prech = null; p._pbT = 0; p._nej = undefined; p._zas = 0; p._pruchod = 0;
+    p.pes = !kid && Math.random() < 0.07; p.tel = !kid && Math.random() < 0.12; p.destnik = Math.random() < 0.75;
+    p.cDest = pick(DESTNIKY); p.cPes = pick(PSI); p.lav = null; p.sedi = false;
     return p;
   }
   function nastavTyp(p, typ) {
@@ -168,6 +209,8 @@ export function vytvorLidi(THREE, scene, api) {
     pridej(p); return p;
   }
   function uvolni(p) {                                       // z trasy do volného pohybu (posun z uhýbání započítat)
+    if (p.lav) { p.lav.n = Math.max(0, p.lav.n - 1); p.lav = null; }
+    p.sedi = false;
     p.x += p.ex; p.y += p.ey; p.ex = 0; p.ey = 0;
     if (p.stop >= 0) { idleNaZast.set(p.stop, Math.max(0, (idleNaZast.get(p.stop) || 1) - 1)); p.stop = -1; }
     p.mod = 3;
@@ -223,14 +266,21 @@ export function vytvorLidi(THREE, scene, api) {
     }
     p.vytrv -= dt;
     const B = api.boj;
-    const dx = hr.x - p.x, dy = hr.y - p.y, d = Math.hypot(dx, dy) || 1;
+    // cíl: hráč, nebo (policista, který hráče nevidí) místo, kde ho hledá
+    const T = p.stav === 'honi' && B && B.terc ? B.terc(p) : null;
+    const tx = T ? T[0] : hr.x, ty = T ? T[1] : hr.y;
+    const dh = Math.hypot(hr.x - p.x, hr.y - p.y) || 1;
+    const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy) || 1;
     let ux = dx / d, uy = dy / d, v = 0;
-    const mezicil = p.stav !== 'utika' && !(p._pruchod > 0) && B && B.cil ? B.cil(p, d) : null;   // honička přes ulice (pěší trasa), zblízka rovnou
+    const mezicil = p.stav !== 'utika' && !(p._pruchod > 0) && B && B.cil ? B.cil(p, d, tx, ty) : null;   // honička přes ulice (pěší trasa), zblízka rovnou
     if (mezicil) { const mx = mezicil[0] - p.x, my = mezicil[1] - p.y, ml = Math.hypot(mx, my) || 1; ux = mx / ml; uy = my / ml; }
     if (!boj() && p.stav !== 'utika') p.stav = 'utika';
     if (p.stav === 'utika') {
-      ux = -ux; uy = -uy; v = p.typ === 2 ? 2.4 : 4.2;
-      if (d > 70 || p.vytrv < -20) p.mrtvy = true;
+      ux = -(hr.x - p.x) / dh; uy = -(hr.y - p.y) / dh; v = p.typ === 2 ? 2.4 : 4.2;
+      if (dh > 70 || p.vytrv < -20) p.mrtvy = true;
+    } else if (T) {                                          // pátrání: dojít na místo a rozhlížet se
+      v = d > 2 ? 3.2 : 0;
+      if (!v) p.h += dt * 0.8;
     } else {                                                 // utoci / honi
       const dosah = hr.vAuto ? 2.8 : 1.1;
       v = p.stav === 'honi' ? 5.6 : p.typ === 2 ? 2.3 : 4.1;
@@ -305,9 +355,12 @@ export function vytvorLidi(THREE, scene, api) {
     // počet lidí podle zástavby kolem hráče (api.hustota = budov do 250 m): město desítky, vesnice pár lidí, pole nikdo
     const hus = api.hustota ? api.hustota() : 400, ves = hus < 150;
     const zaklad = Math.min(CIL, Math.max(hus < 15 ? 0 : 2, hus / 12 * (ves ? 0.55 : 1)));
-    const cilPocet = Math.min(MAX - 2, Math.round(zaklad * (noc ? 0.3 : 1)));
+    // čím větší tma, tím méně lidí venku (plynule: ve dne všichni, za soumraku ubývají, hluboká noc čtvrtina)
+    const tma = Math.min(1, Math.max(0, (doba - 0.35) / 0.55)), venku = 1 - 0.75 * tma * tma * (3 - 2 * tma);
+    const cilPocet = Math.min(MAX - 2, Math.round(zaklad * venku));
     if (cas - tBlizko > 0.5) { tBlizko = cas; nacti(); }
     if (cas - tZastavky > 1.0) { tZastavky = cas; zrodNaZastavce(); }
+    if (cas - tLavicky > 1.5) { tLavicky = cas; zrodNaLavicce(); }
 
     // auto hráče: pohyb vpřed → chodci před ním uhnou
     const car = hr.vAuto && hr.car && Math.abs(hr.car.v) > 1 ? hr.car : null;
@@ -320,13 +373,23 @@ export function vytvorLidi(THREE, scene, api) {
       const vzd = Math.hypot(p.x - hr.x, p.y - hr.y);
       if (vzd > ZAHOD) { p.mrtvy = true; continue; }
       if (p.stav) { volny(p, dt); continue; }
+      if (p.mod !== 2 && !p.tr) { p.mrtvy = true; continue; }   // pojistka: bez trasy a bez volného pohybu nemá kam jít
       // výtržník si hráče všimne a jde po něm (v noci a na smradlavého bezdomovce častěji)
       if (p.typ && boj() && vzd < 14 && !hr.vAuto && Math.random() < dt * (api.boj.provokace ? api.boj.provokace(p) : 0.15)) { uvolni(p); p.stav = 'utoci'; p.vytrv = 25; volny(p, dt); continue; }
       let krok = 0, cil = p.h;
       if (p.mod !== 2) {
-        // přecházení silnice
-        if (p.mod === 0 && !p.tr.foot && Math.abs(p.ofs - p.ofsT) < 0.1 && Math.random() < dt * 0.012) {
-          p.mod = 1; p.ofsT = -p.ofsT;
+        // přecházení silnice: na přechodu pro chodce (asi každý třetí, kdo kolem jde); mimo přechod jen výjimečně,
+        // a když do 200 m žádný přechod není, o něco častěji (jako ve skutečnosti: jinak se musí přejít jinde)
+        if (p.mod === 0 && !p.tr.foot && Math.abs(p.ofs - p.ofsT) < 0.1) {
+          const PR = api.prechody, sp = PR && PR.na(p.tr);
+          let na = null;
+          if (sp) for (const sx of sp) if (Math.abs(sx - p.s) < 0.9) { na = sx; break; }
+          if (na !== null) {
+            if (p._prech !== na) { p._prech = na; if (Math.random() < 0.35) { p.s = na; p.mod = 1; p.ofsT = -p.ofsT; } }
+          } else {
+            if (!(p._pbT > cas)) { p._pbT = cas + 3; p._pb = PR ? PR.blizko(p.x, p.y, 200) : null; }
+            if (Math.random() < dt * (p._pb === false ? 0.004 : 0.0003)) { p.mod = 1; p.ofsT = -p.ofsT; }
+          }
         }
         if (p.mod === 0) {
           p.s += p.dir * p.v * dt; krok = p.v;
@@ -380,11 +443,12 @@ export function vytvorLidi(THREE, scene, api) {
       if (!lide[i].mrtvy) continue;
       const p = lide[i], last = lide.pop();
       if (p.stop >= 0) idleNaZast.set(p.stop, Math.max(0, (idleNaZast.get(p.stop) || 1) - 1));
+      if (p.lav) { p.lav.n = Math.max(0, p.lav.n - 1); p.lav = null; }
       volni.push(p);
       if (last !== p) { lide[i] = last; barvy(i, last); }
     }
     if (lide.length > cilPocet + 2) {                      // méně lidí (noc, vesnice): odeber vzdálenější
-      for (let i = 0; i < lide.length; i++) if (Math.hypot(lide[i].x - hr.x, lide[i].y - hr.y) > 80) { lide[i].mrtvy = true; break; }
+      for (let i = 0; i < lide.length; i++) if (lide[i].stav !== 'lezi' && lide[i].typ !== 3 && Math.hypot(lide[i].x - hr.x, lide[i].y - hr.y) > 80) { lide[i].mrtvy = true; break; }
     } else if (lide.length < cilPocet) {
       for (let k = 0, n = 0; k < 12 && n < 3 && lide.length < cilPocet; k++) if (zrodChodce()) n++;
     }
@@ -406,6 +470,18 @@ export function vytvorLidi(THREE, scene, api) {
         q(mVlasy, 1.42 * sc + hs * 1.0, 0, hs * 1.12, hs * 0.4, hs * 1.12);
         continue;
       }
+      if (p.sedi) {                                          // sedí na lavičce: kyčle 0,46 m nad zemí, nohy dopředu, ruce v klíně
+        const X = p.x, Z = -p.y, Y0 = p.z + 0.47 - 0.84 * sc, zn = 0.1 * sc, zr = 0.265 * sc, la = Math.cos(1.3), lb = Math.sin(1.3), ra = Math.cos(0.5), rb = Math.sin(0.5);
+        dej(mNohaA, i, X + s * zn, Y0 + 0.84 * sc, Z + c * zn, c, s, la, lb, 0.13 * sc, 0.84 * sc, 0.15 * sc);
+        dej(mNohaB, i, X - s * zn, Y0 + 0.84 * sc, Z - c * zn, c, s, la, lb, 0.13 * sc, 0.84 * sc, 0.15 * sc);
+        dej(mRukaA, i, X + s * zr, Y0 + 1.40 * sc, Z + c * zr, c, s, ra, rb, 0.11 * sc, 0.6 * sc, 0.11 * sc);
+        dej(mRukaB, i, X - s * zr, Y0 + 1.40 * sc, Z - c * zr, c, s, ra, rb, 0.11 * sc, 0.6 * sc, 0.11 * sc);
+        dej(mTorzo, i, X, Y0 + 1.13 * sc, Z, c, s, 1, 0, 0.24 * sc, 0.58 * sc, 0.42 * sc);
+        const hs = 0.22 * sc * p.hl;
+        dej(mHlava, i, X, Y0 + 1.42 * sc + hs * 0.55, Z, c, s, 1, 0, hs, hs, hs);
+        dej(mVlasy, i, X - c * 0.01 * sc, Y0 + 1.42 * sc + hs * 1.0, Z + s * 0.01 * sc, c, s, 1, 0, hs * 1.12, hs * 0.4, hs * 1.12);
+        continue;
+      }
       const chodi = p.krok === 1, ph = p.faze;
       const a = chodi ? Math.sin(ph) * 0.55 : 0, ar = chodi ? a * 0.8 : Math.sin(cas * 1.3 + p.faze) * 0.03;
       const bob = chodi ? Math.abs(Math.sin(ph)) * 0.035 * sc : 0;
@@ -419,6 +495,8 @@ export function vytvorLidi(THREE, scene, api) {
       if (p.uder > 0) {                                      // úder: pravá ruka natažená dopředu
         const u = 1.45 * Math.sin(Math.PI * p.uder / 0.3);
         dej(mRukaA, i, X + s * zr, Y0 + 1.40 * sc, Z + c * zr, c, s, Math.cos(u), Math.sin(u), 0.11 * sc, 0.6 * sc, 0.11 * sc);
+      } else if (p.tel && !p.stav) {                         // telefonuje: ruka u ucha
+        dej(mRukaA, i, X + s * zr, Y0 + 1.40 * sc, Z + c * zr, c, s, Math.cos(2.55), Math.sin(2.55), 0.11 * sc, 0.42 * sc, 0.11 * sc);
       } else
       dej(mRukaA, i, X + s * zr, Y0 + 1.40 * sc, Z + c * zr, c, s, cr, -sr, 0.11 * sc, 0.6 * sc, 0.11 * sc);
       dej(mRukaB, i, X - s * zr, Y0 + 1.40 * sc, Z - c * zr, c, s, cr, sr, 0.11 * sc, 0.6 * sc, 0.11 * sc);
@@ -428,6 +506,37 @@ export function vytvorLidi(THREE, scene, api) {
       dej(mVlasy, i, X - c * 0.01 * sc, Y0 + 1.42 * sc + hs * 1.0, Z + s * 0.01 * sc, c, s, 1, 0, hs * 1.12, hs * 0.4, hs * 1.12);
     }
     for (const m of telesa) { m.count = n; m.instanceMatrix.needsUpdate = true; }
+    // deštníky a psi
+    const prsi = api.dest && api.dest() > 0.15;
+    let nd = 0, np = 0;
+    const vod = vodGeo.attributes.position.array;
+    for (let i = 0; i < n; i++) {
+      const p = lide[i];
+      if (p.stav === 'lezi' || p.sedi) continue;
+      const c = Math.cos(p.h), s = Math.sin(p.h), X = p.x + p.ex, Z = -(p.y + p.ey), sc = p.sc;
+      if (prsi && p.destnik && p.sc > 0.9 && (!p.stav || p.stav === 'utika')) {
+        q4.setFromAxisAngle(osaY, p.h); m4.compose(v3.set(X + c * 0.08 * sc, p.z + 2.02 * sc, Z - s * 0.08 * sc), q4, s3.set(1, 1, 1));
+        mDestnik.setMatrixAt(nd, m4); mDestnik.setColorAt(nd, bv.setHex(p.cDest)); nd++;
+      }
+      if (p.pes && !p.stav && p.mod !== 2) {                 // pes vzadu vpravo od páníčka, cupitá
+        const px = X - c * 1.1 + s * 0.55, pz = Z + s * 1.1 + c * 0.55, py = api.gz(px, -pz), f = p.faze * 1.6, l = p.krok ? Math.sin(f) * 0.6 : 0;
+        bv.setHex(p.cPes);
+        dej(mPesTelo, np, px, py + 0.4, pz, c, s, 1, 0, 0.62, 0.24, 0.22); mPesTelo.setColorAt(np, bv);
+        dej(mPesHlava, np, px + c * 0.38, py + 0.52, pz - s * 0.38, c, s, 1, 0, 0.24, 0.2, 0.18); mPesHlava.setColorAt(np, bv);
+        let k = np * 4;
+        for (const [lx, lz, fz] of [[0.22, 0.08, 1], [0.22, -0.08, -1], [-0.22, 0.08, -1], [-0.22, -0.08, 1]]) {
+          const u = l * fz;
+          dej(mPesNohy, k, px + c * lx + s * lz, py + 0.3, pz - s * lx + c * lz, c, s, Math.cos(u), Math.sin(u), 0.07, 0.3, 0.07); mPesNohy.setColorAt(k, bv); k++;
+        }
+        const o = np * 6, zr = 0.265 * sc;                    // vodítko z ruky k obojku
+        vod[o] = X + s * zr - c * 0.05; vod[o + 1] = p.z + 0.85 * sc; vod[o + 2] = Z + c * zr + s * 0.05;
+        vod[o + 3] = px + c * 0.3; vod[o + 4] = py + 0.5; vod[o + 5] = pz - s * 0.3;
+        np++;
+      }
+    }
+    mDestnik.count = nd; mPesTelo.count = np; mPesHlava.count = np; mPesNohy.count = np * 4;
+    for (const m of ostatni) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+    vodGeo.setDrawRange(0, np * 2); vodGeo.attributes.position.needsUpdate = true;
   }
 
   // stojí chodec v pruhu auta před (x, y) ve směru h do vzdálenosti d (± 2 m do strany)?
@@ -442,5 +551,5 @@ export function vytvorLidi(THREE, scene, api) {
     return false;
   }
 
-  return { pridejCtverec, odeberCtverec, update, telesa, chodciPred, _lide: lide, zrodNa, zasah, srazen, panika, svedci, blizky };
+  return { pridejCtverec, odeberCtverec, pridejLavicky, update, telesa: telesa.concat(ostatni), chodciPred, _lide: lide, zrodNa, zasah, srazen, panika, svedci, blizky };
 }

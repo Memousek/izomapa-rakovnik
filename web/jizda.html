@@ -36,31 +36,66 @@ button { font: inherit; color: inherit; }
 .lbl, .nav label { display: block; margin: 0 0 6px; font-family: var(--display); font-size: .78rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--grass); }
 .lbl span, .lbl #hodiny { font-family: var(--body); letter-spacing: 0; text-transform: none; color: var(--muted); }
 
-/* ---------- panel ---------- */
-#hud {
-  position: fixed; z-index: 2; left: 12px; top: 12px; width: 300px; box-sizing: border-box; max-height: calc(100vh - 96px); overflow: auto;
-  display: grid; gap: 10px; padding: 12px 14px; background: var(--panel); border: 2px solid var(--edge); box-shadow: var(--stin);
-}
-.hlava { display: flex; align-items: center; gap: 8px; }
-#hud h1 { flex: 1 1 auto; min-width: 0; margin: 0; font: 500 1.35rem/1.1 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#hud h1 span { color: var(--tile); }
+/* ---------- ve hře vlevo nahoře: Menu (Esc), režim, cíl (navigace / mise) ---------- */
+#hrahud { position: fixed; z-index: 2; left: 12px; top: 12px; display: grid; gap: 8px; justify-items: start; max-width: min(380px, calc(100vw - 230px)); }
+#hrahud .radek { display: flex; gap: 8px; align-items: center; }
+#menu { min-height: 36px; background: var(--panel); }
+#menu kbd { font: 500 .7rem var(--display); padding: 0 4px; border: 1px solid var(--edge); color: var(--muted); }
 .rezim { flex: none; padding: 2px 7px; background: var(--lamp); color: var(--night); font-family: var(--display); font-size: .8rem; }
-#menu { display: none; flex: none; min-width: 64px; min-height: 40px; }
-.akce { display: flex; gap: 6px; }
-.akce .zpet { flex: 1 1 auto; }
-.zpet .kr { display: none; }
-#zvukbox { display: flex; }
-#zvukbox button { min-width: 0; }
-#stav { margin-top: -4px; color: var(--muted); font-size: .75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
-#telo { display: grid; gap: 10px; }
-.sec { border-top: 2px solid var(--edge); padding-top: 10px; }
-#hud details > summary { list-style: none; display: flex; align-items: center; gap: 8px; min-height: 32px; cursor: pointer; font-family: var(--display); font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--grass); }
-#hud details > summary::-webkit-details-marker { display: none; }
-#hud details > summary::after { content: "+"; margin-left: auto; flex: none; width: 1.2em; text-align: center; font-size: 1.05rem; letter-spacing: 0; color: var(--muted); }
-#hud details[open] > summary::after { content: "−"; }
-#hud details > summary:hover::after { color: var(--ink); }
-.sum-val { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--body); font-size: .8rem; letter-spacing: 0; text-transform: none; color: var(--muted); }
-.det-body { display: grid; gap: 12px; margin-top: 8px; }
+#cil { padding: 6px 12px; background: rgba(29, 38, 56, .9); border-left: 4px solid var(--lamp); box-shadow: var(--stin); font-weight: 700; font-size: .9rem; }
+#cil div + div { margin-top: 4px; }
+#cil small { display: block; font: 500 .68rem var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--lamp); }
+
+/* ---------- mapa (M): celá obrazovka, vpravo panel s místy ---------- */
+#mapa3d { position: fixed; z-index: 7; inset: 0; background: #1b2333; }
+#mapaPlatno { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+#mapaPlatno.tahne { cursor: grabbing; }
+.mapa-bok { position: absolute; top: 12px; right: 12px; bottom: 12px; width: 300px; display: flex; flex-direction: column; gap: 10px; padding: 14px; box-sizing: border-box;
+  background: rgba(35, 45, 66, .94); border: 2px solid var(--edge); box-shadow: var(--stin); }
+.mapa-bok h2 { margin: 0; font: 700 1.5rem var(--display); }
+.mapa-nap { margin: 0; color: var(--muted); font-size: .8rem; }
+.mapa-nap kbd, #mapaBtn kbd { font: 500 .7rem var(--display); padding: 0 4px; border: 1px solid var(--edge); color: var(--muted); }
+.mapa-r { display: flex; gap: 6px; } .mapa-r .px-btn { flex: 1; }
+.mapa-leg { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; font-size: .78rem; color: var(--muted); }
+.mapa-leg i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 50%; border: 1px solid #0d1220; vertical-align: -1px; }
+.mapa-leg i.ctv { border-radius: 0; } .mapa-leg i.kos { border-radius: 0; transform: rotate(45deg) scale(.85); }
+.mapa-seznam { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 1 1 auto; border-top: 2px solid var(--edge); }
+.mapa-seznam button { display: flex; justify-content: space-between; gap: 8px; width: 100%; min-height: 36px; padding: 6px 8px; border: 0; border-bottom: 1px solid var(--edge); background: none; color: var(--ink); text-align: left; cursor: pointer; font-size: .86rem; }
+.mapa-seznam button:hover, .mapa-seznam button:focus-visible { background: var(--panel-2); outline: 2px solid var(--lamp); outline-offset: -2px; }
+.mapa-seznam small { flex: none; color: var(--muted); }
+.mapa-zavrit { position: absolute; left: 12px; top: 12px; background: var(--panel); }
+@media (max-width: 760px) { .mapa-bok { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 42vh; } .mapa-leg { display: none; } }
+
+/* ---------- pauza menu (Esc): hra stojí, přes obraz okno se seznamem vlevo a obsahem vpravo ---------- */
+#hud { position: fixed; z-index: 8; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box;
+  background: radial-gradient(ellipse at center, rgba(12, 16, 26, .5), rgba(12, 16, 26, .88)); backdrop-filter: blur(4px) saturate(.75); }
+.pauza { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; width: min(980px, 100%); height: min(660px, 100%);
+  background: var(--panel); border: 2px solid var(--edge); box-shadow: 8px 8px 0 rgba(0, 0, 0, .45); }
+.pauza > header { display: flex; align-items: baseline; gap: 14px; padding: 14px 22px; background: var(--panel-2); border-bottom: 2px solid var(--edge); }
+.pauza h1 { margin: 0; min-width: 0; font: 700 1.9rem/1.05 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pauza h1 span { color: var(--tile); }
+.pauza-st { margin-left: auto; font: 700 .95rem var(--display); letter-spacing: .35em; text-transform: uppercase; color: var(--lamp); }
+.pauza-telo { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 0; }
+.pauza-menu { display: flex; flex-direction: column; gap: 2px; padding: 12px 0; background: var(--night); border-right: 2px solid var(--edge); overflow: auto; }
+.pauza-menu .pol { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; box-sizing: border-box; padding: 6px 20px; border: 0; background: none;
+  color: var(--muted); font: 500 1.12rem var(--display); text-align: left; text-decoration: none; cursor: pointer; }
+.pauza-menu .pol::before { content: "▶"; flex: none; width: .9em; font-size: .7rem; color: transparent; }
+.pauza-menu .pol:hover, .pauza-menu .pol:focus-visible { color: var(--ink); background: rgba(255, 255, 255, .06); outline: none; }
+.pauza-menu .pol:hover::before, .pauza-menu .pol:focus-visible::before { color: var(--lamp); }
+.pauza-menu .pol[aria-selected="true"] { color: #fff; background: var(--tile); }
+.pauza-menu .pol[aria-selected="true"]::before { color: #fff; }
+.pauza-menu .pol.hlavni { color: var(--lamp); font-size: 1.3rem; }
+.pauza-menu .mezera { flex: 1 1 auto; min-height: 12px; }
+.pauza-menu #zvukbox { padding: 2px 20px 8px; }
+.pauza-menu #zvukbox button { width: 100%; }
+.pauza-obsah { min-height: 0; overflow: auto; padding: 18px 26px; }
+.panel { display: grid; gap: 12px; align-content: start; max-width: 600px; }
+.panel h2 { margin: 0; font: 700 1.35rem var(--display); color: var(--ink); }
+.panel h2 small { margin-left: 8px; font: 400 .85rem var(--body); color: var(--muted); }
+.pauza > footer { display: flex; gap: 18px; align-items: center; padding: 8px 22px; background: var(--panel-2); border-top: 2px solid var(--edge); }
+.pauza > footer .zdroje { flex: 1 1 auto; text-align: right; }
+#stav { flex: none; color: var(--muted); font-size: .75rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lbl { margin-top: 4px; }
 
 /* navigace (web/jizda_navigace.js) */
 .nav { position: relative; font-size: .88rem; }
@@ -92,8 +127,8 @@ button { font: inherit; color: inherit; }
 #sledZast li { padding: 1px 0; } #sledZast li.byla { color: #8a94a6; } #sledZast li.dalsi { font-weight: 700; color: var(--lamp); }
 
 /* hra (web/jizda_hra.js vkládá vlastní styly, tady je přebíjí vyšší specifičnost #hud) */
-#hud .hra-sek { margin: 0; font-size: .88rem; display: grid; gap: 6px; }
-#hud .hra-sek h2 { display: none; }                         /* nadpis dělá summary */
+#hud .hra-sek { margin: 0 0 6px; font-size: .9rem; display: grid; gap: 6px; padding: 10px 12px; background: var(--panel-2); border: 2px solid var(--edge); }
+#hud .hra-sek h2 { margin: 0; font: 500 .8rem var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--grass); }
 #hud .hra-sek .hra-r { margin: 0; gap: 6px; }
 #hud .hra-sek .hra-st { margin: 0; font-size: .8rem; }
 #hud .hra-sek .hra-mise { margin: 0; border-left-color: var(--lamp); }
@@ -105,8 +140,8 @@ button { font: inherit; color: inherit; }
 .osa { display: flex; justify-content: space-between; font-family: var(--display); font-size: .78rem; color: var(--muted); }
 .rt { display: flex; gap: 8px; align-items: center; min-height: 28px; margin-top: 4px; font-size: .82rem; color: var(--muted); cursor: pointer; }
 .rt input { accent-color: var(--grass); width: 16px; height: 16px; }
-.wx { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-.wx .px-btn { padding: 4px 2px; }
+.wx, .grafv { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.wx .px-btn, .grafv .px-btn { padding: 4px 2px; }
 
 /* ovládání a zdroje */
 .ovl dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 8px 0 0; font-size: .82rem; }
@@ -123,6 +158,12 @@ button { font: inherit; color: inherit; }
 #pult { position: fixed; z-index: 1; left: 0; right: 0; bottom: 0; height: 13vh; pointer-events: none; background: linear-gradient(#2b3242, #151a24); clip-path: polygon(0 42%, 14% 0, 86% 0, 100% 42%, 100% 100%, 0 100%); }   /* palubní deska v kabině vlaku a autobusu */
 #pohledBtn:hover, #pohledBtn:focus-visible { border-color: #e27a5c; }
 .mobil #pohledBtn { display: none; }                          /* na telefonu je tlačítko Pohled u joysticku */
+#steraky { position: fixed; z-index: 1; inset: 0; pointer-events: none; overflow: hidden; }
+#steraky i { position: absolute; bottom: -2vh; width: 5px; height: 62vh; background: linear-gradient(#1a1a1a, #0b0b0b); border-radius: 3px; transform-origin: 50% 100%; animation: sterac 1.25s ease-in-out infinite alternate; box-shadow: 1px 0 2px rgba(0, 0, 0, .4); }
+#steraky i:first-child { left: 26%; } #steraky i:last-child { left: 58%; animation-delay: .06s; }
+@keyframes sterac { from { transform: rotate(72deg); } to { transform: rotate(-58deg); } }
+#fpsBox { position: fixed; z-index: 3; left: 50%; bottom: 8px; transform: translateX(-50%); padding: 2px 8px; background: rgba(16, 21, 31, .8); color: #8fe3a3; font: 600 12px ui-monospace, Consolas, monospace; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { #steraky i { animation-duration: 3s; } }
 #zamer { position: fixed; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(255,255,255,.8); box-shadow: 0 0 0 1px rgba(0,0,0,.5); pointer-events: none; }
 #klik { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 #klik span { max-width: calc(100vw - 48px); box-sizing: border-box; text-align: center; padding: 10px 18px; background: var(--panel); border: 2px solid var(--edge); box-shadow: var(--stin); font: 500 1.05rem var(--display); }
@@ -132,13 +173,13 @@ button { font: inherit; color: inherit; }
 #toast { position: fixed; z-index: 5; left: 50%; top: 18%; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 10px 18px; background: var(--panel); border: 2px solid var(--edge); border-left: 6px solid #29c8ff; box-shadow: var(--stin); font: 500 1.05rem var(--display); }
 #toast.pokuta { border-left-color: #ff3b30; } #toast.odmena { border-left-color: #35e06f; }
 /* odjezdová tabule: na počítači uprostřed volného místa mezi panelem (vlevo) a minimapou (vpravo) */
-#tabule { position: fixed; z-index: 1; top: 16px; left: calc(330px + (100vw - 330px - 212px) / 2); transform: translateX(-50%); width: min(440px, calc(100vw - 330px - 212px - 24px)); box-sizing: border-box; padding: 8px 12px; background: #10151f; border: 2px solid var(--edge); box-shadow: var(--stin); font: 600 13px ui-monospace, Consolas, monospace; color: #ffc94d; }
+#tabule { position: fixed; z-index: 1; top: 16px; left: 50%; transform: translateX(-50%); width: min(440px, calc(100vw - 2 * 230px)); box-sizing: border-box; padding: 8px 12px; background: #10151f; border: 2px solid var(--edge); box-shadow: var(--stin); font: 600 13px ui-monospace, Consolas, monospace; color: #ffc94d; }
 #tabule h2 { margin: 0 0 6px; font: 500 .95rem var(--display); color: var(--ink); }
 #tabule table { width: 100%; border-collapse: collapse; }
 #tabule td { padding: 2px 4px; white-space: nowrap; } #tabule td.cil { width: 100%; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
 #tabule td.zp { color: #ff8a7a; } #tabule td.zive { color: #8fe3a3; }
 #nacitani { position: fixed; z-index: 10; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 24px; text-align: center; background: var(--night); color: var(--muted); font: 500 1.2rem var(--display); }
-@media (max-width: 900px) { #tabule { left: auto; right: 16px; top: 212px; transform: none; width: min(440px, calc(100vw - 346px)); } }
+@media (max-width: 900px) { #tabule { left: auto; right: 16px; top: 212px; transform: none; width: min(440px, calc(100vw - 32px)); } }
 
 /* dotykové ovládání: joystick vlevo dole, tlačítka vpravo dole */
 #dotyk { position: fixed; inset: auto 0 0 0; height: 0; }
@@ -148,28 +189,30 @@ button { font: inherit; color: inherit; }
 #tlacitka button { min-width: 84px; min-height: 52px; padding: 4px 6px; border: 2px solid var(--edge); background: rgba(35, 45, 66, .82); color: var(--ink); box-shadow: 2px 2px 0 rgba(0, 0, 0, .35); font: 500 .92rem var(--display); touch-action: none; user-select: none; -webkit-user-select: none; }
 #tlacitka button.drzi { background: var(--tile); border-color: #e27a5c; }
 
-/* mobil (dotyk) a úzké okno: panel sbalený do hlavičky, rozbalí ho Menu */
+/* mobil (dotyk) a úzké okno: menu přes celou obrazovku, položky nahoře v řádcích */
 .mobil canvas { touch-action: none; }
-.mobil #menu { display: inline-flex; }
-.mobil #telo { display: none; }
-.mobil #hud.otevreno #telo { display: grid; }
-.mobil #hud { max-height: calc(100vh - 250px); }               /* nad tlačítky vpravo dole */
 .mobil #tacho { bottom: 22px; right: 16px; }
 .mobil #bus { bottom: 220px; max-width: calc(100vw - 24px); }
-.mobil #zamer, .mobil .ovl { display: none; }
+.mobil #zamer, .mobil .ovl, .mobil .pauza-menu [data-tab="ovladani"] { display: none; }
 .mobil .nav input { font-size: 16px; }                      /* iOS jinak po klepnutí přiblíží stránku */
 .mobil .px-btn, .mobil #zvukbox button, .mobil #hud .hra-sek button, .mobil .nav button, .mobil .nav input, .mobil #sledList button { min-height: 44px; }
-.mobil #hud details > summary, .mobil .rt, .mobil #hud .hra-sek label.hra-p { min-height: 44px; }
-@media (max-width: 700px) {
-  #hud { width: auto; right: 132px; left: 10px; top: 10px; padding: 10px 12px; gap: 8px; max-height: calc(100vh - 90px); }
-  #menu { display: inline-flex; }
-  #telo { display: none; }
-  #hud.otevreno #telo { display: grid; }
-  #hud h1 { font-size: 1.15rem; }
-  #hud h1 span, .zpet .dl { display: none; }
-  .zpet .kr { display: inline; }
-  .akce .px-btn, #zvukbox button { font-size: .85rem; padding: 4px 8px; }
-  #hud details > summary, .rt, #hud .hra-sek label.hra-p { min-height: 44px; }
+.mobil .rt, .mobil #hud .hra-sek label.hra-p { min-height: 44px; }
+@media (max-width: 760px) {
+  #hrahud { left: 10px; top: 10px; max-width: calc(100vw - 140px); }
+  #hud { padding: 0; }
+  .pauza { width: 100%; height: 100%; border: 0; box-shadow: none; }
+  .pauza > header { padding: 10px 14px; }
+  .pauza h1 { font-size: 1.3rem; }
+  .pauza-telo { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .pauza-menu { flex-direction: row; flex-wrap: wrap; gap: 4px; padding: 8px; border-right: 0; border-bottom: 2px solid var(--edge); }
+  .pauza-menu .pol { width: auto; padding: 6px 12px; font-size: .95rem; }
+  .pauza-menu .pol::before, .pauza-menu .mezera { display: none; }
+  .pauza-menu .pol.hlavni { font-size: 1rem; }
+  .pauza-menu #zvukbox { padding: 0; }
+  .pauza-obsah { padding: 12px 14px; }
+  .pauza > footer { flex-direction: column; align-items: stretch; gap: 4px; padding: 6px 14px; }
+  .pauza > footer .zdroje { text-align: left; font-size: .65rem; }
+  .rt, #hud .hra-sek label.hra-p { min-height: 44px; }
   #sledList button, .nav li, #hud .px-btn, #zvukbox button, #hud .hra-sek button, .nav button, .nav input { min-height: 44px; box-sizing: border-box; }
   #minimapa { width: 110px; height: 110px; right: 10px; top: 10px; }
   #tacho { font-size: 1.45rem; min-width: 90px; }
@@ -177,39 +220,60 @@ button { font: inherit; color: inherit; }
   .mobil #bus { bottom: 220px; }
   #tabule { left: 10px; right: 10px; top: calc(var(--hudb, 130px) + 8px); transform: none; width: auto; }
   #toast { top: calc(var(--hudb, 130px) + 8px); }
-  #hud.otevreno ~ #tabule, #hud.otevreno ~ #bus { display: none; }   /* otevřené menu nic nepřekrývá */
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
 <div id="nacitani">Stavím {{MESTO}} ve 3D…</div>
-<div id="hud">
-  <div class="hlava">
-    <h1>{{MESTO}} <span>ve 3D</span></h1>
+<div id="hrahud">
+  <div class="radek">
+    <button type="button" class="px-btn" id="menu" aria-expanded="false" aria-controls="hud">Menu <kbd>Esc</kbd></button>
+    <button type="button" class="px-btn" id="mapaBtn" aria-expanded="false" aria-controls="mapa3d">Mapa <kbd>M</kbd></button>
     <span class="rezim" id="rezim">pěšky</span>
-    <button type="button" class="px-btn" id="menu" aria-expanded="false" aria-controls="telo">Menu</button>
   </div>
-  <div class="akce">
-    <a id="zpet" class="px-btn zpet" href="index.html" title="Zpět do 2D mapy na místo, kde právě jste"><span aria-hidden="true">‹</span> <span class="dl">Zpět do 2D mapy</span><span class="kr">2D mapa</span></a>
-    <div id="zvukbox"></div>
-  </div>
-  <div id="stav">Načítám…</div>
-  <div id="telo">
-  <div id="navpanel"></div>
-  <div class="sec sled">
-    <span class="lbl">Sledovat spoj</span>
-    <button type="button" class="px-btn" id="sledBtn" aria-expanded="false" aria-controls="sledList">Autobusy a vlaky na mapě</button>
-    <ul id="sledList" hidden></ul>
-    <div id="sledInfo" hidden><ol id="sledZast"></ol><button type="button" class="px-btn" id="sledKonec">Ukončit sledování</button></div>
-  </div>
-  <details class="sec" id="hraBox">
-    <summary>Hra <span class="sum-val">taxi, rozvoz, hledání</span></summary>
-    <div class="det-body" id="hrapanel"></div>
-  </details>
-  <details class="sec" id="casBox">
-    <summary>Čas a počasí</summary>
-    <div class="det-body">
+  <div id="cil" hidden></div>
+</div>
+<div id="mapa3d" hidden role="dialog" aria-modal="true" aria-labelledby="mapaNadpis">
+  <canvas id="mapaPlatno" aria-label="Mapa města: táhni pro posun, kolečkem přibliž, klikni pro navigaci"></canvas>
+  <aside class="mapa-bok">
+    <h2 id="mapaNadpis">Mapa</h2>
+    <p class="mapa-nap">Klikni na místo nebo do mapy: navigace tam. Táhni: posun · kolečko: přiblížení · <kbd>M</kbd> / <kbd>Esc</kbd> zavřít</p>
+    <div class="mapa-r"><button type="button" class="px-btn" id="mapaJa">Kde jsem</button><button type="button" class="px-btn" id="mapaZrus">Zrušit navigaci</button></div>
+    <ul class="mapa-leg">
+      <li><i style="background:#f2c66d"></i>Náměstí a obce</li><li><i class="kos" style="background:#e2643f"></i>Památky a dominanty</li>
+      <li><i class="ctv" style="background:#2f8cff"></i>Zastávky</li><li><i style="background:#3be07a"></i>Večerky (přežití)</li><li><i style="background:#29c8ff"></i>Cíl navigace</li>
+    </ul>
+    <ul class="mapa-seznam" id="mapaSeznam"></ul>
+  </aside>
+  <button type="button" class="px-btn mapa-zavrit" id="mapaZavrit">Zavřít mapu</button>
+</div>
+<div id="hud" hidden role="dialog" aria-modal="true" aria-labelledby="pauzaNadpis">
+  <div class="pauza">
+    <header><h1 id="pauzaNadpis">{{MESTO}} <span>ve 3D</span></h1><span class="pauza-st">Pauza</span></header>
+    <div class="pauza-telo">
+      <nav class="pauza-menu" aria-label="Menu">
+        <button type="button" class="pol hlavni" id="pokracovat">Pokračovat</button>
+        <button type="button" class="pol" role="tab" data-tab="hra" aria-controls="pnHra">Hra</button>
+        <button type="button" class="pol" role="tab" data-tab="nav" aria-controls="pnNav">Navigace</button>
+        <button type="button" class="pol" role="tab" data-tab="spoje" aria-controls="pnSpoje">Autobusy a vlaky</button>
+        <button type="button" class="pol" role="tab" data-tab="cas" aria-controls="pnCas">Čas a počasí</button>
+        <button type="button" class="pol" role="tab" data-tab="grafika" aria-controls="pnGrafika">Grafika</button>
+        <button type="button" class="pol" role="tab" data-tab="ovladani" aria-controls="pnOvl">Ovládání</button>
+        <div class="mezera"></div>
+        <div id="zvukbox"></div>
+        <a id="zpet" class="pol" href="index.html" title="Zpět do 2D mapy na místo, kde právě jste">Zpět do 2D mapy</a>
+      </nav>
+      <div class="pauza-obsah">
+        <section class="panel" data-panel="hra" id="pnHra" role="tabpanel"><h2>Hra <small>mise, pouliční režim</small></h2><div id="hrapanel"></div></section>
+        <section class="panel" data-panel="nav" id="pnNav" role="tabpanel" hidden><h2>Navigace</h2><div id="navpanel"></div></section>
+        <section class="panel sled" data-panel="spoje" id="pnSpoje" role="tabpanel" hidden>
+          <h2>Autobusy a vlaky <small>sleduj spoj podle jízdního řádu</small></h2>
+          <button type="button" class="px-btn" id="sledBtn" aria-expanded="false" aria-controls="sledList">Autobusy a vlaky na mapě</button>
+          <ul id="sledList" hidden></ul>
+          <div id="sledInfo" hidden><ol id="sledZast"></ol><button type="button" class="px-btn" id="sledKonec">Ukončit sledování</button></div>
+        </section>
+        <section class="panel" data-panel="cas" id="pnCas" role="tabpanel" hidden><h2>Čas a počasí</h2>
   <div class="cas">
     <label class="lbl" for="noc">Denní doba <span id="hodiny"></span></label>
     <input type="range" id="noc" min="0" max="100" value="0">
@@ -223,22 +287,36 @@ button { font: inherit; color: inherit; }
     </div>
     <label class="rt"><input type="checkbox" id="realPocasi" checked> Podle skutečného počasí</label>
   </div>
-    </div>
-  </details>
-  <details class="sec ovl"><summary>Ovládání</summary><dl>
-    <dt>WASD / šipky</dt><dd>chůze, v autě plyn, brzda a zatáčení</dd>
+        </section>
+        <section class="panel" data-panel="grafika" id="pnGrafika" role="tabpanel" hidden><h2>Grafika <small id="grafVal"></small></h2>
+          <div class="grafv" id="grafika" role="group" aria-label="Dohled a kvalita">
+            <button type="button" class="px-btn" data-g="nizka">Nízká</button><button type="button" class="px-btn" data-g="stredni">Střední</button><button type="button" class="px-btn" data-g="vysoka">Vysoká</button><button type="button" class="px-btn" data-g="ultra">Ultra</button>
+          </div>
+          <p class="rt" id="grafPopis"></p>
+          <label class="rt"><input type="checkbox" id="autoRes" checked> Automatické rozlišení (při nízkém fps sníží ostrost, ať hra běží plynule)</label>
+          <label class="rt"><input type="checkbox" id="fpsChk"> Ukazovat fps</label>
+        </section>
+        <section class="panel ovl" data-panel="ovladani" id="pnOvl" role="tabpanel" hidden><h2>Ovládání</h2><dl>
+    <dt>WASD / šipky</dt><dd>chůze, v autě plyn (W, ↑), brzda (S) a zatáčení (A, D)</dd>
+    <dt>← → ↓</dt><dd>v autě levý a pravý blinkr, varovky (znovu = vypnout)</dd>
     <dt>myš</dt><dd>rozhlížení (klikni do obrazu, nebo táhni se stisknutým tlačítkem); v autě kamera kolem auta, sama se vrátí za něj</dd>
     <dt>kolečko</dt><dd>vzdálenost kamery od auta</dd>
     <dt>E</dt><dd>nastoupit do auta / vystoupit; u stojícího autobusu nastoupit do autobusu</dd>
-    <dt>V nebo C</dt><dd>pohled z kabiny / zezadu; ve vlaku pohled strojvedoucího z čela soupravy, v autobuse místo řidiče (jede a staví podle jízdního řádu)</dd>
+    <dt>V nebo C</dt><dd>pěšky pohled zezadu (výchozí) / z očí; ve vozidle pohled z kabiny / zezadu; ve vlaku pohled strojvedoucího z čela soupravy, v autobuse místo řidiče (jede a staví podle jízdního řádu)</dd>
     <dt>Shift</dt><dd>běh, v autě plný plyn</dd>
-    <dt>mezerník</dt><dd>ruční brzda</dd>
-    <dt>Esc</dt><dd>uvolnit myš</dd>
-  </dl></details>
-  <p class="sec zdroje">Vytvořeno nástrojem <a href="https://github.com/adamklatovsky/izomapa" target="_blank" rel="noopener">izomapa</a> od Adama Klatovského.
+    <dt>mezerník</dt><dd>pěšky skok (i na auto); v autě ruční brzda, v rychlosti se zatočením smyk (drift)</dd>
+    <dt>F nebo klik</dt><dd>rána pěstí (do auta před sebou: rozbité okno)</dd>
+    <dt>H</dt><dd>v autě klakson</dd>
+    <dt>T</dt><dd>v autě FSD (autopilot) po trase navigace; bez cíle vybere projížďku. W A S D = převzít řízení</dd>
+    <dt>M</dt><dd>mapa: zajímavá místa, klikem navigace</dd>
+    <dt>Esc</dt><dd>menu a pauza (uvolní myš)</dd>
+  </dl></section>
+      </div>
+    </div>
+    <footer><div id="stav">Načítám…</div><p class="zdroje">Vytvořeno nástrojem <a href="https://github.com/adamklatovsky/izomapa" target="_blank" rel="noopener">izomapa</a> od Adama Klatovského.
     Mapová data © přispěvatelé <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL) a Overture Maps,
     výšky budov, ortofoto a ZABAGED © <a href="https://geoportal.cuzk.cz/" target="_blank" rel="noopener">ČÚZK</a> (CC BY 4.0){{MHD_ZDROJ}},
-    počasí © <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (CC BY 4.0).</p>
+    počasí © <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (CC BY 4.0).</p></footer>
   </div>
 </div>
 <div id="dotyk" hidden>
@@ -258,6 +336,8 @@ button { font: inherit; color: inherit; }
 <div id="toast" role="status" hidden></div>
 <section id="tabule" hidden aria-live="polite"><h2 id="tabNazev"></h2><table><tbody id="tabRadky"></tbody></table></section>
 <div id="zamer"></div>
+<div id="steraky" hidden aria-hidden="true"><i></i><i></i></div>
+<div id="fpsBox" hidden></div>
 <div id="klik" hidden><span>Klikni do obrazu a rozhlížej se myší</span></div>
 
 <script type="importmap">{ "imports": { "three": "./jizda/three.module.js" } }</script>
@@ -271,6 +351,8 @@ import { vytvorHru } from './jizda/hra.js';
 import { vytvorZvuky } from './jizda/zvuky.js';
 import { vytvorStromy } from './jizda/stromy.js';
 import { vytvorUlici } from './jizda/ulice.js';
+import { vytvorZnacky } from './jizda/znacky.js';
+import { vytvorUzavirky } from './jizda/uzavirky.js';
 THREE.ColorManagement.enabled = false;
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -292,6 +374,15 @@ const OBD = OBDOBI.includes(Q.get('obdobi')) ? Q.get('obdobi') : OBDOBI.includes
 const DOTYK = matchMedia('(pointer: coarse)').matches || Q.has('dotyk');
 if (DOTYK) document.documentElement.classList.add('mobil');
 // kvalita obrazu: 2 = počítač (vyhlazení hran MSAA + FXAA, kresba povrchů), 1 = telefon (bez MSAA), 0 = vše vypnuto (?kvalita=0, slabý stroj)
+// dohled (Menu → Grafika): 3D stromy, načtené čtverce města a opar v dálce; výchozí podle zařízení, volba se pamatuje
+const GRAFIKA = {
+  nizka: { nazev: 'Nízká', stromy: 45, ctverce: 650, opar: 2000, auta: 350 },
+  stredni: { nazev: 'Střední', stromy: 70, ctverce: 900, opar: 2600, auta: 600 },
+  vysoka: { nazev: 'Vysoká', stromy: 130, ctverce: 1300, opar: 3400, auta: 900 },
+  ultra: { nazev: 'Ultra', stromy: 220, ctverce: 1800, opar: 4500, auta: 1300 },
+};
+let GRAF = 'stredni';
+try { const g = localStorage.getItem('izo-3d-grafika'); GRAF = GRAFIKA[g] ? g : (DOTYK ? 'nizka' : 'stredni'); } catch { GRAF = DOTYK ? 'nizka' : 'stredni'; }
 const KVALITA = Q.has('kvalita') ? Math.max(0, Math.min(2, +Q.get('kvalita') || 0)) : DOTYK ? 1 : 2;
 const renderer = new THREE.WebGLRenderer({ antialias: false });   // kreslí se přes texturu (rtDen), vyhlazení hran je tam
 renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
@@ -331,6 +422,7 @@ tickCas(); setInterval(tickCas, 30000);
 const rtDen = new THREE.WebGLRenderTarget(1, 1, { depthTexture: new THREE.DepthTexture(1, 1), samples: KVALITA > 1 ? 4 : 0 }), rtSvetla = new THREE.WebGLRenderTarget(1, 1);
 // kresba povrchů zblízka (jizda/svet.js): dlaždicový šum, R jemné zrno, G hrubší skvrny a trsy, B řídké kamínky, A druhé skvrny (rozhození hran)
 const DETAIL = { uDet: { value: null }, uDetS: { value: KVALITA > 0 ? 1 : 0 } };
+const OKNA = { value: 1 };                                   // podíl rozsvícených oken v noci (0..1), podle hodin (oknaPodleCasu)
 {
   const N = 256, d = new Uint8Array(N * N * 4);
   let sd = 12345; const rnd = () => ((sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -359,7 +451,7 @@ const DETAIL = { uDet: { value: null }, uDetS: { value: KVALITA > 0 ? 1 : 0 } };
 function velikostRT() { const w = Math.round(innerWidth * renderer.getPixelRatio()), h = Math.round(innerHeight * renderer.getPixelRatio()); rtDen.setSize(w, h); rtSvetla.setSize(w, h); if (typeof slozeni !== 'undefined') slozeni.material.uniforms.uPx.value.set(1 / w, 1 / h); }
 const slozeni = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
   uniforms: { tD: { value: rtDen.texture }, tZ: { value: rtDen.depthTexture }, tL: { value: rtSvetla.texture }, uN: { value: 0 }, uG: { value: 0 },
-              uSvetla: { value: 0 }, uMlha: { value: 1 / 2600 }, uMlhaC: { value: new THREE.Color(0.74, 0.78, 0.83) }, uZat: { value: 0 }, uNear: { value: 0.1 }, uFar: { value: 3000 }, uPx: { value: new THREE.Vector2(1, 1) }, uAA: { value: KVALITA > 0 ? 1 : 0 } },
+              uSvetla: { value: 0 }, uMlha: { value: 1 / GRAFIKA[GRAF].opar }, uMlhaC: { value: new THREE.Color(0.74, 0.78, 0.83) }, uZat: { value: 0 }, uNear: { value: 0.1 }, uFar: { value: 3000 }, uPx: { value: new THREE.Vector2(1, 1) }, uAA: { value: KVALITA > 0 ? 1 : 0 } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
   fragmentShader: /* glsl */`
     uniform sampler2D tD, tZ, tL; uniform float uN, uG, uSvetla, uMlha, uZat, uNear, uFar, uAA; uniform vec3 uMlhaC; uniform vec2 uPx; varying vec2 vUv;
@@ -475,7 +567,8 @@ function krokPocasi(dt, cas) {
     const u = o.material.uniforms; u.uT.value = cas; u.uI.value = i; u.uCam.value.copy(camera.position); u.uVitr.value.set(POC.vitr[0], POC.vitr[1]);
   }
   const s = slozeni.material.uniforms;
-  s.uMlha.value = 1 / 2600 + WXI.mlha * (1 / 85 - 1 / 2600);    // jasno: lehký opar v dálce, mlha: dohled ~100 m
+  const opar = GRAFIKA[GRAF].opar;
+  s.uMlha.value = 1 / opar + WXI.mlha * (1 / 85 - 1 / opar);    // jasno: lehký opar v dálce (podle volby grafiky), mlha: dohled ~100 m
   s.uZat.value = WXI.zat;
   const M = POVRCH.uMokro, Sn = POVRCH.uSnih, tepl = POC.real && $('realPocasi').checked ? POC.real.t : (POC.w === 'snow' ? -2 : 8);
   M.value = clamp(M.value + (WXI.dest > 0.3 ? dt / 40 : -dt / 300), 0, 1);           // zmokne za ~40 s deště, uschne za ~5 min
@@ -486,6 +579,7 @@ function krokPocasi(dt, cas) {
 }
 const slozScena = new THREE.Scene(); slozScena.add(slozeni);
 const slozCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+let UZ = null;                                               // uzavírky silnic (jizda_uzavirky.js), vzniká níž
 const jenVeDne = [];                                        // naše tělesa bez vlastního světla: v obrazu světel se kreslí černě
 const CERNA = new THREE.MeshBasicMaterial({ color: 0x000000 });
 scene3.add(new THREE.HemisphereLight(0xe6eef7, 0x5c5444, 1.05));
@@ -503,7 +597,7 @@ async function nactiCtverec(i, j) {
   CH.set(key, { loading: true, cx, cy });
   $('stav').textContent = `Stavím čtverec ${i}, ${j}…`;
   await new Promise((r) => setTimeout(r, 30));             // ať se stihne vykreslit zpráva
-  const res = await postavCtverec(THREE, renderer, { dir: `jizda/${key}`, obdobi: OBD, stin: DOTYK ? 2048 : 4096, uMokro: POVRCH.uMokro, uSnih: POVRCH.uSnih, uDet: DETAIL.uDet, uDetS: DETAIL.uDetS });
+  const res = await postavCtverec(THREE, renderer, { dir: `jizda/${key}`, obdobi: OBD, stin: DOTYK ? 2048 : 4096, uMokro: POVRCH.uMokro, uSnih: POVRCH.uSnih, uDet: DETAIL.uDet, uDetS: DETAIL.uDetS, uOkna: OKNA });
   if (POVRCH.zimni) for (const m of res.allMats) if (m.uniforms?.uSeason) m.uniforms.uSeason.value = 3;
   const grp = new THREE.Group();
   while (res.world.children.length) grp.add(res.world.children[0]);
@@ -551,13 +645,44 @@ async function nactiCtverec(i, j) {
     }
   }
   CH.set(key, { grp, hs: sc.heights, n: sc.n, step: sc.step, cx, cy, mats: res.allMats });
+  pridejParkovana(key, sc, grp, cx, cy);
   STROMY.pridejCtverec(key, sc.trees.map(([x, y, z, h, conif, kind]) => [x + cx, y + cy, z, h, conif, kind]));
   LOADED.push([cx, cy]);
   await nactiDopravu(key);
   fetch(`jizda/${key}/chodci.json`).then((r) => r.json()).then((d) => { if (CH.get(key)?.grp) LIDE.pridejCtverec(key, d.walks || []); }).catch(() => {});
+  LIDE.pridejLavicky(key, ((sc.props && sc.props.bench) || []).map(([x, y, z, a]) => [x + cx, y + cy, z, a]));   // lavičky: lidé na nich sedí
+}
+// zaparkovaná auta ze scény čtverce (render.html je kreslí jedním InstancedMesh): pouliční režim je krade, vykrádá, naráží do nich
+const PARK = new Map(), PARKC = 20, pk = (x, y) => Math.floor(x / PARKC) + ',' + Math.floor(y / PARKC);
+const PARK_BARVY = [[0.92, 0.92, 0.90], [0.70, 0.72, 0.75], [0.16, 0.17, 0.19], [0.72, 0.16, 0.14], [0.20, 0.32, 0.62], [0.38, 0.40, 0.43], [0.24, 0.42, 0.30], [0.80, 0.74, 0.60]];
+function pridejParkovana(key, sc, grp, cx, cy) {
+  const n = sc.cars ? sc.cars.length : 0; if (!n) return;
+  let mesh = null; const m4 = new THREE.Matrix4(), v = new THREE.Vector3(), c0 = sc.cars[0];
+  grp.traverse((o) => {
+    if (mesh || !o.isInstancedMesh || o.count !== n) return;
+    o.getMatrixAt(0, m4); v.setFromMatrixPosition(m4);
+    if (Math.abs(v.x - c0[0]) < 0.02 && Math.abs(v.z + c0[1]) < 0.02) mesh = o;
+  });
+  if (!mesh) return;
+  sc.cars.forEach(([x, y, z, a, ci], idx) => {
+    const o = { x: x + cx, y: y + cy, z, h: a, key, mesh, idx, col: '#' + (PARK_BARVY[ci] || PARK_BARVY[0]).map((u) => Math.round(u * 255).toString(16).padStart(2, '0')).join('') };
+    const q = pk(o.x, o.y); if (!PARK.has(q)) PARK.set(q, []); PARK.get(q).push(o);
+  });
+}
+function parkovana(x, y, r) {
+  const out = [];
+  for (let gx = Math.floor((x - r) / PARKC); gx <= Math.floor((x + r) / PARKC); gx++) for (let gy = Math.floor((y - r) / PARKC); gy <= Math.floor((y + r) / PARKC); gy++)
+    for (const o of PARK.get(gx + ',' + gy) || []) if (Math.abs(o.x - x) < r && Math.abs(o.y - y) < r) out.push(o);
+  return out;
+}
+const NULA = new THREE.Matrix4().makeScale(0, 0, 0);
+function skryjParkovane(o) {                                // ukradené: z instancí zmizí a z evidence taky
+  o.mesh.setMatrixAt(o.idx, NULA); o.mesh.instanceMatrix.needsUpdate = true;
+  const a = PARK.get(pk(o.x, o.y)); if (a) a.splice(a.indexOf(o), 1);
 }
 function uvolniCtverec(key) {
   const c = CH.get(key); if (!c || !c.grp) return;
+  for (const [q, a] of PARK) { const b = a.filter((o) => o.key !== key); if (b.length) PARK.set(q, b); else PARK.delete(q); }
   scene3.remove(c.grp);
   const tex = new Set();
   c.grp.traverse((o) => {
@@ -644,6 +769,16 @@ function along(r, s) {
   return { x: a[0] + (b[0] - a[0]) * t, y: a[1] + (b[1] - a[1]) * t, z: a[2] + (b[2] - a[2]) * t, dx: b[0] - a[0], dy: b[1] - a[1] };
 }
 const SIG = [], sigPosts = [], SIG_T = 70;
+// OSM má semafor jedné křižovatky často na víc uzlech (nájezd i střed): stejný směr do 12 m = jedna stop čára a jeden sloup
+// (jako nastroje/semafory.py sloucit; tady i pro data postavená dřív). Zůstane ta, ke které auto dojede dřív.
+function slucSig(a) {
+  const res = [];
+  for (const z of [...a].sort((p, q) => p[0] - q[0])) {
+    const i = res.findIndex((q) => (q[4] || 0) === (z[4] || 0) && Math.abs(q[0] - z[0]) < 12);
+    if (i < 0) res.push(z); else if (z[4] === -1) res[i] = z;
+  }
+  return res;
+}
 function addSig(r, z) {
   let g = z[5] !== undefined ? SIG.find((q) => q.id === z[5]) : SIG.find((q) => Math.hypot(q.x - z[1], q.y - z[2]) < 45);
   if (!g) { g = { id: z[5], x: z[1], y: z[2], k: z[3], ax: null, off: Math.abs(Math.round(z[1]) * 7 + Math.round(z[2]) * 13) % SIG_T }; SIG.push(g); }
@@ -763,7 +898,7 @@ function findEdges(i0) {
   }
 }
 function enterFromEdge(c) {
-  const ok = edgeIn.filter(([i]) => !c.truck || roads[i].t);
+  const ok = edgeIn.filter(([i]) => (!c.truck || roads[i].t) && !roads[i].uz);
   if (!ok.length) return false;
   let x = Math.random() * ok.reduce((a, [i]) => a + (roads[i].v || 300), 0);
   for (const [i, dir] of ok) { x -= roads[i].v || 300; if (x <= 0) { c.r = i; c.dir = dir; c.s = dir > 0 ? 0 : roads[i].L; c.pr = -1; return true; } }
@@ -789,7 +924,7 @@ async function nactiDopravu(key) {
     const len = [0]; for (let i = 1; i < r.w.length; i++) len.push(len[i - 1] + Math.hypot(r.w[i][0] - r.w[i - 1][0], r.w[i][1] - r.w[i - 1][1]));
     if (len[len.length - 1] <= 1) continue;
     const rr = { ...r, k: key, len, L: len[len.length - 1] }; roads.push(rr);
-    rr.jy = [...(r.y || []).map((y) => yieldZ(rr, y)), ...(r.sg || []).flatMap((z) => addSig(rr, z)), ...(r.j || []).map((z) => addXing(rr, z))];
+    rr.jy = [...(r.y || []).map((y) => yieldZ(rr, y)), ...slucSig(r.sg || []).flatMap((z) => addSig(rr, z)), ...(r.j || []).map((z) => addXing(rr, z))];
     if (r.rb) rr.rbk = r.rb[0].toFixed(0) + ',' + r.rb[1].toFixed(0);
   }
   for (let i = i0; i < roads.length; i++) { const r = roads[i]; for (const [end, dir] of [[r.w[0], 1], [r.w[r.w.length - 1], -1]]) { const q = ek(end); if (!ends.has(q)) ends.set(q, []); ends.get(q).push([i, dir]); } }
@@ -801,8 +936,10 @@ async function nactiDopravu(key) {
   }
   for (let k = edgeIn.length - 1; k >= 0; k--) { const [i, dir] = edgeIn[k], e = dir > 0 ? roads[i].w[0] : roads[i].w[roads[i].w.length - 1]; if ((ends.get(ek(e)) || []).length > 1) edgeIn.splice(k, 1); }
   findEdges(i0); addYields();
+  oznacUzavirky(i0);
+  ZNACKY.zmena();                                           // nové silnice: přestavět značky
   // auta podle intenzity (ve 3D o něco hustší než v mapě, ať je ulice živá)
-  const main = []; for (let i = i0; i < roads.length; i++) if (roads[i].c !== 'service') main.push(i);
+  const main = []; for (let i = i0; i < roads.length; i++) if (roads[i].c !== 'service' && !roads[i].uz) main.push(i);
   const weights = main.map((i) => (roads[i].v || 300) * roads[i].L), wsum = weights.reduce((a, b) => a + b, 0);
   const n = Math.min(260, Math.round(wsum / 450 / 1000 * 0.7)), n0 = cars.length;
   const pick = (u) => { let x = u * wsum; for (let k = 0; k < main.length; k++) { x -= weights[k]; if (x <= 0) return main[k]; } return main[main.length - 1]; };
@@ -815,6 +952,37 @@ async function nactiDopravu(key) {
     cars.push(c);
   }
   stavSignaly();
+}
+// čím větší tma, tím méně aut: část zaparkuje do „garáže“ (mimo hru) a ráno se vrátí; mění se jen auta dál než 160 m od hráče,
+// ať nikdo nezmizí před očima. Auta čekající ve frontě na křižovatce zůstávají (drží počty fronty), hlídky a sanitky jezdí i v noci.
+const GARAZ = [];
+let provozT = 0;
+// hustota provozu podle hodin: ranní (7–8:30) a odpolední (15–17:30) špička v pracovní den, v noci málo
+const PROFIL = [[0, .15], [5, .15], [6, .45], [7, 1], [8.5, 1], [9.5, .7], [14.5, .7], [15, 1], [17.5, 1], [19, .6], [21, .35], [23, .2], [24, .15]];
+function hustotaProvozu() {
+  const h = hodina(); let f = PROFIL[0][1];
+  for (let i = 1; i < PROFIL.length; i++) if (h <= PROFIL[i][0]) { const [h0, a] = PROFIL[i - 1], [h1, b] = PROFIL[i]; f = a + (b - a) * (h - h0) / (h1 - h0); break; }
+  return vikend() ? Math.min(f, 0.6) : f;
+}
+function hodina() {                                          // simulovaná hodina: skutečný čas, nebo podle posuvníku (den = odpoledne, noc = večer)
+  if ($('skutecny').checked) return pragueNow().s / 3600;
+  return DOBA.n < 0.3 ? 13 : 18 + (DOBA.n - 0.3) / 0.7 * 5;
+}
+const vikend = () => $('skutecny').checked && pragueNow().wd >= 5;
+function oknaPodleCasu(h) {                                  // večer svítí skoro všichni, k půlnoci zhasínají, k ránu se zase rozsvěcují
+  if (h >= 16 && h < 22) return 1;
+  if (h >= 22) return 1 - (h - 22) * 0.32;
+  if (h < 5) return 0.3;
+  if (h < 7) return 0.3 + (h - 5) * 0.3;
+  return 0.8;
+}
+function provozPodleTmy(now) {
+  if (now - provozT < 400) return; provozT = now;
+  const f = hustotaProvozu();
+  const cil = Math.round((cars.length + GARAZ.length) * f);
+  const daleko = (c) => { const p = carPose(c); return Math.hypot(p.x - hrac.x, p.y - hrac.y) > 160; };
+  for (let k = 0; k < 6 && cars.length > cil; k++) { const i = cars.findIndex((c) => !c.sl && !c.hold && !c.cekej && daleko(c)); if (i < 0) break; GARAZ.push(cars.splice(i, 1)[0]); }
+  for (let k = 0; k < 6 && cars.length < cil && GARAZ.length; k++) { const i = GARAZ.findIndex(daleko); if (i < 0) break; cars.push(GARAZ.splice(i, 1)[0]); }
 }
 function carGaps() {
   const lanes = new Map();
@@ -845,10 +1013,10 @@ function stepCar(c, dt) {
   if (c.s < 0 || c.s > r.L) {
     const endPt = c.s < 0 ? r.w[0] : r.w[r.w.length - 1];
     c.pr = c.r; c.pdir = c.dir;
-    const opts = (ends.get(ek(endPt)) || []).filter(([i, dir]) => i !== c.r && roads[i].c !== 'service' && (!roads[i].o || roads[i].o === dir));
-    if (opts.length) { const [i, dir] = pickExit(opts, c); c.r = i; c.dir = dir; c.s = dir > 0 ? 0 : roads[i].L; }
+    const opts = (ends.get(ek(endPt)) || []).filter(([i, dir]) => i !== c.r && roads[i].c !== 'service' && !roads[i].uz && (!roads[i].o || roads[i].o === dir));
+    if (opts.length) { const sel = c.next && opts.find(([i, dir]) => i === c.next[0] && dir === c.next[1]); const [i, dir] = sel || pickExit(opts, c); c.next = null; c.blink = 0; c.r = i; c.dir = dir; c.s = dir > 0 ? 0 : roads[i].L; }
     else if (atEdge(endPt) && enterFromEdge(c)) { /* odjelo z mapy, jiné přijelo */ }
-    else if (r.o) { let i = c.r; for (let k = 0; k < 20; k++) { i = Math.floor(Math.random() * roads.length); if (roads[i].c !== 'service') break; } c.r = i; c.dir = roads[i].o || 1; c.s = c.dir > 0 ? 0 : roads[i].L; c.pr = -1; }
+    else if (r.o) { let i = c.r; for (let k = 0; k < 20; k++) { i = Math.floor(Math.random() * roads.length); if (roads[i].c !== 'service' && !roads[i].uz) break; } c.r = i; c.dir = roads[i].o || 1; c.s = c.dir > 0 ? 0 : roads[i].L; c.pr = -1; }
     else { c.dir *= -1; c.s = clamp(c.s, 0, r.L); c.pr = -1; }
   }
 }
@@ -967,7 +1135,8 @@ fetch('mhd.json').then((r) => r.json()).then((m) => {
 }).catch(() => {});
 
 // ---------- hráč: pěšky nebo v autě ----------
-const hrac = { x: 0, y: 0, z: 0, yaw: 0, pitch: -0.05, vAuto: false, kabina: false, car: null, bus: null };   // z: výška pod nohama (terén nebo mostovka); bus: spoj, kterým jedu
+const hrac = { x: 0, y: 0, z: 0, yaw: 0, pitch: -0.05, vAuto: false, kabina: false, car: null, bus: null, zOci: false };
+try { hrac.zOci = localStorage.getItem('izo-3d-pohled') === 'oci'; } catch {}   // pěšky výchozí pohled zezadu (třetí osoba)   // z: výška pod nohama (terén nebo mostovka); bus: spoj, kterým jedu
 {
   const m = /@(-?[\d.]+),(-?[\d.]+)/.exec(location.hash);
   if (m) [hrac.x, hrac.y] = [(+m[2] - CAM.lon0) * CAM.kx, (+m[1] - CAM.lat0) * CAM.ky];
@@ -1198,7 +1367,12 @@ function nastoupit() {
   Object.assign(orbit, { yaw: 0, pitch: ORBIT_PITCH, look: 0, t: -1e9, snap: true });
 }
 const keys = new Set();
-function prepniPohled() {                                  // z kabiny (auto, místo řidiče autobusu, strojvedoucí vlaku) / kamera kolem vozidla
+function prepniPohled() {                                  // z kabiny (auto, místo řidiče autobusu, strojvedoucí vlaku) / kamera kolem vozidla; pěšky z očí / zezadu
+  if (!hrac.vAuto && hrac.bus === null && SLED.i === null) {
+    hrac.zOci = !hrac.zOci;
+    try { localStorage.setItem('izo-3d-pohled', hrac.zOci ? 'oci' : 'zezadu'); } catch {}
+    return;
+  }
   hrac.kabina = !hrac.kabina;
   Object.assign(orbit, { yaw: 0, look: 0, snap: true });
 }
@@ -1207,6 +1381,11 @@ addEventListener('keydown', (e) => {
   if (e.repeat) return; keys.add(e.code);
   if (e.code === 'KeyE') { if (SLED.i !== null) konecSled(false); else nastoupit(); }
   if (e.code === 'KeyV' || e.code === 'KeyC') prepniPohled();
+  if (e.code === 'KeyT') fsdPrepni();
+  if (hrac.vAuto && (e.code === 'ArrowLeft' || e.code === 'ArrowRight' || e.code === 'ArrowDown')) {   // ruční blinkry a varovky
+    const s_ = e.code === 'ArrowLeft' ? 2 : e.code === 'ArrowRight' ? 4 : 6;
+    BL.rucne = BL.rucne === s_ ? 0 : s_; BL.h0 = hrac.car ? hrac.car.h : 0; BL.t = 0; BL.strana = 0;
+  }
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
@@ -1270,30 +1449,301 @@ if (DOTYK) {
     } else b.addEventListener('click', () => { dispatchEvent(new KeyboardEvent('keydown', { code })); dispatchEvent(new KeyboardEvent('keyup', { code })); });
   }
 }
-$('menu').addEventListener('click', () => { const o = $('hud').classList.toggle('otevreno'); $('menu').setAttribute('aria-expanded', String(o)); $('menu').textContent = o ? 'Skrýt' : 'Menu'; });
+// ---------- pauza menu: Esc (nebo tlačítko Menu) hru zastaví a otevře menu; Esc nebo Pokračovat zavře a zamkne myš ----------
+const MENU = { open: false, t: 0 };
+const POLOZKY = [...document.querySelectorAll('.pauza-menu .pol')], ZALOZKY = POLOZKY.filter((b) => b.dataset.tab);
+function zobrazPanel(k) {
+  if (!ZALOZKY.some((b) => b.dataset.tab === k)) k = 'hra';
+  for (const b of ZALOZKY) b.setAttribute('aria-selected', String(b.dataset.tab === k));
+  for (const p of document.querySelectorAll('.panel')) p.hidden = p.dataset.panel !== k;
+  try { localStorage.setItem('izo-3d-menu', k); } catch {}
+}
+function otevriMenu() {
+  if (MENU.open || document.getElementById('nacitani')) return;
+  MENU.open = true; MENU.t = performance.now();
+  $('hud').hidden = false; $('menu').setAttribute('aria-expanded', 'true');
+  keys.clear(); JOY.x = JOY.y = 0; skryjNapovedu();
+  if (document.pointerLockElement) { MENU.sam = true; document.exitPointerLock(); }
+  (ZALOZKY.find((b) => b.getAttribute('aria-selected') === 'true') || $('pokracovat')).focus();
+}
+function zavriMenu(zamknout) {
+  if (!MENU.open) return;
+  MENU.open = false; $('hud').hidden = true; $('menu').setAttribute('aria-expanded', 'false');
+  if (document.activeElement && $('hud').contains(document.activeElement)) document.activeElement.blur();
+  if (zamknout && !DOTYK) try { renderer.domElement.requestPointerLock?.()?.catch?.(() => {}); } catch {}   // po Esc to prohlížeč chvíli nedovolí: pak stačí kliknout do obrazu
+}
+let zalozka = 'hra'; try { zalozka = localStorage.getItem('izo-3d-menu') || 'hra'; } catch {}
+zobrazPanel(zalozka);
+for (const b of ZALOZKY) b.addEventListener('click', () => zobrazPanel(b.dataset.tab));
+$('menu').addEventListener('click', (e) => { e.currentTarget.blur(); if (MENU.open) zavriMenu(false); else otevriMenu(); });
+$('pokracovat').addEventListener('click', () => zavriMenu(true));
+$('hud').addEventListener('click', (e) => { if (e.target === $('hud')) zavriMenu(true); });   // klik mimo okno
+addEventListener('keydown', (e) => {
+  const pise = e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
+  if (MAPA.open) {                                           // mapa: M nebo Esc zavře, ostatní klávesy nejdou do hry
+    if (e.code === 'Escape' || (e.code === 'KeyM' && !pise)) { e.preventDefault(); zavriMapu(true); }
+    e.stopImmediatePropagation(); return;
+  }
+  if (e.code === 'KeyM' && !pise && !MENU.open && !e.repeat) { e.preventDefault(); e.stopImmediatePropagation(); otevriMapu(); return; }
+  if (e.code === 'Escape') {
+    e.preventDefault(); e.stopImmediatePropagation();
+    if (!MENU.open) otevriMenu(); else if (performance.now() - MENU.t > 350) zavriMenu(true);   // Esc při zamčené myši otevře menu i přes pointerlockchange
+    return;
+  }
+  if (!MENU.open) return;
+  const i = POLOZKY.indexOf(document.activeElement);
+  if (i >= 0 && (e.code === 'ArrowDown' || e.code === 'ArrowUp')) { e.preventDefault(); POLOZKY[(i + (e.code === 'ArrowDown' ? 1 : POLOZKY.length - 1)) % POLOZKY.length].focus(); }
+  e.stopImmediatePropagation();                              // hra stojí: klávesy nejdou do hry (psaní do polí funguje)
+}, true);
+document.addEventListener('pointerlockchange', () => {
+  if (document.pointerLockElement) return;
+  if (MENU.sam) { MENU.sam = false; return; }
+  if (!MENU.open && !MAPA.open && !DOTYK) otevriMenu();       // Esc (nebo přepnutí okna) uvolní myš: pauza
+});
+// ---------- mapa (M): celé území, sever nahoře; klik = navigace; hra mezitím stojí ----------
+const MAPA = { open: false, cx: 0, cy: 0, m: 1.6, body: [], tah: null, pohyb: 0 };
+fetch('jizda/mista.json').then((r) => (r.ok ? r.json() : [])).then((d) => { MAPA.mista = (d || []).map((o) => ({ ...o, x: (o.lon - CAM.lon0) * CAM.kx, y: (o.lat - CAM.lat0) * CAM.ky })); }).catch(() => { MAPA.mista = []; });
+function bodyMapy() {
+  const b = [];
+  for (const o of MAPA.mista || []) {
+    if (o.druh === 'obec') b.push({ x: o.x, y: o.y, label: o.nazev, druh: 'Obec', barva: '#f2c66d', velikost: 8, vyrazny: true });
+    else b.push({ x: o.x, y: o.y, label: o.nazev, druh: o.druh === 'dominanta' ? 'Památka' : 'Místo', barva: '#e2643f', tvar: 'kosoctverec', velikost: 7, vyrazny: true, popisekMin: 3 });
+  }
+  for (const d of OV.districts || []) { const [x, y] = NAV.zObrazu(d.xy[0], d.xy[1]); b.push({ x, y, label: d.name, druh: 'Náměstí', barva: '#f2c66d', velikost: 7, vyrazny: true }); }
+  const videno = new Set();
+  for (const z of ZAST) { if (videno.has(z.nazev)) continue; videno.add(z.nazev); b.push({ x: z.x, y: z.y, label: z.nazev, druh: 'Zastávka', barva: '#2f8cff', tvar: 'ctverec', velikost: 5, min: 4, popisekMin: 1.2 }); }
+  for (const u of UZ ? UZ.seznam : []) { const p = u.body[Math.floor(u.body.length / 2)]; b.push({ x: p[0], y: p[1], label: 'Uzavírka' + (u.popis ? ': ' + u.popis : ''), druh: 'Uzavírka', barva: '#e5484d', tvar: 'ctverec', velikost: 6, vyrazny: true, popisekMin: 4 }); }
+  if (ULICE.on) { const M = ULICE._mista(); for (const o of M.obchody || []) b.push({ x: o.x, y: o.y, label: 'Večerka', druh: 'Večerka', barva: '#3be07a', velikost: 5, min: 3, popisekMin: 1 }); if (M.vrak) b.push({ x: M.vrak.x, y: M.vrak.y, label: 'Vrakoviště', druh: 'Vrakoviště', barva: '#ffd23a', velikost: 7, vyrazny: true }); }
+  return b;
+}
+function mapaPlatno() {
+  const cv = $('mapaPlatno'), dpr = Math.min(devicePixelRatio || 1, 2), w = Math.round(cv.clientWidth * dpr), h = Math.round(cv.clientHeight * dpr);
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  cv.dataset.dpr = dpr;
+  return cv;
+}
+function kresliMapu() {
+  if (!MAPA.open) return;
+  const cv = mapaPlatno(), dpr = +cv.dataset.dpr;
+  const hh = hrac.vAuto && hrac.car ? { x: hrac.car.x, y: hrac.car.y, h: hrac.car.h } : { x: hrac.x, y: hrac.y, h: hrac.yaw };
+  NAV.velkaMapa(cv, { cx: MAPA.cx, cy: MAPA.cy, m: MAPA.m / dpr }, MAPA.body, hh);
+}
+function seznamMist() {
+  const hh = hrac.vAuto && hrac.car ? hrac.car : hrac;
+  const b = MAPA.body.filter((o) => o.vyrazny).map((o) => ({ ...o, d: Math.hypot(o.x - hh.x, o.y - hh.y) })).sort((a, b) => a.d - b.d);
+  $('mapaSeznam').replaceChildren(...b.map((o) => {
+    const li = document.createElement('li'), bt = document.createElement('button'), sm = document.createElement('small');
+    bt.type = 'button'; bt.textContent = o.label; sm.textContent = `${o.druh} · ${o.d < 1000 ? Math.round(o.d / 10) * 10 + ' m' : (o.d / 1000).toFixed(1).replace('.', ',') + ' km'}`;
+    bt.append(sm); bt.addEventListener('click', () => { MAPA.cx = o.x; MAPA.cy = o.y; naviguj(o.label, o.x, o.y); });
+    li.append(bt); return li;
+  }));
+}
+function naviguj(label, x, y) { try { NAV.zvol({ label, x, y }); toast('Navigace: ' + label, 'info'); } catch {} }
+function otevriMapu() {
+  if (MAPA.open || document.getElementById('nacitani')) return;
+  if (MENU.open) zavriMenu(false);
+  MAPA.open = true; $('mapa3d').hidden = false; $('mapaBtn').setAttribute('aria-expanded', 'true');
+  keys.clear(); JOY.x = JOY.y = 0;
+  if (document.pointerLockElement) { MENU.sam = true; document.exitPointerLock(); }
+  const hh = hrac.vAuto && hrac.car ? hrac.car : hrac;
+  MAPA.cx = hh.x; MAPA.cy = hh.y; MAPA.body = bodyMapy(); seznamMist(); kresliMapu();
+  $('mapaZavrit').focus();
+}
+function zavriMapu(zamknout) {
+  if (!MAPA.open) return;
+  MAPA.open = false; $('mapa3d').hidden = true; $('mapaBtn').setAttribute('aria-expanded', 'false');
+  if (zamknout && !DOTYK) try { renderer.domElement.requestPointerLock?.()?.catch?.(() => {}); } catch {}
+}
+$('mapaBtn').addEventListener('click', (e) => { e.currentTarget.blur(); if (MAPA.open) zavriMapu(false); else otevriMapu(); });
+$('mapaZavrit').addEventListener('click', () => zavriMapu(true));
+$('mapaJa').addEventListener('click', () => { const hh = hrac.vAuto && hrac.car ? hrac.car : hrac; MAPA.cx = hh.x; MAPA.cy = hh.y; });
+$('mapaZrus').addEventListener('click', () => { try { NAV.konec(); } catch {} });
+{
+  const cv = $('mapaPlatno'), body = (e) => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2]; };
+  const prsty = new Map();
+  cv.addEventListener('pointerdown', (e) => { prsty.set(e.pointerId, [e.clientX, e.clientY]); MAPA.pohyb = 0; cv.classList.add('tahne'); try { cv.setPointerCapture(e.pointerId); } catch {} });
+  cv.addEventListener('pointermove', (e) => {
+    const p = prsty.get(e.pointerId); if (!p) return;
+    if (prsty.size >= 2) {                                   // dva prsty: přiblížení
+      const [a, b] = [...prsty.values()], d0 = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      p[0] = e.clientX; p[1] = e.clientY;
+      const [c, d] = [...prsty.values()], d1 = Math.hypot(c[0] - d[0], c[1] - d[1]);
+      if (d0 > 0 && d1 > 0) MAPA.m = clamp(MAPA.m * d0 / d1, 0.25, 12);
+      MAPA.pohyb += 10; return;
+    }
+    const dx = e.clientX - p[0], dy = e.clientY - p[1]; p[0] = e.clientX; p[1] = e.clientY;
+    MAPA.cx -= dx * MAPA.m; MAPA.cy += dy * MAPA.m; MAPA.pohyb += Math.abs(dx) + Math.abs(dy);
+  });
+  const pust = (e) => {
+    if (!prsty.has(e.pointerId)) return;
+    prsty.delete(e.pointerId); cv.classList.remove('tahne');
+    if (e.type !== 'pointerup' || MAPA.pohyb > 6 || prsty.size) return;
+    const [u, v] = body(e), x = MAPA.cx + u * MAPA.m, y = MAPA.cy - v * MAPA.m;   // klik: nejbližší místo do 16 px, jinak bod na mapě
+    let best = null, bd = 16 * MAPA.m;
+    for (const o of MAPA.body) { if (o.min && MAPA.m > o.min) continue; const d = Math.hypot(o.x - x, o.y - y); if (d < bd) { bd = d; best = o; } }
+    if (best) naviguj(best.label, best.x, best.y); else naviguj('Bod na mapě', x, y);
+  };
+  cv.addEventListener('pointerup', pust); cv.addEventListener('pointercancel', pust);
+  cv.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const [u, v] = body(e), x = MAPA.cx + u * MAPA.m, y = MAPA.cy - v * MAPA.m, k = e.deltaY > 0 ? 1.18 : 1 / 1.18;
+    MAPA.m = clamp(MAPA.m * k, 0.25, 12); MAPA.cx = x - u * MAPA.m; MAPA.cy = y + v * MAPA.m;   // přiblížení ke kurzoru
+  }, { passive: false });
+}
+
+// cíl vlevo nahoře: pokyn navigace a běžící mise (jinak jsou schované v menu)
+let cilT = 0;
+function obnovCil(now) {
+  if (now - cilT < 250) return; cilT = now;
+  const np = document.getElementById('navp'), mise = $('hrapanel').querySelector('.hra-mise:not([hidden]) > div');
+  const casti = [];
+  if (np && !np.hidden && np.textContent) casti.push(['Navigace', np.textContent]);
+  if (mise && mise.textContent) casti.push(['Mise', mise.textContent]);
+  const klic = casti.map((c) => c.join(':')).join('|');
+  if (klic === $('cil').dataset.k) return;
+  $('cil').dataset.k = klic; $('cil').hidden = !casti.length;
+  $('cil').replaceChildren(...casti.map(([n, t]) => { const d = document.createElement('div'), sm = document.createElement('small'); sm.textContent = n; d.append(sm, t); return d; }));
+}
 // spodní okraj panelu pro CSS (na mobilu pod ním odjezdová tabule a hlášky, aby se nepřekrývaly)
-new ResizeObserver(() => document.documentElement.style.setProperty('--hudb', Math.round($('hud').getBoundingClientRect().bottom) + 'px')).observe($('hud'));
-// běžící mise ve hře se ukáže i ve sbalené sekci Hra
-new MutationObserver(() => { if ($('hrapanel').querySelector('.hra-mise:not([hidden])')) $('hraBox').open = true; })
-  .observe($('hrapanel'), { subtree: true, attributes: true, attributeFilter: ['hidden'] });
+new ResizeObserver(() => document.documentElement.style.setProperty('--hudb', Math.round($('hrahud').getBoundingClientRect().bottom) + 'px')).observe($('hrahud'));
 addEventListener('wheel', (e) => { if (hrac.vAuto && !hrac.kabina) orbit.dist = clamp(orbit.dist * (e.deltaY > 0 ? 1.12 : 1 / 1.12), 4.5, 30); }, { passive: true });
 function krokPesky(dt) {
   const f = clamp((k('KeyW', 'ArrowUp') ? 1 : 0) - (k('KeyS', 'ArrowDown') ? 1 : 0) + JOY.y, -1, 1), s = clamp((k('KeyD') ? 1 : 0) - (k('KeyA') ? 1 : 0) + JOY.x, -1, 1);
   if (k('ArrowLeft')) hrac.yaw += 1.8 * dt; if (k('ArrowRight')) hrac.yaw -= 1.8 * dt;
   const v = k('ShiftLeft', 'ShiftRight') ? 7 : ULICE_STAV.on ? 2.4 : 1.6;
   const dx = (Math.cos(hrac.yaw) * f + Math.sin(hrac.yaw) * s) * v * dt, dy = (Math.sin(hrac.yaw) * f - Math.cos(hrac.yaw) * s) * v * dt;
-  const jde = (x, y) => { const v = vyska(x, y, hrac.z); if (hitBuilding(x, y, 0.35) || !inMap(x, y) || (hrac.most && zabradli(hrac.z, v))) return false; hrac.z = v.z; hrac.most = v.most; return true; };
+  const jde = (x, y) => { const v = vyska(x, y, hrac.z); if (hitBuilding(x, y, 0.35) || !inMap(x, y) || (hrac.most && zabradli(hrac.z, v)) || ULICE.prekazka(x, y) || UZ.prekazka(x, y)) return false; hrac.z = v.z; hrac.most = v.most; return true; };
   if (jde(hrac.x + dx, hrac.y)) hrac.x += dx;               // po ose zvlášť: klouzat podél zdi i zábradlí
   if (jde(hrac.x, hrac.y + dy)) hrac.y += dy;
 }
+// ---------- FSD: autopilot hráčova auta po trase navigace (klávesa T) ----------
+// Řídí stejnou fyzikou jako hráč (plyn, brzda, volant): drží se pravého pruhu (pure pursuit), jede podle limitu,
+// před zatáčkou zpomalí, zastaví na červenou, za vozidlem v pruhu, před chodcem a v cíli. Bez cíle si vybere projížďku 1–2 km.
+const FSD = { on: false, duvod: '', vt: 0, cekaTrasu: 0, posun: 0 };
+const fsdTag = (() => { const e = document.createElement('div'); e.id = 'fsdTag'; e.hidden = true;
+  e.style.cssText = 'position:fixed;z-index:3;right:16px;bottom:78px;padding:3px 10px;background:#0f2a3a;color:#bfe9ff;border:2px solid #29c8ff;font:600 .8rem/1.3 system-ui,sans-serif;max-width:60vw;text-align:right';
+  document.body.appendChild(e); return e; })();
+function fsdPrepni() {
+  if (FSD.on) { fsdVypni('FSD vypnuto'); return; }
+  if (!hrac.vAuto || !hrac.car) { toast('FSD jede jen v autě: nastup klávesou E.', 'info'); return; }
+  FSD.on = true; FSD.cekaTrasu = 0;
+  if (!NAV.cesta && !NAV.hledam) {                           // bez cíle: projížďka na náhodné místo 1–2 km daleko
+    const S = NAV.sit; let cil = null;
+    if (S) for (let k = 0; k < 200 && !cil; k++) {
+      const r = S.R[Math.floor(Math.random() * S.R.length)]; if (r.c === 'service' || r.uz || r.L < 30) continue;
+      const p = r.w[Math.floor(r.w.length / 2)], d = Math.hypot(p[0] - hrac.car.x, p[1] - hrac.car.y);
+      if (d > 1000 && d < 2000) cil = p;
+    }
+    if (!cil) { FSD.on = false; toast('FSD: vyber cíl v mapě (M).', 'info'); return; }
+    NAV.zvol({ label: 'Projížďka (FSD)', x: cil[0], y: cil[1] });
+  }
+  toast('FSD zapnuto · převzetí řízení: W A S D', 'info');
+}
+function fsdVypni(text) { FSD.on = false; fsdTag.hidden = true; if (text) toast(text, 'info'); }
+function fsdHud() {
+  if (!FSD.on) return;
+  fsdTag.hidden = false;
+  fsdTag.textContent = 'FSD · ' + (FSD.duvod || 'jede') + (FSD.vt > 0.5 ? ' · ' + Math.round(FSD.vt * 3.6) + ' km/h' : '');
+}
+function fsdRizeni(c, dt) {
+  const tr = NAV.cesta;
+  if (!tr) {                                                 // trasa se ještě hledá
+    FSD.cekaTrasu += dt; FSD.duvod = 'hledám trasu'; FSD.vt = 0;
+    if (FSD.cekaTrasu > 6 && !NAV.hledam) { fsdVypni('FSD: trasu se nepodařilo najít'); return null; }
+    return { pp: 0, bb: c.v > 0.3 ? 0.6 : 0, vol: 0 };
+  }
+  const B = tr.body, D = tr.delky, Lc = D[D.length - 1], PRUH = 1.5;   // pravý pruh: 1,5 m vpravo od osy silnice
+  // kde na trase jsem (nejbližší bod)
+  let si = 1, ss = 0, sd = Infinity;
+  for (let i = 1; i < B.length; i++) {
+    const a = B[i - 1], b = B[i], dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy || 1, t = clamp(((c.x - a[0]) * dx + (c.y - a[1]) * dy) / l2, 0, 1);
+    const d = Math.hypot(a[0] + dx * t - c.x, a[1] + dy * t - c.y); if (d < sd) { sd = d; si = i; ss = D[i - 1] + (D[i] - D[i - 1]) * t; }
+  }
+  const bod = (s) => {                                       // bod v pravém pruhu a směr trasy ve staničení s
+    s = clamp(s, 0, Lc); let i = 1; while (i < D.length - 1 && D[i] < s) i++;
+    const a = B[i - 1], b = B[i], l = (D[i] - D[i - 1]) || 1, t = clamp((s - D[i - 1]) / l, 0, 1), ux = (b[0] - a[0]) / l, uy = (b[1] - a[1]) / l;
+    const pruh = s > Lc - 12 ? PRUH * Math.max(0, (Lc - s) / 12) : PRUH;   // k cíli dojet ke krajnici
+    return [a[0] + (b[0] - a[0]) * t + uy * pruh, a[1] + (b[1] - a[1]) * t - ux * pruh, ux, uy];
+  };
+  const v = Math.max(0, c.v), zbyva = Lc - ss;
+  const vTrase = (x, y, rozsah) => {                          // staničení a odchylka od pravého pruhu bodu x, y na trase před autem
+    let best = null;
+    for (let i = si; i < B.length && D[i - 1] - ss < rozsah; i++) {
+      const a = B[i - 1], q = B[i], dx = q[0] - a[0], dy = q[1] - a[1], l = Math.hypot(dx, dy) || 1, t = clamp(((x - a[0]) * dx + (y - a[1]) * dy) / (l * l), 0, 1);
+      const px = a[0] + dx * t, py = a[1] + dy * t, lat = ((x - px) * -dy + (y - py) * dx) / l, s_ = D[i - 1] + l * t;
+      const dd = Math.hypot(x - px, y - py); if (!best || dd < best.dd) best = { dd, s: s_ - ss, lat: lat + PRUH, ux: dx / l, uy: dy / l };
+    }
+    return best;
+  };
+  // zaparkované auto, které vyčnívá do pruhu: objet posunem doleva (nejvýš k ose silnice a kousek za ni), jinak zastavit
+  let potreba = 0, nejde = Infinity;
+  for (const o of parkovana(c.x + Math.cos(c.h) * 12, c.y + Math.sin(c.h) * 12, 16)) {
+    const och = Math.cos(o.h), osh = Math.sin(o.h);
+    for (const [l, w] of [[2.1, 0.88], [2.1, -0.88], [-2.1, 0.88], [-2.1, -0.88]]) {
+      const qx = o.x + och * l - osh * w, qy = o.y + osh * l + och * w, m = vTrase(qx, qy, 30);
+      if (!m || m.s < -3 || m.s > 22) continue;
+      const presah = m.lat + 0.9 + 0.35;                      // m.lat: odchylka od středu pruhu (vlevo +); auto má půl šířky 0,9 m
+      if (m.lat < 1.2 && presah > potreba) { potreba = presah; if (presah > 1.9) nejde = Math.min(nejde, m.s); }
+    }
+  }
+  FSD.posun += clamp(Math.min(potreba, 1.9) - FSD.posun, -1.2 * dt, 1.5 * dt);
+  // volant: pure pursuit na bod před autem (posunutý v pruhu)
+  const Ld = clamp(5 + v * 0.45, 6, 22), bc = bod(ss + Ld), tx = bc[0] - bc[3] * FSD.posun, ty = bc[1] + bc[2] * FSD.posun;
+  const alfa = wrapA(Math.atan2(ty - c.y, tx - c.x) - c.h), del = Math.atan(2 * 2.7 * Math.sin(alfa) / Math.max(Ld, Math.hypot(tx - c.x, ty - c.y)));
+  const vol = clamp(del / (0.55 / (1 + v / 10)), -1, 1);
+  // rychlost: limit, zatáčky, překážky před autem
+  const b = 3.2, dovol = (d, v0 = 0) => Math.sqrt(v0 * v0 + 2 * b * Math.max(0, d));
+  let vt = ((limit() || 50) / 3.6) * 0.97, duvod = 'jede';
+  for (let d = 0; d < Math.min(70, zbyva); d += 4) {           // zatáčka: boční zrychlení do 3 m/s²
+    const p0 = bod(ss + d), p1 = bod(ss + d + 10);
+    const k = Math.abs(wrapA(Math.atan2(p1[3], p1[2]) - Math.atan2(p0[3], p0[2]))) / 10;
+    if (k > 0.004) { const vz = dovol(d - 2, Math.sqrt(3 / k)); if (vz < vt) { vt = vz; duvod = 'zatáčka'; } }
+  }
+  const stuj = (d, proc) => { const vz = dovol(d); if (vz < vt) { vt = vz; duvod = proc; } };
+  stuj(zbyva - 4, 'cíl');
+  if (nejde < Infinity) stuj(nejde - 3, 'překážka v pruhu');
+  else if (FSD.posun > 0.3 && duvod === 'jede') { vt = Math.min(vt, 6); duvod = 'objíždí'; }
+  for (const [r, q] of sigPosts) {                            // semafor na trase: červená = stát, žlutá = stát, když to jde
+    const st = sigState(q); if (st !== 'r' && st !== 'y') continue;
+    const o = along(r, clamp(q[0] - q.d * 6, 0, r.L)); if (Math.abs(o.x - c.x) > 90 || Math.abs(o.y - c.y) > 90) continue;
+    const L = Math.hypot(o.dx, o.dy) || 1, ux = o.dx / L * q.d, uy = o.dy / L * q.d, m = vTrase(o.x, o.y, 90);
+    if (!m || m.dd > 5 || m.s < -1 || m.ux * ux + m.uy * uy < 0.6) continue;
+    if (st === 'y' && v * v / (2 * 4.5) > m.s - 2.5) continue;   // na žlutou by brzdil prudce: projet
+    stuj(m.s - 2.6, st === 'r' ? 'červená' : 'žlutá');
+  }
+  for (let i = Math.floor((c.x - 60) / 20); i <= Math.floor((c.x + 60) / 20); i++) for (let j = Math.floor((c.y - 60) / 20); j <= Math.floor((c.y + 60) / 20); j++) {
+    for (const o of MRIZ.get(i + ',' + j) || []) {             // vozidlo v mém pruhu před autem (i stojící a křižující)
+      const m = vTrase(o[0], o[1], 70); if (!m || m.s < 0) continue;
+      if (Math.cos(o[2]) * m.ux + Math.sin(o[2]) * m.uy < -0.7 && (m.s > 8 || Math.abs(m.lat) > 1.2)) continue;   // protijedoucí v protisměru: nebrzdit
+      if (Math.abs(m.lat) > o[4] + 0.9 + 0.4) continue;
+      stuj(m.s - o[3] - 2.15 - 3, 'auto před námi');
+    }
+  }
+  if (hrac.car && LIDE.chodciPred(c.x, c.y, c.h, 12)) stuj(Math.min(4, ss), 'chodec');
+  FSD.vt = vt; FSD.duvod = duvod;
+  if (zbyva < 6 && v < 0.4) { fsdVypni('FSD: jsme v cíli'); try { NAV.konec(); } catch {} return { pp: 0, bb: 0, vol: 0 }; }
+  // plyn a brzda: P regulátor (brzdit jen v jízdě, ve stání by brzda couvala)
+  const e = vt - v;
+  let pp = 0, bb = 0;
+  if (e > 0.4) pp = clamp(e / 3, 0.15, 1);
+  else if (e < -0.3 && v > 0.3) bb = clamp(-e / 3, 0.12, 1);
+  if (vt < 0.3 && v > 0.3) bb = Math.max(bb, 0.5);
+  return { pp, bb, vol };
+}
 function krokAuto(dt) {
   // plyn a brzda z klávesnice (0/1) nebo z joysticku (plynule podle výchylky)
-  const pp = Math.max(k('KeyW', 'ArrowUp') ? 1 : 0, JOY.y > 0.15 ? JOY.y : 0), bb = Math.max(k('KeyS', 'ArrowDown') ? 1 : 0, JOY.y < -0.15 ? -JOY.y : 0);
-  const c = hrac.car, plyn = pp > 0, brzda = bb > 0, turbo = k('ShiftLeft', 'ShiftRight');
-  const vol = clamp((k('KeyA', 'ArrowLeft') ? 1 : 0) - (k('KeyD', 'ArrowRight') ? 1 : 0) - JOY.x, -1, 1);
-  const G = ULICE_STAV.on, smyk = G && k('Space') && Math.abs(c.v) > 6;   // pouliční režim: arkádové řízení, ruční brzda = smyk
+  let pp = Math.max(k('KeyW', 'ArrowUp') ? 1 : 0, JOY.y > 0.15 ? JOY.y : 0), bb = Math.max(k('KeyS') ? 1 : 0, JOY.y < -0.15 ? -JOY.y : 0);   // ↓ = varovky
+  let vol = clamp((k('KeyA') ? 1 : 0) - (k('KeyD') ? 1 : 0) - JOY.x, -1, 1);   // ← → = blinkry
+  if (FSD.on) {                                              // autopilot: plyn, brzdu a volant dodá FSD; sáhnout na ovládání = převzít řízení
+    if (pp || bb || Math.abs(vol) > 0.05 || k('Space')) fsdVypni('Řízení převzato – FSD vypnuto');
+    else { const ap = fsdRizeni(hrac.car, dt); if (ap) ({ pp, bb, vol } = ap); }
+  }
+  const c = hrac.car, plyn = pp > 0, brzda = bb > 0, turbo = !FSD.on && k('ShiftLeft', 'ShiftRight');
+  const G = ULICE_STAV.on, smyk = k('Space') && Math.abs(c.v) > 6;
+  hrac.brzdi = (bb > 0 && c.v > 0.3) || k('Space') || Math.abs(c.v) < 0.2;   // brzdová světla   // ruční brzda v rychlosti = smyk (v obou režimech); pouliční režim: arkádové řízení
   let a = 0;
-  if (plyn) a = c.v < -0.3 ? 9 * pp : (turbo ? (G ? 8 : 5.5) : (G ? 4.8 : 3.2)) * pp * (1 - Math.max(0, c.v) / (turbo ? (G ? 58 : 45) : (G ? 38 : 28)));
+  const stav = G && c.hp !== undefined ? clamp(c.hp / 100, 0, 1) : 1;   // poškozené auto táhne hůř, zničené nejede
+  if (plyn) a = stav <= 0 ? 0 : c.v < -0.3 ? 9 * pp : (turbo ? (G ? 8 : 5.5) : (G ? 4.8 : 3.2)) * pp * (0.45 + 0.55 * stav) * (1 - Math.max(0, c.v) / ((turbo ? (G ? 58 : 45) : (G ? 38 : 28)) * (0.5 + 0.5 * stav)));
   if (brzda) a = c.v > 0.3 ? -9 * bb : -2.5 * bb * (1 + Math.min(0, c.v) / 7);
   if (k('Space')) a = -Math.sign(c.v) * (smyk ? 3.5 : 12);
   a -= Math.sign(c.v) * (0.25 + 0.0009 * c.v * c.v);         // valivý a vzdušný odpor
@@ -1301,13 +1751,13 @@ function krokAuto(dt) {
   const v0 = c.v; c.v += a * dt; if (!plyn && !brzda && Math.sign(c.v) !== Math.sign(v0)) c.v = 0;
   c.steer += (vol * 0.55 / (1 + Math.abs(c.v) / (G ? 16 : 10)) - c.steer) * Math.min(1, dt * 7);
   const nh = c.h + c.v / 2.7 * Math.tan(c.steer) * dt * (smyk ? 1.7 : 1);
-  c.vh = G ? (c.vh ?? nh) + wrapA(nh - (c.vh ?? nh)) * Math.min(1, dt * (smyk ? 1.4 : 10)) : nh;   // směr pohybu zaostává za natočením = smyk
+  c.vh = (c.vh ?? nh) + wrapA(nh - (c.vh ?? nh)) * Math.min(1, dt * (smyk ? 1.4 : 10));   // směr pohybu zaostává za natočením = smyk
   const nx = c.x + Math.cos(c.vh) * c.v * dt, ny = c.y + Math.sin(c.vh) * c.v * dt;
-  const roh = (x, y, h) => [[2.1, 0.85], [2.1, -0.85], [-2.1, 0.85], [-2.1, -0.85], [0, 0.85], [0, -0.85]].some(([l, w]) => hitBuilding(x + Math.cos(h) * l - Math.sin(h) * w, y + Math.sin(h) * l + Math.cos(h) * w, 0.05));
+  const roh = (x, y, h) => [[2.1, 0.85], [2.1, -0.85], [-2.1, 0.85], [-2.1, -0.85], [0, 0.85], [0, -0.85]].some(([l, w]) => { const px = x + Math.cos(h) * l - Math.sin(h) * w, py = y + Math.sin(h) * l + Math.cos(h) * w; return hitBuilding(px, py, 0.05) || UZ.prekazka(px, py); });
   // zábradlí: na mostě musí střed i přední rohy zůstat nad mostovkou (jinak by auto sjelo do řeky)
   const nv = vyska(nx, ny, c.z), predni = [[2.1, 0.85], [2.1, -0.85]].map(([l, w]) => vyska(nx + Math.cos(nh) * l - Math.sin(nh) * w, ny + Math.sin(nh) * l + Math.cos(nh) * w, c.z));
   const pres = c.most && [nv, ...predni].some((v) => zabradli(c.z, v));
-  const auta = G && ULICE.kolizeAuta(c, nx, ny, nh);
+  const auta = ULICE.kolizeAuta(c, nx, ny, nh);              // do aut se nedá projet (v běžné mapě bez poškození)
   if (roh(nx, ny, nh) || !inMap(nx, ny) || pres || auta) { if (G && !auta) ULICE.naraz(Math.abs(c.v)); c.v = -c.v * 0.25; c.vh = c.h; if (Math.abs(c.v) > 2) $('stav').textContent = pres ? 'Zábradlí mostu!' : 'Bum! Pozor na zdi.'; }
   else { c.x = nx; c.y = ny; c.h = nh; c.z = nv.z; c.most = nv.most; }
   hrac.x = c.x; hrac.y = c.y;
@@ -1338,6 +1788,37 @@ function polohaAuta() {                                     // auto po terénu n
 }
 
 // AI auta zastaví před hráčem (pěšky na silnici i v autě)
+// ---------- auta v provozu nevjedou do jiného vozidla ----------
+// odstup v jednom pruhu hlídá carGaps; tohle chytá zbytek: za křižovatkou, na spoji dvou kusů silnice, hlídky a sanitky.
+// Před autem je sonda 3,5 m; vozidlo v ní = počkat. Když se auta blokují dokola (křižovatka), jede to s nejmenším číslem.
+const MRIZ = new Map();
+let vozId = 0;
+function mrizkaVozidel() {
+  MRIZ.clear();
+  const pridej = (o) => { const k = Math.floor(o[0] / 20) + ',' + Math.floor(o[1] / 20); let a = MRIZ.get(k); if (!a) MRIZ.set(k, a = []); a.push(o); };
+  for (const c of cars) {
+    if (!c.id) c.id = ++vozId; const p = carPose(c); pridej([p.x, p.y, p.h, c.T.len / 2, c.T.wid / 2, c]);
+    if (c.t === 'semi') { const q = carPose(c, TAH); pridej([q.x, q.y, q.h, TRAILER / 2, c.T.wid / 2, c]); }   // návěs
+  }
+  for (const o of ULICE.samostatna()) pridej(o);
+}
+function vozidloPredAutem(c, p) {
+  const L = c.T.len / 2, W = c.T.wid / 2, SONDA = 3.5, ch = Math.cos(p.h), sh = Math.sin(p.h);
+  const sx = p.x + ch * (L + SONDA / 2), sy = p.y + sh * (L + SONDA / 2);
+  let blok = null;
+  const i0 = Math.floor(sx / 20), j0 = Math.floor(sy / 20);
+  for (let i = i0 - 1; i <= i0 + 1 && !blok; i++) for (let j = j0 - 1; j <= j0 + 1 && !blok; j++) for (const o of MRIZ.get(i + ',' + j) || []) {
+    if (o[5] === c || Math.abs(o[0] - sx) > 9 || Math.abs(o[1] - sy) > 9) continue;
+    if (ULICE.prekryv(sx, sy, p.h, SONDA / 2, W + 0.05, o[0], o[1], o[2], o[3], o[4])) { blok = o[5] || o; break; }
+  }
+  c._blok = blok && blok.id ? blok : null;
+  if (!blok) return false;
+  if (c._blok) {                                             // čekají na sebe dokola? jede to s nejmenším číslem
+    let o = c._blok, nejmensi = c.id;
+    for (let k = 0; k < 6 && o; k++) { if (o === c) return c.id !== nejmensi; nejmensi = Math.min(nejmensi, o.id || Infinity); o = o._blok; }
+  }
+  return true;
+}
 function predHracem(c, p) {
   const dx = hrac.x - p.x, dy = hrac.y - p.y, d = Math.hypot(dx, dy);
   if (d > 14 || d < 0.1) return false;
@@ -1345,8 +1826,103 @@ function predHracem(c, p) {
   return along_ > 0 && along_ < 14 && side < 2.6;
 }
 
+
+// ---------- světla: blinkry a brzdová světla (AI i hráč), kužely reflektorů v noci ----------
+// AI auto si 35 m před koncem kusu vybere, kam pojede dál; když tam zatáčí (víc než ~25°), bliká
+function planujOdbocku(c) {
+  const r = roads[c.r], zbyva = c.dir > 0 ? r.L - c.s : c.s;
+  if (c.nr === c.r || zbyva > 35) return;
+  c.nr = c.r;
+  const endPt = c.dir > 0 ? r.w[r.w.length - 1] : r.w[0];
+  const opts = (ends.get(ek(endPt)) || []).filter(([i, dir]) => i !== c.r && roads[i].c !== 'service' && !roads[i].uz && (!roads[i].o || roads[i].o === dir));
+  if (opts.length < 2) { c.next = opts[0] || null; c.blink = 0; return; }   // jediná cesta dál: neblikat (zatáčka, ne odbočka)
+  c.next = pickExit(opts, c);
+  const o0 = along(r, c.dir > 0 ? r.L : 0), nr = roads[c.next[0]], o1 = along(nr, c.next[1] > 0 ? 0 : nr.L);
+  const d = wrapA(Math.atan2(o1.dy * c.next[1], o1.dx * c.next[1]) - Math.atan2(o0.dy * c.dir, o0.dx * c.dir));
+  c.blink = d > 0.45 ? 2 : d < -0.45 ? 4 : 0;                 // kladný úhel = vlevo
+}
+// hráč: blinkr sám, smysluplně: podle navigace (odbočka do 55 m), jinak když u křižovatky zatáčí; zhasne po odbočení
+const BL = { strana: 0, h0: 0, t: 0, kT: 0, kr: false, odb: null, faze: -1, rucne: 0 };   // rucne: 2 vlevo, 4 vpravo, 6 varovky (šipky)
+function krizovatkaPred(c) {                                // křižovatka (3 a víc kusů silnic) do 30 m před autem
+  const ch = Math.cos(c.h), sh = Math.sin(c.h);
+  for (const r of roads) {
+    if (r.c === 'service') continue;
+    for (const e of [r.w[0], r.w[r.w.length - 1]]) {
+      const dx = e[0] - c.x, dy = e[1] - c.y; if (dx > 30 || dx < -30 || dy > 30 || dy < -30) continue;
+      const f = dx * ch + dy * sh, b = Math.abs(-dx * sh + dy * ch);
+      if (f > -3 && f < 30 && b < 8 && (ends.get(ek(e)) || []).length >= 3) return true;
+    }
+  }
+  return false;
+}
+function svetlaHrace(dt, now, sviti) {
+  const c = hrac.car;
+  if (!c) return;
+  if (hrac.vAuto) {
+    BL.t += dt; BL.kT -= dt;
+    if (BL.kT <= 0) { BL.kT = 0.25; BL.kr = krizovatkaPred(c); try { BL.odb = NAV.stav().odb || null; } catch { BL.odb = null; } }
+    const v = Math.abs(c.v);
+    if (BL.rucne) {                                           // ruční blinkr zhasne sám po odbočení (volant zpátky), varovky až šipkou ↓
+      BL.strana = BL.rucne;
+      if (BL.rucne !== 6 && Math.abs(wrapA(c.h - BL.h0)) > 0.9 && Math.abs(c.steer) < 0.08) { BL.rucne = 0; BL.strana = 0; }
+    } else if (!BL.strana) {
+      let s = 0;
+      if (BL.odb && BL.odb.za < 55 && BL.odb.za > 3 && !BL.odb.ostre) s = BL.odb.vlevo ? 2 : 4;
+      else if (BL.kr && v > 1 && v < 16 && Math.abs(c.steer) > 0.14) s = c.steer > 0 ? 2 : 4;
+      if (s) { BL.strana = s; BL.h0 = c.h; BL.t = 0; }
+    } else if ((Math.abs(wrapA(c.h - BL.h0)) > 0.9 && Math.abs(c.steer) < 0.08) || BL.t > 10 || v > 22) BL.strana = 0;   // odbočeno
+    else if (!BL.kr && !(BL.odb && BL.odb.za < 55) && Math.abs(c.steer) < 0.05 && BL.t > 2) BL.strana = 0;          // křižovatka za námi, volant rovně
+  } else BL.strana = BL.rucne === 6 ? 6 : 0;               // varovky svítí i u zaparkovaného auta
+  const faze = Math.floor(now / 380) % 2;
+  if (BL.strana && faze !== BL.faze && hrac.kabina) ZVUK.hraj?.('blinkr');   // tikání v kabině
+  BL.faze = faze;
+  for (const o of mojeAuto.children) {
+    if (o.userData.brzda) o.visible = !!(hrac.vAuto && hrac.brzdi);
+    else if (o.userData.blinkr !== undefined) o.visible = !!BL.strana && faze === 0 && (BL.strana === 6 || (o.userData.blinkr < 0 ? BL.strana === 2 : BL.strana === 4));
+  }
+  if (sviti && mojeAuto.visible) kuzel(c.x, c.y, mojeAuto.position.y, c.h, 1.1);
+}
+// kužel reflektorů: světlá stopa na silnici před autem, kreslí se jen do obrazu světel (v noci se přičte k obrazu)
+const KUZELY = (() => {
+  const W = 256, H = 128, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const g = cv.getContext('2d'), img = g.createImageData(W, H);
+  for (let x = 0; x < W; x++) for (let y = 0; y < H; y++) {
+    const u = x / W, sir = 0.18 + 0.82 * u, b = Math.abs(y / H - 0.5) * 2 / sir;
+    const a = b > 1 ? 0 : Math.pow(1 - u, 1.4) * Math.min(1, u * 6) * (1 - b * b);
+    const i = (y * W + x) * 4; img.data[i] = 255; img.data[i + 1] = 236; img.data[i + 2] = 196; img.data[i + 3] = Math.round(255 * a);
+  }
+  g.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const geo = new THREE.PlaneGeometry(22, 9).rotateX(-Math.PI / 2).translate(13, 0.15, 0);
+  const mat = new THREE.MeshBasicMaterial({ map: tex, color: 0x9a8f80, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+  const mesh = new THREE.InstancedMesh(geo, mat, 80); mesh.frustumCulled = false; mesh.count = 0; mesh.visible = false; scene3.add(mesh);
+  return { mesh, n: 0, m4: new THREE.Matrix4(), q: new THREE.Quaternion(), v: new THREE.Vector3(), sc: new THREE.Vector3(1, 1, 1), osa: new THREE.Vector3(0, 1, 0) };
+})();
+function kuzel(x, y, z, h, k) {
+  const K = KUZELY; if (K.n >= 80) return;
+  K.q.setFromAxisAngle(K.osa, h); K.sc.set(k, 1, k);
+  K.m4.compose(K.v.set(x, z, -y), K.q, K.sc); K.mesh.setMatrixAt(K.n++, K.m4);
+  K.mesh.count = K.n; K.mesh.instanceMatrix.needsUpdate = true;
+}
+// stěrače v pohledu z kabiny, když prší nebo sněží; ukazatel fps; automatické rozlišení (drží plynulost)
+const STER = $('steraky'), FPSBOX = $('fpsBox');
+const PR_MAX = Math.min(devicePixelRatio || 1, DOTYK ? 1 : 1.5);
+let PR = PR_MAX, resT = 0;
+function grafikaPrubezne(now, fps) {
+  const ster = hrac.vAuto && hrac.kabina && (WXI.dest > 0.15 || WXI.snih > 0.15) && !MENU.open;
+  if (STER.hidden === ster) STER.hidden = !ster;
+  const ukaz = $('fpsChk').checked;
+  if (FPSBOX.hidden === ukaz) FPSBOX.hidden = !ukaz;
+  if (ukaz) FPSBOX.textContent = `${fps} fps · ${Math.round(PR * 100)} %`;
+  if ($('autoRes').checked && !MENU.open && document.visibilityState === 'visible' && now - resT > 2500 && fps > 0) {
+    resT = now;
+    const nove = fps < 38 && PR > 0.6 ? Math.max(0.6, PR - 0.15) : fps > 57 && PR < PR_MAX ? Math.min(PR_MAX, PR + 0.1) : PR;
+    if (nove !== PR) { PR = nove; renderer.setPixelRatio(PR); renderer.setSize(innerWidth, innerHeight); velikostRT(); }
+  }
+}
+
 // ---------- načítání čtverců kolem hráče ----------
-const DOSAH = DOTYK ? 650 : 900, PRYC = DOTYK ? 1500 : 1900;   // na telefonu méně čtverců naráz (paměť grafiky)
+let DOSAH = GRAFIKA[GRAF].ctverce, PRYC = DOSAH + 1000;   // podle volby grafiky (na telefonu výchozí méně: paměť grafiky)
 async function spravaCtvercu() {
   if (building) return;
   const want = CHUNKS.map(([i, j]) => ({ i, j, d: Math.hypot(Math.max(0, Math.abs(hrac.x - i * S2) - HALF), Math.max(0, Math.abs(hrac.y - j * S2) - HALF)) }))
@@ -1369,7 +1945,9 @@ function vykresli() {
     const mats = [...CH.values()].flatMap((c) => c.mats || []);
     for (const m of mats) if (m.uniforms?.uLights) m.uniforms.uLights.value = 1;
     for (const o of jenVeDne) { o.userData.m = o.material; o.material = CERNA; }   // černě: nesvítí, ale zakryjí světla za sebou
+    KUZELY.mesh.visible = KUZELY.n > 0;                     // světlo reflektorů na silnici: jen do obrazu světel
     renderer.setClearColor(0x000000); renderer.setRenderTarget(rtSvetla); renderer.clear(); renderer.render(scene3, camera);
+    KUZELY.mesh.visible = false;
     for (const m of mats) if (m.uniforms?.uLights) m.uniforms.uLights.value = 0;
     for (const o of jenVeDne) o.material = o.userData.m;
   }
@@ -1384,8 +1962,37 @@ function vykresli() {
 }
 
 // ---------- prostorové stromy u kamery (jizda/stromy.js; dál zůstávají billboardy z render.html) ----------
-const STROMY = vytvorStromy(THREE, scene3, { obdobi: OBD, blizko: DOTYK ? 45 : 70 });
-jenVeDne.push(...STROMY.telesa);
+const STROMY = vytvorStromy(THREE, scene3, { obdobi: OBD, blizko: GRAFIKA[GRAF].stromy, max: DOTYK ? 6000 : 14000, limit: DOTYK ? 2500 : 14000 });
+function nastavGrafiku(k) {
+  if (!GRAFIKA[k]) return;
+  GRAF = k; const g = GRAFIKA[k];
+  try { localStorage.setItem('izo-3d-grafika', k); } catch {}
+  STROMY.nastavDosah(g.stromy, DOTYK ? Math.min(6000, g.stromy * 45) : 14000);
+  DOSAH = g.ctverce; PRYC = DOSAH + 1000;
+  document.querySelectorAll('#grafika button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.g === k)));
+  $('grafVal').textContent = g.nazev;
+  $('grafPopis').textContent = `3D stromy do ${g.stromy} m, auta do ${g.auta} m, město do ${g.ctverce} m, opar od ${(g.opar / 1000).toFixed(1).replace('.', ',')} km` + (k === 'ultra' || k === 'vysoka' ? ' · náročnější na grafickou kartu' : '');
+}
+document.querySelectorAll('#grafika button').forEach((b) => b.addEventListener('click', () => { b.blur(); nastavGrafiku(b.dataset.g); }));
+nastavGrafiku(GRAF);
+// dopravní značky podle skutečnosti (jizda/znacky.js; data z OSM: nastroje/znacky.py)
+const ZNACKY = vytvorZnacky(THREE, scene3, { roads, ends, ek, along, jenVeDne, hitBuilding, mesto: document.querySelector('#hud h1')?.firstChild?.textContent.trim() });
+
+// uzavírky silnic (assets/upresneni.json -> jizda/uzavirky.json): navigace je objede, auta do nich neodbočí, na koncích zábrany
+UZ = vytvorUzavirky(THREE, scene3, { CAM, roads, along, gz, hrac, jenVeDne, toast: (t, k) => toast(t, k) });
+function oznacUzavirky(i0 = 0) {
+  if (!UZ) return;
+  for (let i = i0; i < roads.length; i++) roads[i].uz = !!UZ.kryje(roads[i].w);
+}
+UZ.onZmena(() => {
+  oznacUzavirky(0);
+  try { NAV.uzavirky((w) => UZ.kryje(w)); } catch {}
+  for (const c of cars) {                                    // auta, která už na uzavřeném kusu jsou, přesadit jinam (mimo dohled hráče)
+    if (!roads[c.r] || !roads[c.r].uz || c.sl) continue;
+    const p = carPose(c); if (Math.hypot(p.x - hrac.x, p.y - hrac.y) < 120) continue;
+    for (let k = 0; k < 30; k++) { const i = Math.floor(Math.random() * roads.length); if (roads[i].c !== 'service' && !roads[i].uz) { c.r = i; c.dir = roads[i].o || 1; c.s = c.dir > 0 ? 0 : roads[i].L; c.pr = -1; c.next = null; break; } }
+  }
+});jenVeDne.push(...STROMY.telesa);
 for (const m of new Set(STROMY.telesa.map((t) => t.material))) m.color.setScalar(1.75);   // jas jako billboardy (barvy bez správy barev, jen hemisférické světlo)
 
 // ---------- lidé (jizda/lide.js) a navigace (jizda/navigace.js) ----------
@@ -1400,7 +2007,8 @@ function hustota() {
   }
   HUS = { t: now, n: seen.size }; return HUS.n;
 }
-const LIDE_API = { gz, hitBuilding, roads, along, hrac, doba: () => DOBA.n, zastavky: ZAST, hustota, boj: null };
+const LIDE_API = { gz, hitBuilding, roads, along, hrac, doba: () => DOBA.n, zastavky: ZAST, hustota, boj: null, dest: () => WXI.dest, hodina: () => hodina(), vikend: () => vikend(),
+  prechody: { na: (r) => ZNACKY.prechodyNa(r), blizko: (x, y, R) => ZNACKY.prechodBlizko(x, y, R) } };   // chodci přecházejí na přechodech (jizda/znacky.js)
 const LIDE = vytvorLidi(THREE, scene3, LIDE_API);
 jenVeDne.push(...LIDE.telesa);
 const NAV = vytvorNavigaci(THREE, scene3, { CAM, OV, gz, hrac, chunks: CHUNKS, zastavky: () => ZAST, panel: $('navpanel'), mapa: $('minimapa'),
@@ -1451,8 +2059,8 @@ const HRA = vytvorHru(THREE, scene3, { hrac, limit, cervenaNaTrase, adresy: () =
   navigace: { zvol: (e) => NAV.zvol(e), konec: () => NAV.konec() }, panel: $('hrapanel'), tacho: $('tacho'), toast, zvuk: (n) => ZVUK.hraj(n), gz, ulice: ULICE_STAV });
 const ULICE_START = { x: hrac.x, y: hrac.y };
 const ULICE = vytvorUlici(THREE, scene3, { hrac, cars, roads, carPose, along, LIDE, lideBoj: LIDE_API, hra: HRA, zvuk: ZVUK, toast, gz, vyska, hitBuilding, inMap, volneMisto,
-  doba: () => DOBA.n, pocasi: () => WXI, obdobi: OBD, mojeAuto, jenVeDne, panel: $('hrapanel'), canvas: renderer.domElement, stav: ULICE_STAV, nastoupit,
-  mesto: document.querySelector('#hud h1')?.firstChild?.textContent.trim() || 'Město', dotyk: DOTYK, start: ULICE_START,
+  doba: () => DOBA.n, pocasi: () => WXI, obdobi: OBD, mojeAuto, jenVeDne, panel: $('hrapanel'), canvas: renderer.domElement, camera, stav: ULICE_STAV, nastoupit,
+  mesto: document.querySelector('#hud h1')?.firstChild?.textContent.trim() || 'Město', dotyk: DOTYK, start: ULICE_START, parkovana, skryjParkovane,
   navigace: { zvol: (e) => NAV.zvol(e), adresy: () => NAV.adresy(), trasa: (a, b, c, d, e) => NAV.trasa(a, b, c, d, e) } });
 
 // ---------- hlavní smyčka ----------
@@ -1465,7 +2073,9 @@ setInterval(spravaCtvercu, 1500);
 let last = performance.now(), fpsT = 0, fpsN = 0, fps = 0, stavT = 0;
 const fwd = new THREE.Vector3(), KAB = { i: null, h: 0, z: 0 };   // KAB: vyhlazený směr a výška pohledu strojvedoucího
 function frame(now) {
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const dt = MENU.open || MAPA.open ? 0 : Math.min(0.05, (now - last) / 1000); last = now;   // otevřené menu nebo mapa = pauza
+  if (FSD.on && (!hrac.vAuto || SLED.i !== null)) fsdVypni('FSD vypnuto');
+  fsdHud();
   if (SLED.i !== null) krokSled(dt, now);
   else if (hrac.vAuto) krokAuto(dt);
   else if (hrac.bus !== null) {                             // v autobuse: hráč jede s ním (čtverce se načítají, kolem chodí lidé)
@@ -1486,18 +2096,29 @@ function frame(now) {
     $('bus').textContent = b ? (b.p.v <= 0.5 && b.d < 11 ? `E – nastoupit: ${co.toLowerCase()} ${busLinka(b.i)} → ${busCil(b.i)}` : `${co} ${busLinka(b.i)} → ${busCil(b.i)}` + (b.p.v > 0.5 ? ' jede' : ' stojí, pojď blíž')) : '';
   }
   // doprava
+  provozPodleTmy(now);
   carGaps();
+  mrizkaVozidel();
   VOZ.zacni();
+  const dohledAut = GRAFIKA[GRAF].auta, sviti0 = DOBA.n > 0.3;
+  KUZELY.n = 0; KUZELY.mesh.count = 0;
   for (const c of cars) {
     const p = carPose(c);
     if (predHracem(c, p)) { c.cekej = 0.3; ULICE.blokuje(c, dt); }   // před hráčem i před chodcem na silnici zastavit
     else if (LIDE.chodciPred(p.x, p.y, p.h, 10)) c.cekej = 0.3;
     else c.troubi = 0;
+    if (!(c.cekej > 0) && vozidloPredAutem(c, p)) c.cekej = 0.12;   // nevjet do vozidla před sebou (křižovatka, spoj kusů, hlídka)
+    planujOdbocku(c);
+    const r0 = c.r, s0 = c.s;
     stepCar(c, dt);
+    const v = c.r === r0 && dt > 0 ? Math.abs(c.s - s0) / dt : c.vp || 0, brzdi = v < 0.6 || v < (c.vp || 0) - dt * 2.5;   // stojí nebo zpomaluje
+    c.vp = v;
     const q = carPose(c);
-    if (Math.abs(q.x - hrac.x) > 900 || Math.abs(q.y - hrac.y) > 900) continue;
-    if (c.t === 'semi') { const t = carPose(c, 8.2); VOZ.pridej('trailer', t.x, t.y, t.z, t.h, '#e9e8e2'); }   // návěs vykreslit těsně za tahačem
-    VOZ.pridej(c.t, q.x, q.y, q.z, q.h, c.col);
+    if (Math.abs(q.x - hrac.x) > dohledAut || Math.abs(q.y - hrac.y) > dohledAut) continue;
+    const fl = (brzdi ? 1 : 0) | (c.nehoda ? 6 : c.blink || 0);
+    if (c.t === 'semi') { const t = carPose(c, 8.2); VOZ.pridej('trailer', t.x, t.y, t.z, t.h, '#e9e8e2', undefined, fl); }   // návěs vykreslit těsně za tahačem
+    VOZ.pridej(c.t, q.x, q.y, q.z, q.h, c.col, undefined, fl);
+    if (sviti0 && Math.abs(q.x - hrac.x) < 170 && Math.abs(q.y - hrac.y) < 170) kuzel(q.x, q.y, q.z, q.h, c.t === 'car' || c.t === 'van' ? 1 : 1.3);
   }
   if (MHD.on) {
     if (!MHD.t || now - MHD.t > 1000) { MHD.t = now; MHD.act = mhdActive(); }
@@ -1519,13 +2140,18 @@ function frame(now) {
   }
   ULICE.vozidla(VOZ);                                       // policejní auta (pouliční režim)
   const sviti = DOBA.n > 0.3;                               // světla aut od soumraku
-  for (const o of mojeAuto.children) if (o.userData.svetlo || o.material?.isMeshBasicMaterial) o.visible = sviti;
+  for (const o of mojeAuto.children) if ((o.userData.svetlo || o.material?.isMeshBasicMaterial) && !o.userData.brzda && o.userData.blinkr === undefined) o.visible = sviti;
+  svetlaHrace(dt, now, sviti);
   VOZ.dokonci(sviti, camera);
   updSignaly();
   tabule(now);
   krokPocasi(dt, now / 1000);
   LIDE.update(dt);
   ULICE.update(dt);
+  obnovCil(now);
+  kresliMapu();
+  ZNACKY.update(now);
+  UZ.update(now);
   NAV.update(now);
   HRA.update(dt, now);
   ZVUK.update(dt);
@@ -1576,8 +2202,9 @@ function frame(now) {
     fwd.set(Math.cos(hrac.yaw) * Math.cos(hrac.pitch), Math.sin(hrac.pitch), -Math.sin(hrac.yaw) * Math.cos(hrac.pitch));
     camera.lookAt(camera.position.clone().add(fwd));
   }
-  const veVoze = hrac.vAuto || hrac.bus !== null, pb = $('pohledBtn');
-  if (pb.hidden === veVoze) pb.hidden = !veVoze;
+  const veVoze = hrac.vAuto || hrac.bus !== null, pb = $('pohledBtn'), ukaz = veVoze || SLED.i === null;
+  if (pb.hidden === ukaz) pb.hidden = !ukaz;
+  if (!veVoze && ukaz) { const tx = hrac.zOci ? 'Pohled zezadu (V)' : 'Pohled z očí (V)'; if (pb.textContent !== tx) pb.textContent = tx; }
   if (veVoze) { const tx = !hrac.kabina ? (hrac.bus !== null && druhSpoje(hrac.bus) === 'vlak' ? 'Kabina strojvedoucího (V)' : 'Pohled z kabiny (V)') : 'Pohled zvenku (V)'; if (pb.textContent !== tx) pb.textContent = tx; }
   if (hrac.bus === null) KAB.i = null;
   const vKab = hrac.bus !== null && hrac.kabina && SLED.i === null; if ($('pult').hidden === vKab) $('pult').hidden = !vKab;
@@ -1585,6 +2212,8 @@ function frame(now) {
   STROMY.update(camera.position.x, -camera.position.z, camera.position.y);
   vykresli();
   fpsN++; if (now - fpsT > 1000) { fps = fpsN; fpsN = 0; fpsT = now; }
+  OKNA.value = oknaPodleCasu(hodina());
+  grafikaPrubezne(now, fps);
   if (now - stavT > 500 && !building) {
     stavT = now;
     const lat = (hrac.y / CAM.ky + CAM.lat0).toFixed(5), lon = (hrac.x / CAM.kx + CAM.lon0).toFixed(5);
@@ -1595,7 +2224,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') window.__jizda = { ULICE, DETAIL, KVALITA, rtDen, slozeni, POVRCH, STROMY, HRA, ZVUK, hustota, hrac, orbit, gz, vyska, DOBA, NAV, LIDE, ZAST, busBlizko, cars, roads, CH, SIG, sigPosts, MHD, RT, keys, camera, scene3, renderer, nastoupit, snimek: (ms = 16) => { last = performance.now() - ms; frame(performance.now()); } };
+if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') window.__jizda = { FSD, fsdPrepni, UZ, CAM, carPose, MRIZ, GARAZ, KUZELY, BL, OKNA, hodina, ULICE, ZNACKY, nastavGrafiku, parkovana, PARK, DETAIL, KVALITA, rtDen, slozeni, POVRCH, STROMY, HRA, ZVUK, hustota, hrac, orbit, gz, vyska, DOBA, NAV, LIDE, ZAST, busBlizko, cars, roads, CH, SIG, sigPosts, MHD, RT, keys, camera, scene3, renderer, nastoupit, snimek: (ms = 16) => { last = performance.now() - ms; frame(performance.now()); } };
 </script>
 </body>
 </html>
