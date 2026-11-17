@@ -2,7 +2,7 @@
 // Spojení se serverem multiplayer/worker.js (adresa z mesto.json "multiplayer"), zprávy v jizda/sit.js.
 // Duchové zatím nekolidují s ničím: projedou autem i člověkem, nikdo nikoho nesrazí.
 // Svět: x na východ, y na sever, z nahoru; three pozice = (x, z, -y).
-import { zakodujStav, dekodujSnimek, REZIM, PRIZNAK } from './sit.js';
+import { zakodujStav, dekodujSnimek, REZIM, PRIZNAK, platneAuto } from './sit.js';
 
 const KLIC = 'izo-3d-mp';
 const ODESLAT = 200;            // ms mezi polohami (5× za s, server posílá stejně často)
@@ -19,9 +19,10 @@ const CSS = `
 .mp-sek li { padding: 1px 0; }
 `;
 
-// api: url, auto(barva) -> THREE.Group (VOZ.mojeAuto), jenVeDne, panel, toast, doba(), stav() -> { rezim, x, y, z, yaw, v, flags }
+// api: url, VOZ (jizda/vozidla.js: autoHrace, prestavAuto, uvolniAuto), mojeAuto() -> konfigurace z garáže, jenVeDne, panel, toast,
+//      doba(), stav() -> { rezim, x, y, z, yaw, v, flags }
 export function vytvorHrace(THREE, scene, api) {
-  const prazdne = { update() {}, mapa: () => [], pocet: () => 0 };
+  const prazdne = { update() {}, mapa: () => [], pocet: () => 0, zmenaAuta() {} };
   if (!api.url) return prazdne;
 
   let zapnuto = true;
@@ -62,21 +63,30 @@ export function vytvorHrace(THREE, scene, api) {
 
   function novyDuch(id) {
     const z = znami.get(id) || { jmeno: 'Hráč', barva: '#cccccc' };
-    const g = new THREE.Group(), p = postava(z.barva), a = api.auto(z.barva), pop = popisek(z.jmeno, z.barva);
+    const g = new THREE.Group(), p = postava(z.barva), a = api.VOZ.autoHrace(z.auto || z.barva), pop = popisek(z.jmeno, z.barva);
     g.add(p.g, a, pop);
     a.visible = false;
-    const tela = [...p.dily, ...a.children.filter((o) => !o.userData.svetlo && !o.userData.brzda && o.userData.blinkr === undefined)];
+    const tela = [...p.dily, ...telaAuta(a)];
     api.jenVeDne.push(...tela);
     scene.add(g);
     const d = { id, ...z, vzorky: [], g, postava: p, auto: a, popisek: pop, tela, videnT: performance.now(), faze: 0 };
     duchove.set(id, d);
     return d;
   }
+  const telaAuta = (a) => a.children.filter((o) => !o.userData.svetlo && !o.userData.brzda && o.userData.blinkr === undefined);
+  function prestavDucha(d, cfg) {                         // hráč si v garáži změnil auto
+    const stara = new Set(telaAuta(d.auto));
+    for (let i = api.jenVeDne.length - 1; i >= 0; i--) if (stara.has(api.jenVeDne[i])) api.jenVeDne.splice(i, 1);
+    api.VOZ.prestavAuto(d.auto, cfg);
+    const nova = telaAuta(d.auto);
+    d.tela = d.tela.filter((o) => !stara.has(o)).concat(nova);
+    api.jenVeDne.push(...nova);
+  }
   function smazDucha(d) {
     scene.remove(d.g);
     for (const o of d.tela) { const i = api.jenVeDne.indexOf(o); if (i >= 0) api.jenVeDne.splice(i, 1); }
     d.popisek.material.map.dispose(); d.popisek.material.dispose();
-    d.postava.triko.dispose(); d.auto.children[0]?.material?.dispose();   // vlastní barva hráče; ostatní materiály a tvary jsou sdílené
+    d.postava.triko.dispose(); api.VOZ.uvolniAuto(d.auto);   // vlastní barva trička a tvary auta; ostatní materiály jsou sdílené
     duchove.delete(d.id);
   }
   const smazVse = () => { for (const d of [...duchove.values()]) smazDucha(d); };
@@ -106,18 +116,29 @@ export function vytvorHrace(THREE, scene, api) {
     const za = Math.min(30000, 1000 * 2 ** pokus++) * (0.75 + Math.random() * 0.5);   // 1, 2, 4… až 30 s, rozházené
     znovuT = setTimeout(pripoj, za);
   }
+  let autoT = null;
+  function posliAuto() {
+    const a = platneAuto(api.mojeAuto());
+    if (a && pripojeno && ws && ws.readyState === 1) try { ws.send(JSON.stringify({ t: 'auto', a })); } catch { /* zavírá se */ }
+  }
   function odpoj() { clearTimeout(znovuT); znovuT = null; if (ws) { const w = ws; ws = null; w.onclose = null; w.close(1000); } pripojeno = false; ja = null; smazVse(); znami.clear(); }
 
   function zprava(text) {
     let m; try { m = JSON.parse(text); } catch { return; }
     if (m.t === 'ahoj') {
       pripojeno = true; pokus = 0; ja = { id: m.id, jmeno: String(m.jmeno), barva: String(m.barva) };
-      for (const h of m.hraci || []) znami.set(h.id, { jmeno: String(h.jmeno), barva: String(h.barva) });
+      for (const h of m.hraci || []) znami.set(h.id, { jmeno: String(h.jmeno), barva: String(h.barva), auto: platneAuto(h.auto) });
       stavText = ''; posledni = null; ukazPanel();
+      posliAuto();
     } else if (m.t === 'novy') {
       znami.set(m.id, { jmeno: String(m.jmeno), barva: String(m.barva) });
       if (pripojeno) api.toast?.(`${m.jmeno} přijel do města`, 'info');
       ukazPanel();
+    } else if (m.t === 'auto') {
+      const z = znami.get(m.id), a = platneAuto(m.a);
+      if (!z || !a) return;
+      z.auto = a;
+      const d = duchove.get(m.id); if (d) prestavDucha(d, a);
     } else if (m.t === 'pryc') {
       const d = duchove.get(m.id); if (d) smazDucha(d);
       znami.delete(m.id); ukazPanel();
@@ -238,5 +259,6 @@ export function vytvorHrace(THREE, scene, api) {
     // pro minimapu a velkou mapu: kde jsou duchové (poslední vykreslená poloha)
     mapa: () => [...duchove.values()].filter((d) => d.posledni).map((d) => ({ x: d.posledni.x, y: d.posledni.y, barva: d.barva, jmeno: d.jmeno })),
     pocet: () => znami.size,
+    zmenaAuta() { clearTimeout(autoT); autoT = setTimeout(posliAuto, 400); },   // z garáže: posílá se až po chvilce klidu
   };
 }

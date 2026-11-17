@@ -255,6 +255,7 @@ button { font: inherit; color: inherit; }
       <nav class="pauza-menu" aria-label="Menu">
         <button type="button" class="pol hlavni" id="pokracovat">Pokračovat</button>
         <button type="button" class="pol" role="tab" data-tab="hra" aria-controls="pnHra">Hra</button>
+        <button type="button" class="pol" role="tab" data-tab="auto" aria-controls="pnAuto">Moje auto</button>
         <button type="button" class="pol" role="tab" data-tab="nav" aria-controls="pnNav">Navigace</button>
         <button type="button" class="pol" role="tab" data-tab="spoje" aria-controls="pnSpoje">Autobusy a vlaky</button>
         <button type="button" class="pol" role="tab" data-tab="cas" aria-controls="pnCas">Čas a počasí</button>
@@ -266,6 +267,7 @@ button { font: inherit; color: inherit; }
       </nav>
       <div class="pauza-obsah">
         <section class="panel" data-panel="hra" id="pnHra" role="tabpanel"><h2>Hra <small>mise, pouliční režim</small></h2><div id="hrapanel"></div></section>
+        <section class="panel" data-panel="auto" id="pnAuto" role="tabpanel" hidden><h2>Moje auto <small>garáž: karoserie, lak, kola, doplňky</small></h2><div id="garaz"></div></section>
         <section class="panel" data-panel="nav" id="pnNav" role="tabpanel" hidden><h2>Navigace</h2><div id="navpanel"></div></section>
         <section class="panel sled" data-panel="spoje" id="pnSpoje" role="tabpanel" hidden>
           <h2>Autobusy a vlaky <small>sleduj spoj podle jízdního řádu</small></h2>
@@ -356,6 +358,7 @@ import { vytvorUzavirky } from './jizda/uzavirky.js';
 import { vytvorPumpy } from './jizda/pumpy.js';
 import { vytvorDopravu, nah } from './jizda/doprava.js';
 import { vytvorHrace } from './jizda/hraci.js';
+import { vytvorGaraz, nactiAuto } from './jizda/garaz.js';
 THREE.ColorManagement.enabled = false;
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -933,7 +936,7 @@ try { hrac.zOci = localStorage.getItem('izo-3d-pohled') === 'oci'; } catch {}   
   if (m) [hrac.x, hrac.y] = [(+m[2] - CAM.lon0) * CAM.kx, (+m[1] - CAM.lat0) * CAM.ky];
 }
 // vlastní auto (červené, kola se točí, světla svítí od soumraku)
-const mojeAuto = VOZ.mojeAuto('#c0392b');
+const mojeAuto = VOZ.mojeAuto(nactiAuto());                // vzhled z garáže (jizda/garaz.js), výchozí červený hatchback
 jenVeDne.push(...mojeAuto.children.filter((o) => !o.userData.svetlo));
 mojeAuto.visible = false; scene3.add(mojeAuto);
 function volneMisto(x, y, r) {                             // nejbližší místo mimo budovy (spirála)
@@ -1860,7 +1863,15 @@ const ULICE = vytvorUlici(THREE, scene3, { hrac, cars, roads, carPose, along, LI
   mesto: document.querySelector('#hud h1')?.firstChild?.textContent.trim() || 'Město', dotyk: DOTYK, start: ULICE_START, parkovana, skryjParkovane,
   navigace: { zvol: (e) => NAV.zvol(e), adresy: () => NAV.adresy(), trasa: (a, b, c, d, e) => NAV.trasa(a, b, c, d, e) } });
 // ostatní hráči: posílá se poloha (auto: i světla, brzda, blinkry, klakson), v autobuse nebo při sledování spoje jen místo
-HRACI = vytvorHrace(THREE, scene3, { url: MP_URL, auto: (barva) => VOZ.mojeAuto(barva), jenVeDne, panel: $('hrapanel'), toast, doba: () => DOBA.n,
+// garáž: konfigurátor auta v menu (Moje auto); změna se hned projeví na vlastním autě a pošle se ostatním hráčům
+function nastavMojeAuto(a) {
+  const stara = new Set(mojeAuto.children);
+  for (let i = jenVeDne.length - 1; i >= 0; i--) if (stara.has(jenVeDne[i])) jenVeDne.splice(i, 1);
+  VOZ.prestavAuto(mojeAuto, a);
+  jenVeDne.push(...mojeAuto.children.filter((o) => !o.userData.svetlo));
+}
+const KONFIG = vytvorGaraz(THREE, { VOZ, panel: $('garaz'), zmena: (a) => { nastavMojeAuto(a); HRACI?.zmenaAuta(); } });
+HRACI = vytvorHrace(THREE, scene3, { url: MP_URL, VOZ, mojeAuto: () => KONFIG.auto(), jenVeDne, panel: $('hrapanel'), toast, doba: () => DOBA.n,
   stav: () => {
     const c = hrac.car;
     if (hrac.vAuto && c && SLED.i === null) {
@@ -2033,7 +2044,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') window.__jizda = { FSD, fsdPrepni, UZ, CAM, carPose, MRIZ, GARAZ, KUZELY, BL, OKNA, hodina, ULICE, ZNACKY, nastavGrafiku, parkovana, PARK, DETAIL, KVALITA, rtDen, slozeni, POVRCH, STROMY, HRA, ZVUK, hustota, hrac, orbit, gz, vyska, DOBA, NAV, LIDE, ZAST, busBlizko, cars, roads, DOPR, HRACI, CH, SIG, sigPosts, MHD, RT, keys, camera, scene3, renderer, nastoupit, snimek: (ms = 16) => { last = performance.now() - ms; frame(performance.now()); } };
+if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') window.__jizda = { FSD, fsdPrepni, UZ, CAM, carPose, MRIZ, GARAZ, KONFIG, KUZELY, BL, OKNA, hodina, ULICE, ZNACKY, nastavGrafiku, parkovana, PARK, DETAIL, KVALITA, rtDen, slozeni, POVRCH, STROMY, HRA, ZVUK, hustota, hrac, orbit, gz, vyska, DOBA, NAV, LIDE, ZAST, busBlizko, cars, roads, DOPR, HRACI, CH, SIG, sigPosts, MHD, RT, keys, camera, scene3, renderer, nastoupit, snimek: (ms = 16) => { last = performance.now() - ms; frame(performance.now()); } };
 </script>
 </body>
 </html>

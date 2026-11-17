@@ -329,12 +329,140 @@ function vuz() {                                           // 26,4 × 2,9 × 4,0
   return m;
 }
 
-function koloHrace() {                                     // kolo auta hráče se středem v počátku (točí se kolem z)
+function koloHrace(r = 0.32, disk = DISK, w = 0.11) {      // kolo auta hráče se středem v počátku (točí se kolem z)
   const s = sit();
-  valec(s, 0, 0, 0, 0.32, 0.11, 16, PNEU);
-  valec(s, 0, 0, 0, 0.21, 0.118, 5, DISK);                 // pětiúhelník: otáčení je vidět
-  valec(s, 0, 0, 0, 0.07, 0.125, 6, TMAVA);
+  valec(s, 0, 0, 0, r, w, 16, PNEU);
+  valec(s, 0, 0, 0, r * 0.66, w + 0.008, 5, disk);         // pětiúhelník: otáčení je vidět
+  valec(s, 0, 0, 0, r * 0.22, w + 0.015, 6, TMAVA);
   return s;
+}
+
+// ---------- univerzální auto hráče (konfigurátor jizda/garaz.js; volby a kontrola v jizda/sit.js AUTO_VOLBY) ----------
+// Karoserie: lak = boční profily [x, y] vytažené do šířky ±hw, sklo a střecha se zúžením u, sloupky [x0, x1],
+// kola [x vpředu, x vzadu] a poloměr r, předek xf a záď xr, světla [y0, y1, z0, z1], nárazníky [y0, y1],
+// zrcátka [x0, x1, y0, y1], spoiler [x0, x1, y, výška], střecha pro box a rampu [x0, x1, y], extra = díly navíc.
+const AUTO_ZAKLAD = { k: 'hatch', b1: '#c0392b', b2: '#f2f2ee', v: 'zadny', kola: 'ocel', vys: 'normal', dopl: [] };
+const KAR = {
+  hatch: { hw: 0.87, lak: [[[-2.05, 0.28], [2.05, 0.28], [2.05, 0.62], [1.95, 0.74], [0.8, 0.86], [-1.9, 0.88], [-2.05, 0.8]]],
+    sklo: [[-1.78, 0.84, 0.04], [0.9, 0.84, 0.04], [0.2, 1.4, 0.17], [-1.38, 1.4, 0.17]],
+    strecha: [[-1.42, 1.385, 0.16], [0.26, 1.385, 0.16], [0.2, 1.45, 0.2], [-1.36, 1.45, 0.2]], sloupky: [[-0.5, -0.36]],
+    kola: [1.3, -1.3], r: 0.32, xf: 2.05, xr: -2.05, svP: [0.53, 0.66, 0.48, 0.82], svZ: [0.6, 0.76, 0.5, 0.84], naraz: [0.24, 0.5],
+    zrc: [0.62, 0.76, 0.86, 0.97], spoiler: [-1.5, -1.2, 1.4, 0.06], strop: [-1.36, 0.2, 1.45] },
+  sedan: { hw: 0.88, lak: [[[-2.35, 0.3], [2.35, 0.3], [2.35, 0.6], [2.2, 0.72], [0.95, 0.84], [-1.6, 0.88], [-2.3, 0.86], [-2.35, 0.78]]],
+    sklo: [[-1.75, 0.86, 0.05], [1.0, 0.84, 0.05], [0.25, 1.38, 0.17], [-1.0, 1.38, 0.17]],
+    strecha: [[-1.05, 1.365, 0.16], [0.3, 1.365, 0.16], [0.24, 1.43, 0.2], [-1.0, 1.43, 0.2]], sloupky: [[-0.45, -0.32]],
+    kola: [1.42, -1.42], r: 0.32, xf: 2.35, xr: -2.35, svP: [0.5, 0.62, 0.5, 0.84], svZ: [0.64, 0.78, 0.5, 0.84], naraz: [0.26, 0.5],
+    zrc: [0.75, 0.9, 0.84, 0.95], spoiler: [-2.32, -2.02, 0.86, 0.12], strop: [-1.0, 0.24, 1.43] },
+  kombi: { hw: 0.88, lak: [[[-2.35, 0.3], [2.35, 0.3], [2.35, 0.6], [2.2, 0.72], [0.95, 0.84], [-2.35, 0.9]]],
+    sklo: [[-2.22, 0.88, 0.05], [1.0, 0.84, 0.05], [0.25, 1.4, 0.17], [-2.15, 1.42, 0.17]],
+    strecha: [[-2.18, 1.405, 0.16], [0.3, 1.405, 0.16], [0.24, 1.47, 0.2], [-2.13, 1.47, 0.2]], sloupky: [[-0.45, -0.32], [-1.5, -1.38]],
+    kola: [1.42, -1.42], r: 0.32, xf: 2.35, xr: -2.35, svP: [0.5, 0.62, 0.5, 0.84], svZ: [0.66, 0.86, 0.55, 0.84], naraz: [0.26, 0.5],
+    zrc: [0.75, 0.9, 0.84, 0.95], spoiler: [-2.3, -2.0, 1.44, 0.05], strop: [-2.13, 0.24, 1.47] },
+  suv: { hw: 0.93, lak: [[[-2.3, 0.42], [2.3, 0.42], [2.3, 0.86], [2.12, 0.98], [0.95, 1.06], [-2.25, 1.1], [-2.3, 1.02]]],
+    sklo: [[-2.15, 1.06, 0.04], [1.0, 1.04, 0.04], [0.45, 1.62, 0.15], [-2.05, 1.64, 0.15]],
+    strecha: [[-2.08, 1.625, 0.14], [0.5, 1.625, 0.14], [0.45, 1.7, 0.18], [-2.03, 1.7, 0.18]], sloupky: [[-0.4, -0.26], [-1.45, -1.33]],
+    kola: [1.42, -1.42], r: 0.38, xf: 2.3, xr: -2.3, svP: [0.78, 0.9, 0.55, 0.88], svZ: [0.85, 1.02, 0.6, 0.9], naraz: [0.36, 0.62],
+    zrc: [0.8, 0.95, 1.06, 1.18], spoiler: [-2.2, -1.95, 1.68, 0.05], strop: [-2.03, 0.45, 1.7],
+    extra(m, hw) {                                         // plastové lemy dole a podélníky na střeše
+      kvadr2(m.D, -2.2, 2.2, 0.42, 0.55, hw - 0.01, hw + 0.025, TMAVA);
+      kvadr2(m.D, -1.85, 0.25, 1.7, 1.76, 0.55, 0.6, SEDA);
+    } },
+  sport: { hw: 0.93, lak: [[[-2.2, 0.22], [2.2, 0.22], [2.2, 0.5], [1.85, 0.64], [0.5, 0.74], [-1.9, 0.78], [-2.2, 0.72]]],
+    sklo: [[-1.35, 0.74, 0.08], [0.55, 0.71, 0.08], [-0.2, 1.12, 0.22], [-1.0, 1.13, 0.22]],
+    strecha: [[-1.03, 1.11, 0.21], [-0.15, 1.11, 0.21], [-0.2, 1.16, 0.25], [-0.98, 1.16, 0.25]], sloupky: [],
+    kola: [1.35, -1.3], r: 0.3, w: 0.13, xf: 2.2, xr: -2.2, svP: [0.42, 0.51, 0.45, 0.86], svZ: [0.56, 0.67, 0.45, 0.86], naraz: [0.18, 0.36],
+    zrc: [0.35, 0.5, 0.72, 0.82], spoiler: [-2.15, -1.85, 0.76, 0.16], strop: [-0.98, -0.2, 1.16],
+    extra(m, hw) {                                         // nasávání za dveřmi a difuzor
+      kvadr2(m.D, -1.25, -0.8, 0.36, 0.56, hw - 0.01, hw + 0.012, TMAVA);
+      kvadr(m.D, -2.24, -2.1, 0.18, 0.3, -0.7, 0.7, TMAVA);
+    } },
+  pickup: { hw: 0.92, lak: [[[-0.75, 0.42], [2.5, 0.42], [2.5, 0.86], [2.3, 0.98], [1.25, 1.06], [-0.75, 1.07]]],
+    sklo: [[-0.68, 1.05, 0.04], [1.25, 1.04, 0.04], [0.65, 1.62, 0.15], [-0.62, 1.64, 0.15]],
+    strecha: [[-0.65, 1.625, 0.14], [0.7, 1.625, 0.14], [0.65, 1.7, 0.18], [-0.6, 1.7, 0.18]], sloupky: [],
+    kola: [1.65, -1.6], r: 0.37, xf: 2.5, xr: -2.55, svP: [0.78, 0.9, 0.55, 0.86], svZ: [0.76, 1.0, 0.78, 0.9], naraz: [0.36, 0.62],
+    zrc: [1.05, 1.2, 1.06, 1.18], spoiler: [-0.7, -0.45, 1.7, 0.05], strop: [-0.6, 0.65, 1.7],
+    extra(m, hw, a) {                                      // korba: dno, bočnice a zadní čelo v laku, vnitřek tmavý
+      kvadr(m.L, -2.55, -0.75, 0.42, 0.72, -hw, hw, a.b1);
+      kvadr2(m.L, -2.55, -0.75, 0.72, 1.07, hw - 0.07, hw, a.b1);
+      kvadr(m.L, -2.55, -2.48, 0.72, 1.07, -hw + 0.07, hw - 0.07, a.b1);
+      kvadr(m.D, -2.48, -0.75, 0.72, 0.735, -hw + 0.07, hw - 0.07, TMAVA);
+      if (a.v === 'bok' || a.v === 'dvoubarevne') kvadr2(m.L, -2.555, -0.75, 0.42, a.v === 'bok' ? 0.5 : 0.7, hw - 0.004, hw + 0.006, a.b2);
+    } },
+  van: { hw: 0.95, lak: [[[-2.4, 0.32], [2.4, 0.32], [2.4, 0.74], [2.05, 0.95], [-2.4, 0.95]], [[-2.4, 0.95], [2.05, 0.95], [1.15, 1.9], [-2.4, 1.95]]],
+    sloupky: [], kola: [1.55, -1.6], r: 0.33, xf: 2.4, xr: -2.4, svP: [0.6, 0.74, 0.55, 0.9], svZ: [0.72, 1.1, 0.8, 0.92], naraz: [0.26, 0.52],
+    zrc: [1.75, 1.9, 1.02, 1.16], spoiler: [-2.35, -2.1, 1.9, 0.05], strop: [-2.3, 1.1, 1.95],
+    extra(m, hw) {                                         // čelní sklo, boční okna u řidiče, okna zadních dveří
+      deska(m.D, 2.05, 0.95, 1.15, 1.9, 0.08, 0.92, hw - 0.08, SKLO);
+      for (const g of [1, -1]) hranol(m.D, [[0.55, 1.08], [1.88, 1.08], [1.22, 1.75], [0.55, 1.75]], 0.012, SKLO, g * hw);
+      kvadr(m.D, -2.41, -2.39, 1.25, 1.75, 0.08, 0.8, SKLO);
+      kvadr(m.D, -2.41, -2.39, 1.25, 1.75, -0.8, -0.08, SKLO);
+    } },
+};
+const DISKY = { ocel: DISK, alu: '#d9dce0', cerna: '#1f2023', zlata: '#c9a227' };
+function rozsir(prof, d) {                                 // profil o kousek větší (pruhy a dvoubarevný lak těsně nad lakem), bez zúžení
+  const cx = prof.reduce((s, p) => s + p[0], 0) / prof.length, cy = prof.reduce((s, p) => s + p[1], 0) / prof.length;
+  return prof.map(([x, y]) => { const dx = x - cx, dy = y - cy, l = Math.hypot(dx, dy) || 1; return [x + dx / l * d, y + dy / l * d]; });
+}
+function orez(prof, ym, dole) {                            // část konvexního profilu pod (dole) nebo nad vodorovnou přímkou y = ym
+  const out = [], uvnitr = (p) => (dole ? p[1] <= ym : p[1] >= ym);
+  for (let i = 0; i < prof.length; i++) {
+    const a = prof[i], b = prof[(i + 1) % prof.length];
+    if (uvnitr(a)) out.push([a[0], a[1]]);
+    if (uvnitr(a) !== uvnitr(b)) { const t = (ym - a[1]) / (b[1] - a[1]); out.push([a[0] + (b[0] - a[0]) * t, ym]); }
+  }
+  return out;
+}
+function posun(s, dy) { for (let i = 1; i < s.p.length; i += 3) s.p[i] += dy; }
+function univerzal(a) {
+  const B = KAR[a.k] || KAR.hatch, m = novy(), hw = B.hw, c1 = a.b1, c2 = a.b2, dopl = new Set(a.dopl || []);
+  m.R = sit();
+  const cStrecha = a.v === 'strecha' ? c2 : c1;
+  const spodek = B.lak[0], ys = spodek.map((p) => p[1]), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  for (const p of B.lak) hranol(m.L, p, hw, c1);
+  if (B.sklo) hranol(m.D, B.sklo, hw, SKLO);
+  if (B.strecha) hranol(m.L, B.strecha, hw, cStrecha);
+  for (const [x0, x1] of B.sloupky) {                      // sloupky mezi okny: od spodku skla po střechu, zúžené jako sklo
+    const yb = B.sklo[0][1] + 0.01, yt = B.sklo[2][1], ut = B.sklo[2][2] - 0.012;
+    hranol(m.L, [[x0, yb, 0.03], [x1, yb, 0.03], [x1, yt, ut], [x0, yt, ut]], hw, cStrecha);
+  }
+  // vzor laku
+  if (a.v === 'pruhy') for (const zc of [-0.17, 0.17]) {
+    for (const p of B.lak) hranol(m.L, rozsir(p, 0.008), 0.065, c2, zc);
+    if (B.strecha) hranol(m.L, rozsir(B.strecha, 0.008), 0.065, c2, zc);
+  }
+  if (a.v === 'bok') { const yb = y0 + (y1 - y0) * 0.55; kvadr2(m.L, B.xr + 0.3, B.xf - 0.35, yb, yb + 0.07, hw - 0.004, hw + 0.01, c2); }
+  if (a.v === 'dvoubarevne') hranol(m.L, rozsir(orez(spodek, y0 + (y1 - y0) * 0.45, true), 0.006), hw + 0.006, c2);
+  if (a.v === 'strecha' && !B.strecha) { const h = B.lak[B.lak.length - 1], yt = Math.max(...h.map((p) => p[1])); hranol(m.L, rozsir(orez(h, yt - 0.12, false), 0.006), hw + 0.006, c2); }
+  // nárazníky, maska, SPZ, světla, zrcátka, prahy, anténa
+  kvadr(m.D, B.xf - 0.08, B.xf + 0.05, B.naraz[0], B.naraz[1], -hw - 0.01, hw + 0.01, TMAVA);
+  kvadr(m.D, B.xr - 0.05, B.xr + 0.08, B.naraz[0], B.naraz[1], -hw - 0.01, hw + 0.01, TMAVA);
+  kvadr(m.D, B.xf - 0.01, B.xf + 0.012, B.svP[0] - 0.02, B.svP[1] + 0.02, -B.svP[2] + 0.06, B.svP[2] - 0.06, TMAVA);
+  kvadr(m.D, B.xf + 0.05, B.xf + 0.06, B.naraz[0] + 0.06, B.naraz[0] + 0.18, -0.26, 0.26, SPZ);
+  kvadr(m.D, B.xr - 0.06, B.xr - 0.05, B.naraz[0] + 0.06, B.naraz[0] + 0.18, -0.26, 0.26, SPZ);
+  svetla(m, true, B.xf, ...B.svP);
+  svetla(m, false, B.xr, ...B.svZ);
+  kvadr2(m.L, B.zrc[0], B.zrc[1], B.zrc[2], B.zrc[3], hw - 0.02, hw + 0.07, cStrecha);
+  kvadr2(m.D, B.kola[1] + 0.45, B.kola[0] - 0.45, y0 - 0.03, y0 + 0.06, hw - 0.03, hw + 0.012, TMAVA);
+  B.extra?.(m, hw, a);
+  // výfuk (dvojitý: sportovní koncovky po stranách)
+  for (const z of dopl.has('vyfuky') ? [-0.45, -0.3, 0.3, 0.45] : [0.54]) kvadr(m.D, B.xr - 0.1, B.xr + 0.05, y0 - 0.06, y0 + 0.02, z - 0.04, z + 0.04, SEDA);
+  // doplňky
+  const [sx0, sx1, sy0, sh] = B.spoiler, [tx0, tx1, ty] = B.strop, tm = (tx0 + tx1) / 2;
+  if (dopl.has('spoiler')) {
+    kvadr(m.L, sx0, sx1, sy0 + sh, sy0 + sh + 0.045, -hw + 0.04, hw - 0.04, c2);
+    kvadr2(m.D, sx0 + 0.08, sx1 - 0.08, sy0 - 0.01, sy0 + sh, 0.45, 0.52, TMAVA);
+  }
+  if (dopl.has('box')) kvadr(m.D, Math.max(tx0 + 0.05, tm - 0.8), Math.min(tx1 - 0.05, tm + 0.7), ty, ty + 0.3, -0.42, 0.42, '#30343b');
+  if (dopl.has('rampa')) {                                 // světelná rampa nad čelním sklem: ve dne matná, v noci svítí (m.R jde k předním světlům)
+    const x = tx1 - 0.08;
+    kvadr(m.D, x - 0.14, x, ty, ty + 0.12, -0.6, 0.6, TMAVA);
+    kvadr(m.D, x, x + 0.02, ty + 0.025, ty + 0.095, -0.55, 0.55, CELNI_DEN);
+    kvadr(m.R, x + 0.005, x + 0.04, ty + 0.02, ty + 0.1, -0.555, 0.555, CELNI);
+  }
+  // podvozek: zvýšený = karoserie výš a větší kola, snížený = karoserie níž
+  const dy = a.vys === 'vysoky' ? 0.12 : a.vys === 'nizky' ? -0.035 : 0, r = B.r + (a.vys === 'vysoky' ? 0.04 : 0);
+  if (dy) for (const s of [m.L, m.D, m.P, m.Z, m.R]) posun(s, dy);
+  return { m, kola: { x: B.kola, z: hw - 0.095, r, w: B.w || 0.11, disk: a.kola === 'barva' ? c2 : DISKY[a.kola] || DISK } };
 }
 
 const MODELY = { car: () => osobni(false), van: dodavka, truck: nakladni, semi: tahac, trailer: naves, garbage: popelar, tractor: traktor, bus: autobus, vlak_kab: vlakKab, lokomotiva, vuz };
@@ -502,25 +630,45 @@ export function vytvorVozidla(THREE, scene, max = 1400) {
         }
       }
     },
-    mojeAuto(barva) {
-      const m = osobni(true), g = new THREE.Group();
-      const pridejDil = (o, svetlo) => { o.userData.svetlo = svetlo; g.add(o); return o; };
-      pridejDil(new THREE.Mesh(geom(m.L, false), new THREE.MeshLambertMaterial({ color: barva })), false);
-      pridejDil(new THREE.Mesh(geom(m.D, true), matDet), false);
-      const gk = geom(koloHrace(), true);
-      for (const x of [1.3, -1.3]) for (const z of [0.775, -0.775]) {
-        const k = pridejDil(new THREE.Mesh(gk, matDet), false);
-        k.position.set(x, 0.32, z); k.userData.kolo = true;
-      }
-      pridejDil(new THREE.Mesh(geom(m.P, true), matSv), true);
-      pridejDil(new THREE.Mesh(geom(m.Z, true), matSv), true);
-      // brzdová světla a blinkry hráče (jizda.html je zapíná podle brzdy a odbočování)
-      const br = new THREE.Mesh(geom(m.Z, false), matBrzda); br.userData.brzda = true; br.visible = false; g.add(br);
-      const mz = meze(m.Z), mp = meze(m.P);
-      if (mz && mp) for (const [lx, ly, lz] of [[mp.x1 - 0.02, (mp.y0 + mp.y1) / 2, mp.z], [mz.x0 + 0.02, (mz.y0 + mz.y1) / 2 + 0.02, mz.z]]) for (const strana of [-1, 1]) {
-        const b = new THREE.Mesh(gBlinkr, matBlinkr); b.position.set(lx, ly, lz * strana); b.userData.blinkr = strana; b.visible = false; g.add(b);
-      }
-      return g;
-    },
+    // auto hráče: univerzální auto z konfigurátoru (a = { k, b1, b2, v, kola, vys, dopl }, jizda/sit.js AUTO_VOLBY)
+    // nebo jen barva (výchozí červený hatchback). Díly: [0] lak (vlastní materiál), detaily, 4 kola (userData.kolo),
+    // světla (userData.svetlo), brzdová světla (userData.brzda), blinkry (userData.blinkr = ±1).
+    mojeAuto(a) { return autoHrace(a); },
+    autoHrace,
+    prestavAuto(g, a) { uvolniAuto(g); naplnAuto(g, a); },   // stejná skupina (poloha, viditelnost zůstanou), nové díly
+    uvolniAuto,
   };
+
+  function naplnAuto(g, a) {
+    if (typeof a === 'string' || !a) a = { ...AUTO_ZAKLAD, b1: a || AUTO_ZAKLAD.b1 };
+    const u = univerzal(a);
+    const pridejDil = (o, svetlo) => { o.userData.svetlo = svetlo; g.add(o); return o; };
+    pridejDil(new THREE.Mesh(geom(u.m.L, true), new THREE.MeshLambertMaterial({ vertexColors: true })), false);
+    pridejDil(new THREE.Mesh(geom(u.m.D, true), matDet), false);
+    const gk = geom(koloHrace(u.kola.r, u.kola.disk, u.kola.w), true);
+    for (const x of u.kola.x) for (const z of [u.kola.z, -u.kola.z]) {
+      const k = pridejDil(new THREE.Mesh(gk, matDet), false);
+      k.position.set(x, u.kola.r, z); k.userData.kolo = true;
+    }
+    pridejDil(new THREE.Mesh(geom(spoj(u.m.P, u.m.R), true), matSv), true);   // přední světla i rampa na střeše
+    pridejDil(new THREE.Mesh(geom(u.m.Z, true), matSv), true);
+    // brzdová světla a blinkry hráče (jizda.html je zapíná podle brzdy a odbočování)
+    const br = new THREE.Mesh(geom(u.m.Z, false), matBrzda); br.userData.brzda = true; br.visible = false; g.add(br);
+    const mz = meze(u.m.Z), mp = meze(u.m.P);
+    if (mz && mp) for (const [lx, ly, lz] of [[mp.x1 - 0.02, (mp.y0 + mp.y1) / 2, mp.z], [mz.x0 + 0.02, (mz.y0 + mz.y1) / 2 + 0.02, mz.z]]) for (const strana of [-1, 1]) {
+      const b = new THREE.Mesh(gBlinkr, matBlinkr); b.position.set(lx, ly, lz * strana); b.userData.blinkr = strana; b.visible = false; g.add(b);
+    }
+    g.userData.auto = a;
+  }
+  function autoHrace(a) { const g = new THREE.Group(); naplnAuto(g, a); return g; }
+  function uvolniAuto(g) {                                   // vlastní tvary a lak pryč, sdílené materiály a blinkr zůstanou
+    const sdilene = new Set([matDet, matSv, matBrzda, matBlinkr]), geo = new Set(), mat = new Set();
+    for (const o of g.children) {
+      if (o.geometry && o.geometry !== gBlinkr) geo.add(o.geometry);
+      for (const m of [].concat(o.material || [])) if (!sdilene.has(m)) mat.add(m);
+    }
+    for (const x of geo) x.dispose();
+    for (const x of mat) x.dispose();
+    g.clear();
+  }
 }

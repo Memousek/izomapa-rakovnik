@@ -77,3 +77,24 @@ export function vymyslJmeno(u, obsazena = new Set()) {   // u: náhodné číslo
 }
 // barvy hráčů: dobře rozlišitelné od sebe i od šedivých a bílých aut v provozu
 export const BARVY = ['#e8443a', '#2f8cff', '#2fbf71', '#ffb020', '#b65cff', '#00c2c7', '#ff6fb1', '#9ccc2a', '#ff7a1a', '#5b6cff', '#e0c400', '#14a38b'];
+
+// ---------- univerzální auto hráče (konfigurátor jizda/garaz.js, model jizda/vozidla.js autoHrace) ----------
+// Stejná pravidla platí v prohlížeči i na serveru: cizí auto se postaví jen z hodnot z těchto seznamů a barev #rrggbb.
+export const AUTO_VOLBY = {
+  k: { hatch: 'Hatchback', sedan: 'Sedan', kombi: 'Kombi', suv: 'SUV', pickup: 'Pick-up', sport: 'Sporťák', van: 'Dodávka' },
+  v: { zadny: 'Jednobarevné', pruhy: 'Závodní pruhy', bok: 'Boční pruh', strecha: 'Barevná střecha', dvoubarevne: 'Dvoubarevné' },
+  kola: { ocel: 'Ocelová', alu: 'Hliníková', cerna: 'Černá', zlata: 'Zlatá', barva: 'V barvě doplňku' },
+  vys: { nizky: 'Snížený', normal: 'Normální', vysoky: 'Zvýšený' },
+  dopl: { spoiler: 'Spoiler', box: 'Střešní box', rampa: 'Světelná rampa', vyfuky: 'Dvojitý výfuk' },
+};
+export const AUTO_VYCHOZI = { k: 'hatch', b1: '#c0392b', b2: '#f2f2ee', v: 'zadny', kola: 'ocel', vys: 'normal', dopl: [] };
+const BARVA = /^#[0-9a-f]{6}$/;
+// null = nepoužitelné; jinak očištěná kopie (neznámé doplňky vypadnou, pořadí podle AUTO_VOLBY)
+export function platneAuto(a) {
+  if (!a || typeof a !== 'object') return null;
+  const b1 = String(a.b1 || '').toLowerCase(), b2 = String(a.b2 || '').toLowerCase();
+  if (!(a.k in AUTO_VOLBY.k) || !(a.v in AUTO_VOLBY.v) || !(a.kola in AUTO_VOLBY.kola) || !(a.vys in AUTO_VOLBY.vys)) return null;
+  if (!BARVA.test(b1) || !BARVA.test(b2) || (a.dopl !== undefined && !Array.isArray(a.dopl))) return null;
+  const dopl = Object.keys(AUTO_VOLBY.dopl).filter((d) => (a.dopl || []).includes(d));
+  return { k: a.k, b1, b2, v: a.v, kola: a.kola, vys: a.vys, dopl };
+}

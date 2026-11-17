@@ -106,8 +106,12 @@ Ukazuj uživateli výřezy před a po.
 - **Multiplayer ve 3D jízdě** (volitelné, výchozí vypnuto): `"multiplayer": "wss://…/mistnost/<město>"` v `mesto.json`,
   pak `nastroje/jizda.py --stranka`. Ostatní hráči jsou ve 3D jako duchové (postava nebo auto v barvě, jméno od serveru,
   bez chatu a bez kolizí). Server je samostatný Worker s Durable Object v `multiplayer/` (návod v README, Multiplayer),
-  nasazuje ho uživatel sám (`npx wrangler deploy --config multiplayer/wrangler.jsonc`) a do `POVOLENE_ORIGINY` patří adresa mapy.
+  nasazuje ho uživatel sám (`npx wrangler deploy --config multiplayer/wrangler.jsonc`) a adresa mapy patří do tajné proměnné
+  `POVOLENE_ORIGINY` (`npx wrangler secret put POVOLENE_ORIGINY --config multiplayer/wrangler.jsonc`).
   Protokol je ve `web/jizda_sit.js`, klient ve `web/jizda_hraci.js`, testy `node tests/test-multiplayer.mjs`.
+  Garáž (menu Moje auto, `web/jizda_garaz.js`): univerzální auto hráče (karoserie, lak, vzor, kola, podvozek, doplňky),
+  model `autoHrace` ve `web/jizda_vozidla.js` (tabulka `KAR`), volby a kontrola `AUTO_VOLBY` / `platneAuto` v `jizda_sit.js`.
+  Nová karoserie = položka v `KAR` a v `AUTO_VOLBY.k`; ostatní hráči ji uvidí až po nasazení serveru i stránky.
   Doprava (`web/jizda_doprava.js`) má stabilní uid silnic a aut a semínka (`sd`) místo `Math.random`, aby šla později
   synchronizovat i NPC (simuluje vlastník oblasti, ostatní přijímají stav).
 

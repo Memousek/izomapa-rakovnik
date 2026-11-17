@@ -2,7 +2,7 @@
 // Hráči posílají svou polohu 5× za sekundu (web/jizda_sit.js), místnost 5× za sekundu každému pošle hráče do 700 m.
 // Server nic nesimuluje a pohybu věří (pohodová hra), jen zahodí nesmysly a hlídá počet zpráv.
 // Návod k nasazení je v README (Multiplayer); lokálně: npx wrangler dev --config multiplayer/wrangler.jsonc
-import { dekodujStav, zakodujSnimek, vyberBlizke, vymyslJmeno, BARVY } from '../web/jizda_sit.js';
+import { dekodujStav, zakodujSnimek, vyberBlizke, vymyslJmeno, BARVY, platneAuto } from '../web/jizda_sit.js';
 
 const MAX_HRACU = 100;                  // na jednu místnost (Worker smí exportovat jen třídy a handler)
 const TIK = 200;                         // ms mezi snímky
@@ -37,7 +37,7 @@ export class Mistnost {
     const jmena = new Set([...this.hraci.values()].map((h) => h.jmeno));
     const h = { id, jmeno: vymyslJmeno(Math.random(), jmena), barva: BARVY[(id - 1) % BARVY.length] };
     ws.serializeAttachment?.(h);
-    const ostatni = [...this.hraci.values()].map(({ id, jmeno, barva }) => ({ id, jmeno, barva }));
+    const ostatni = [...this.hraci.values()].map(({ id, jmeno, barva, auto }) => ({ id, jmeno, barva, auto }));
     this.hraci.set(ws, { ...h, stav: null, t: 0, okno: 0, n: 0 });
     this.posli(ws, JSON.stringify({ t: 'ahoj', ...h, hraci: ostatni }));
     this.vsem(JSON.stringify({ t: 'novy', ...h }), ws);
@@ -50,11 +50,22 @@ export class Mistnost {
     const ted = Date.now(), okno = Math.floor(ted / 1000);
     if (okno !== h.okno) { h.okno = okno; h.n = 0; }
     if (++h.n > LIMIT_ZPRAV) { if (h.n > 3 * LIMIT_ZPRAV) ws.close(1008, 'Příliš mnoho zpráv.'); return; }
-    if (typeof msg === 'string') return;  // text od hráčů zatím nic neznamená (žádný chat)
+    if (typeof msg === 'string') { this.text(ws, h, msg); return; }
     const s = dekodujStav(msg);
     if (!s) return;
     h.stav = s; h.t = ted;
     this.spustTik();
+  }
+  // text od hráčů: jen vzhled auta z garáže (žádný chat). Auto se ověří proti seznamu voleb a pošle ostatním.
+  text(ws, h, msg) {
+    if (msg.length > 600) return;
+    let m; try { m = JSON.parse(msg); } catch { return; }
+    if (m?.t !== 'auto') return;
+    const a = platneAuto(m.a);
+    if (!a) return;
+    h.auto = a;
+    ws.serializeAttachment?.({ id: h.id, jmeno: h.jmeno, barva: h.barva, auto: a });
+    this.vsem(JSON.stringify({ t: 'auto', id: h.id, a }), ws);
   }
   webSocketClose(ws) { this.odeber(ws); }
   webSocketError(ws) { this.odeber(ws); }

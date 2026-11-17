@@ -177,16 +177,23 @@ Turnstile přes `TURNSTILE_SECRET`, ale formulář v mapě zatím token neposíl
 
 ## Multiplayer ve 3D jízdě (volitelné)
 
-Kdo zrovna jezdí po městě ve 3D, vidí ostatní: postavu nebo auto v barvě hráče se jménem nad hlavou a tečky na
-minimapě i velké mapě (M). Jména a barvy přiděluje server, třeba „Toulavý bobr“. Chat ani vlastní přezdívky zatím
-nejsou, takže není co moderovat. Duchové s ničím nekolidují. V menu (sekce Hra) jde multiplayer vypnout.
+Kdo zrovna jezdí po městě ve 3D, vidí ostatní: postavu nebo jejich auto se jménem nad hlavou a tečky na minimapě
+i velké mapě (M). Jména a barvy přiděluje server, třeba „Toulavý bobr“. Chat ani vlastní přezdívky zatím nejsou, takže
+není co moderovat. Duchové s ničím nekolidují. V menu (sekce Hra) jde multiplayer vypnout.
+
+Auto si každý postaví v menu **Moje auto** (garáž): karoserie (hatchback, sedan, kombi, SUV, pick-up, sporťák,
+dodávka), barva laku a doplňků, vzor (pruhy, boční pruh, barevná střecha, dvoubarevné), kola, výška podvozku
+a doplňky (spoiler, střešní box, světelná rampa, dvojitý výfuk). Auto se pamatuje v prohlížeči a funguje i bez
+multiplayeru; ve hře s ostatními ho všichni vidí stejně (server pustí dál jen hodnoty ze seznamu voleb).
 
 Potřebuje malý server s trvalými WebSockety: `multiplayer/worker.js` pro Cloudflare Workers s Durable Object (stačí
 bezplatný tarif). Jeden server zvládne víc měst, každé má svou místnost `/mistnost/<město>`.
 
-1. V `multiplayer/wrangler.jsonc` vyplňte `POVOLENE_ORIGINY` adresou mapy (např. `"https://izomapa-rakovnik.pages.dev"`,
-   víc adres oddělte čárkou). Bez toho se připojí jakýkoli web.
-2. `npx wrangler deploy --config multiplayer/wrangler.jsonc` (vypíše adresu `https://izomapa-mp.<účet>.workers.dev`).
+1. `npx wrangler deploy --config multiplayer/wrangler.jsonc` (vypíše adresu `https://izomapa-mp.<subdoména>.workers.dev`;
+   subdoména účtu je v dashboardu Workers, výchozí bývá odvozená z e-mailu, takže ji před zveřejněním můžete přejmenovat).
+2. `npx wrangler secret put POVOLENE_ORIGINY --config multiplayer/wrangler.jsonc` a zadejte adresu mapy
+   (např. `https://izomapa-rakovnik.pages.dev`, víc adres oddělte čárkou). Přežije další nasazení. Bez ní se připojí
+   jakýkoli web.
 3. V `mesto.json` nastavte `"multiplayer": "wss://izomapa-mp.<účet>.workers.dev/mistnost/<město>"` (malá písmena bez
    diakritiky) a spusťte `python nastroje/jizda.py --stranka`, pak nahrajte `site/`.
 
