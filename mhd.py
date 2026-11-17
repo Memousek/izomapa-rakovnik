@@ -48,9 +48,10 @@ if 'shapes.txt' in zf.namelist():
         shapes.append([[round(a, 1), round(b, 1)] for a, b in shapely.simplify(l, 1.0).coords])
     trips = [t for t in trips if t['shape_id'] in SI]
 TI = {t['trip_id'] for t in trips}
-st = {}
+st, PRUJ = {}, set()                                     # PRUJ: (spoj, pořadí) průjezdů bez nástupu i výstupu (provozní body na trati)
 for r in T('stop_times'):
     if r['trip_id'] not in TI: continue
+    if r.get('pickup_type') == '1' and r.get('drop_off_type') == '1': PRUJ.add((r['trip_id'], int(r['stop_sequence'])))
     ta = r.get('arrival_time') or r.get('departure_time')
     td = r.get('departure_time') or ta
     st.setdefault(r['trip_id'], []).append((int(r['stop_sequence']), sec(ta) if ta else None, sec(td) if td else None, float(r.get('shape_dist_traveled') or 0), r['stop_id']))
@@ -90,7 +91,7 @@ names, NI = [], {}
 def nid(n):
     if n not in NI: NI[n] = len(names); names.append(n)
     return NI[n]
-out = []
+out, TID = [], {}
 # vlaky z celostátního jízdního řádu (nastroje/vlaky_vyber.py a nastroje/vlaky.py), hodí se, když GTFS vlaky nemá; druh vozidla určuje volba "vlak"
 if MESTO.get('vlak') and os.path.exists('build/vlaky/vlaky_mhd.json'):
     _v = json.load(open('build/vlaky/vlaky_mhd.json', encoding='utf-8'))
@@ -105,29 +106,35 @@ for t in trips:
     if len(s) < 2 or t['shape_id'] not in SI: continue
     L, gl = SLEN[t['shape_id']]; k = L / gl                     # vzdálenost z jízdního řádu -> délka trasy v mapě
     t0 = s[0][1]; seq = []; zs = []
-    for j, (_, a, d, dist, nm) in enumerate(s):
-        if 0 < j < len(s) - 1 and d == a:                    # jízdní řád je po minutách: v zastávce stát ~20 s kolem času odjezdu
+    for j, (sq, a, d, dist, nm) in enumerate(s):
+        pruj = (t['trip_id'], sq) in PRUJ                       # průjezd: nestát, nevypisovat jako zastávku
+        if 0 < j < len(s) - 1 and d == a and not pruj:       # jízdní řád je po minutách: v zastávce stát ~20 s kolem času odjezdu
             gap = min(a - s[j - 1][2], s[j + 1][1] - d)
             w = min(10, gap // 4)
             a, d = a - w, d + w
         seq += [a - t0, round(dist * k)]
         if d > a: seq += [d - t0, round(dist * k)]              # pobyt v zastávce
-        zs += [nid(nm), a - t0]
+        if not pruj: zs += [nid(nm), a - t0]
     out.append([RI[t['route_id']], SI[t['shape_id']], t['service_id'], t0, seq, nid(t['trip_headsign'] or s[-1][4]), zs])
+    TID[id(out[-1])] = t['trip_id']                            # spárování s polohami vozidel v reálném čase (GTFS-RT)
 # čekání na konečné (q[7] = s do odjezdu, kdy vůz už stojí na první zastávce): GTFS čekání nezná, spoj začíná až odjezdem
 print('spojů s čekáním na konečné', cekani_na_konecne(out, lambda q: routes[q[0]][1]))
+# vlak bez spárovaného příjezdu (přijel jako jiná linka nebo služba) stojí v počáteční stanici přistavený 15 min před odjezdem
+_vl = [q for q in out if routes[q[0]][1] == 2 and not q[7]]
+for q in _vl: q[7] = 900
+print('vlaků přistavených předem bez příjezdu', len(_vl))
 out.sort(key=lambda q: q[3])
-# zastávky na mapě (prohlížeč z nich po kliknutí ukáže odjezdy, hledání je najde): [jméno, x, y, druh 0 tramvaj / 3 autobus]
+# zastávky na mapě (prohlížeč z nich po kliknutí ukáže odjezdy, hledání je najde): [jméno, x, y, druh 0 tramvaj / 3 autobus / 2 jen vlak]
+# i železniční stanice (když jsou v mapě vlaky): odjezdy vlaků, popisky zastávek sledovaného vlaku
 _obsl = {}
 for q in out:
-    if routes[q[0]][1] == 2: continue
     for i in range(0, len(q[6]), 2): _obsl.setdefault(q[6][i], set()).add(routes[q[0]][1])
 stops = []
 for sid, (x, y) in SXY.items():
     n_ = NI.get(SN.get(sid))
     if n_ is None or n_ not in _obsl or not AREA.contains(shapely.Point(x, y)): continue
     if any(q[0] == n_ and abs(q[1] - x) < 6 and abs(q[2] - y) < 6 for q in stops): continue   # stejné místo vícekrát (nástupiště, stanice)
-    stops.append([n_, round(x, 1), round(y, 1), 0 if 0 in _obsl[n_] else 3])
+    stops.append([n_, round(x, 1), round(y, 1), 0 if 0 in _obsl[n_] else 3 if 3 in _obsl[n_] else 2])
 print('zastávek na mapě', len(stops))
 # odstav na konečné: kolej za zastávkou končí slepě (do 160 m), tramvaj čeká vzadu na konci koleje, ne na nástupišti
 # {tvar: [[[x, y], …] od zastávky po konec koleje, …]}, nejvýš dvě koleje, ať se vozy můžou vystřídat
@@ -165,6 +172,6 @@ for _sh in sorted({q[1] for q in out if routes[q[0]][1] == 0 and len(q) > 7 and 
         if len(_vyber) == 2: break
     if _vyber: odstav[str(_sh)] = [[[round(float(_a), 1), round(float(_b), 1)] for _a, _b in _o] for _o in _vyber]
 print('tvarů s odstavem na konečné', len(odstav))
-json.dump({'routes': routes, 'shapes': shapes, 'services': services, 'trips': out, 'names': names, 'odstav': odstav, 'stops': stops,
+json.dump({'routes': routes, 'shapes': shapes, 'services': services, 'trips': out, 'tid': [TID.get(id(q), '') for q in out], 'names': names, 'odstav': odstav, 'stops': stops,
            'feed': next(iter(T('feed_info')), {}).get('feed_version', '') if 'feed_info.txt' in zf.namelist() else time.strftime('%Y-%m-%d', time.localtime(os.path.getmtime(Z)))}, open('site/mhd.json', 'w', encoding='utf-8'), separators=(',', ':'), ensure_ascii=False)
 print('linek', len(routes), 'tras', len(shapes), 'spojů', len(out), 'kB', os.path.getsize('site/mhd.json') // 1000)

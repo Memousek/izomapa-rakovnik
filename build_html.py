@@ -1,6 +1,6 @@
 """Z web/app.html a mesto.json vyrobí site/index.html (texty, meta, sitemap).
 Pokud existuje složka obce/*.json, vyrobí pro každou obec i site/index_<obec>.html a site/obce/<obec>/og.jpg."""
-import html, json, os, re
+import html, json, os, re, shutil
 from urllib.parse import urljoin
 from PIL import Image
 import geo
@@ -74,6 +74,9 @@ def postav_stranku(M, html_out='site/index.html', og_cesta='og.jpg', je_obec=Fal
         'VITR': 'true' if M.get('vitr') else 'false',
         'POCASI': 'true' if M.get('pocasi') else 'false',
         'LETADLA': 'true' if M.get('letadla', False) else 'false',
+        'JIZDA': 'true' if M.get('jizda') else 'false',
+        'TRASY': 'true' if os.path.exists('assets/trasy.json') else 'false',
+        'HISTORIE': 'true' if M.get('historie') else 'false',   # srovnání s leteckým snímkem z 50. let (site/srovnani.html)   # značené trasy z OSM (nastroje/trasy.py)          # 3D jízda (nastroje/jizda.py -> site/jizda.html)
         'POHLED': json.dumps(pohled if isinstance(pohled, list) and len(pohled) >= 2 else None),
         'DOMU_CELEK': 'true' if M.get('domu_celek') else 'false',
         'STROM': json.dumps(strom if isinstance(strom, list) and len(strom) == 2 else None),
@@ -83,8 +86,9 @@ def postav_stranku(M, html_out='site/index.html', og_cesta='og.jpg', je_obec=Fal
         'RUIAN_ZDROJ': ', typy budov z RÚIAN' if os.path.exists('assets/ruian_budovy.json') else '',
         'VITR_ZDROJ': ', ' + ('počasí a vítr' if M.get('pocasi') and M.get('vitr') else 'počasí' if M.get('pocasi') else 'vítr') + ' © <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (CC BY 4.0)' if M.get('vitr') or M.get('pocasi') else '',
         'LETADLA_ZDROJ': ', letadla © <a href="https://adsb.lol/" target="_blank" rel="noopener">adsb.lol</a> (ODbL)' if M.get('letadla', False) else '',
-        'MHD_ZDROJ': f', jízdní řády MHD © <a href="{E(mhd["zdroj_url"])}" target="_blank" rel="noopener">{E(mhd["zdroj"])}</a>'
+        'MHD_ZDROJ': f', jízdní řády MHD{" a polohy vozidel" if mhd.get("realtime") else ""} © <a href="{E(mhd["zdroj_url"])}" target="_blank" rel="noopener">{E(mhd["zdroj"])}</a>'
                      if mhd.get('gtfs') and mhd.get('zdroj') else '',
+        'MHD_RT': json.dumps(mhd.get('realtime') if mhd.get('gtfs') else None),    # GTFS-RT vehicle_positions (functions/api/mhd.js)
     }
     app = re.sub(r'\{\{(\w+)\}\}', lambda m: fill[m.group(1)], SABLONA)
     og = f'''<meta property="og:image" content="{E(obrazek_url)}">
@@ -130,6 +134,28 @@ def postav_stranku(M, html_out='site/index.html', og_cesta='og.jpg', je_obec=Fal
 ikony_a_manifest(MESTO)
 postav_stranku(MESTO)
 SITE_URL = (MESTO.get('url') or '').rstrip('/')
+if os.path.exists('assets/trasy.json'): shutil.copy('assets/trasy.json', 'site/trasy.json')   # vrstva tras v prohlížeči
+
+
+def srovnani():
+    """site/srovnani.html: historická ortofotomapa z 50. let (CENIA, CC BY 4.0) proti dnešnímu ortofotu ČÚZK.
+    Obě služby vydávají S-JTSK (EPSG:5514); prohlížeč přepočítává lat/lon afinně, koeficienty se tu napasují na území mapy."""
+    import numpy as np
+    from pyproj import Transformer
+    lo0, lo1, la0, la1 = geo.bbox_lonlat(2000)
+    lon, lat = np.meshgrid(np.linspace(lo0, lo1, 12), np.linspace(la0, la1, 12)); lon, lat = lon.ravel(), lat.ravel()
+    X, Y = Transformer.from_crs(4326, 5514, always_xy=True).transform(lon, lat)
+    M_ = np.c_[lon, lat, np.ones_like(lon)]
+    a = np.linalg.lstsq(M_, X, rcond=None)[0]; d = np.linalg.lstsq(M_, Y, rcond=None)[0]
+    chyba = float(np.max(np.hypot(M_ @ a - X, M_ @ d - Y)))
+    stred = geo.to_lonlat(0.0, 0.0)
+    t = (open('web/srovnani.html', encoding='utf-8').read().replace('{{MESTO}}', html.escape(MESTO['nazev'])).replace('{{TITULEK}}', html.escape(MESTO['titulek']))
+         .replace('{{SJTSK}}', json.dumps([round(float(v), 4) for v in (*a, *d)])).replace('{{STRED}}', json.dumps([round(float(stred[1]), 6), round(float(stred[0]), 6)])))
+    open('site/srovnani.html', 'w', encoding='utf-8').write(t)
+    print('site/srovnani.html', f'(afinní S-JTSK, chyba do {chyba:.1f} m)')
+
+
+if MESTO.get('historie'): srovnani()
 open('site/robots.txt', 'w').write('User-agent: *\nAllow: /\n' + (f'Sitemap: {SITE_URL}/sitemap.xml\n' if SITE_URL else ''))
 if SITE_URL:
     open('site/sitemap.xml', 'w').write(f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>{SITE_URL}/</loc></url></urlset>\n')

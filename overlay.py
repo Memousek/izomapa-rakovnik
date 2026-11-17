@@ -171,14 +171,14 @@ for chunk in chunks:
             'lon': b['lon'], 'lat': b['lat'], 'k': K,
         }.items() if v not in (None, [], '')})
 
-    chimneys += [list(px(x, y, z)[:2]) + [f'{K}:{bid}'] for x, y, z, bid in src['chimneys']]
+    chimneys += [list(px(x, y, z)[:2]) + [f'{K}:{bid}'] + list(e) for x, y, z, bid, *e in src['chimneys']]   # u velkých komínů navíc výška a stálý kouř
 
     # silnice pro animovanou dopravu (pixely obrázku + svět kvůli směru)
     for r in src['roads']:
         p = r['p']
         if len(p) < 2: continue
         roads.append({'c': r['c'], 'k': K, 'p': [list(px(x, y, z)) for x, y, z in p], 'w': [[x + OFF[0], y + OFF[1], round(z, 1)] for x, y, z in p],   # z: auto na mostovce jede ve výšce mostovky
-                       **({'o': r['o']} if r.get('o') else {}), **({'l': r['l']} if r.get('l') else {}), **({'v': r['v']} if r.get('v') else {}), **({'t': r['t']} if r.get('t') else {}), **({'x': 1} if r.get('x') else {}), **({'j': [[q[0], q[1] + OFF[0], q[2] + OFF[1]] for q in r['j']]} if r.get('j') else {}),
+                       **({'o': r['o']} if r.get('o') else {}), **({'l': r['l']} if r.get('l') else {}), **({'v': r['v']} if r.get('v') else {}), **({'t': r['t']} if r.get('t') else {}), **({'x': 1} if r.get('x') else {}), **({'j': [[q[0], q[1] + OFF[0], q[2] + OFF[1]] for q in r['j']]} if r.get('j') else {}), **({'sg': [[q[0], q[1] + OFF[0], q[2] + OFF[1], *q[3:]] for q in r['sg']]} if r.get('sg') else {}),
                        **({'rb': [r['rb'][0] + OFF[0], r['rb'][1] + OFF[1], r['rb'][2]]} if r.get('rb') else {}), **({'y': [[q[0], q[1] + OFF[0], q[2] + OFF[1], q[3]] for q in r['y']]} if r.get('y') else {})})
 
     gs = np.array(src['ground_small'])[::2, ::2]     # 41 × 41 stačí na dopravu a klikání

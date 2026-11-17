@@ -24,5 +24,6 @@ python overlay.py
 python mhd.py || true                                         # jízdní řády jen když je v mesto.json mhd.gtfs
 python set_status.py hotovo
 python build_html.py
+if python -c "import geo, sys; sys.exit(0 if geo.MESTO.get('jizda') else 1)"; then python nastroje/jizda.py; fi   # 3D jízda ("jizda": true v mesto.json)
 echo "Hotovo. Náhled: npm run nahled  a otevři http://localhost:8000"
 echo "Izomapa je zdarma. Jestli ti ušetřila práci, kup autorovi kafe: https://donate.stripe.com/7sY7sE41Qg0C0DP5TY8g001 ☕"
