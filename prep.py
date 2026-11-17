@@ -339,7 +339,8 @@ parkings = []
 for _, r in inf.iterrows():
     if r['class'] == 'parking' and r.geom.geom_type in ('Polygon', 'MultiPolygon'):
         fill(r.geom, C['parking'], block=True)
-        parkings += [(r.id, p) for p in polys(r.geom.intersection(AREA))]
+        tg = dict(r.source_tags) if r.get('source_tags') is not None else {}
+        parkings += [(r.id, p, tg) for p in polys(r.geom.intersection(AREA))]
 for _, r in inf.iterrows():                             # autobusové nádraží: asfalt bez stání, nástupiště dlážděná
     if r['class'] == 'bus_station' and r.geom.geom_type in ('Polygon', 'MultiPolygon'): fill(r.geom, C['parking'], block=True)
 for _, r in inf.iterrows():
@@ -707,8 +708,19 @@ for _, r in inf.iterrows():
         cd.polygon(P(corners), fill=C['marking'])
         k += 1.0
 
-# parkovací stání + zaparkovaná auta: kolmo k uličkám, z obou stran (plocha bez uliček v datech podle obdélníku)
+# parkovací stání + zaparkovaná auta podle OSM (parking=surface|street_side|lane|…, orientation=parallel|perpendicular|diagonal):
+#  - patrové, podzemní a střešní parkoviště, přístřešky a garáže: na zemi žádná auta (jen plocha)
+#  - stání u ulice (street_side, lane, on_kerb, half_on_kerb, nebo úzký dlouhý pruh): jedna řada, zajíždí se ze silnice;
+#    lane/kerb a úzké pruhy podélně, jinak podle orientation (kolmo / šikmo 60°)
+#  - plošné parkoviště: kolmo k zmapovaným uličkám, z obou stran; bez uliček vzor řada 5 m – ulička 6 m – řada 5 m
+#    (řady zády k sobě), stání jen tam, kde se celé vejde do plochy a nezasahuje do vozovky
 cars = []
+drive_cover = shapely.prepared.prep(shapely.unary_union([l.buffer(w / 2 + 0.2) for l, w, c, n in drive_lines]) or Point(1e9, 1e9).buffer(1))
+STREET_PK = {'street_side', 'lane', 'on_kerb', 'half_on_kerb', 'on_street', 'street'}
+def stall(cx, cy, ang, ln=4.8, wd=2.4):
+    """obdélník stání: ang = směr podélné osy auta"""
+    ca, sa = math.cos(ang), math.sin(ang)
+    return Polygon([(cx + ca * dl * ln / 2 - sa * dw * wd / 2, cy + sa * dl * ln / 2 + ca * dw * wd / 2) for dl, dw in ((-1, -1), (1, -1), (1, 1), (-1, 1))])
 _aisles = [l for _, g, c, _w, _n in roads if c == 'service' for l in lines(g)]
 _aisle_tree = shapely.STRtree(_aisles) if _aisles else None
 _stani = {}                                     # středy stání v mřížce 3 m: sousední uličky a plochy se nepřekryjí
@@ -720,9 +732,39 @@ def _stani_volne(x, y):
                 if (q_[0] - x) ** 2 + (q_[1] - y) ** 2 < 4.0: return False
     _stani.setdefault((kx, ky), []).append((x, y))
     return True
-for pid, p in parkings:
-    if p.area < 120: continue
+for pid, p, tg in parkings:
+    pk, ori = tg.get('parking', ''), tg.get('orientation', '')
+    if pk in ('multi-storey', 'underground', 'rooftop', 'carports', 'garage_boxes'): continue
+    if p.area < 25: continue
     crng = random.Random(f'{pid}{wkey(p.centroid.x, p.centroid.y)}')
+    o = p.minimum_rotated_rectangle
+    oc = [np.array(c) for c in list(o.exterior.coords)[:4]]
+    e1, e2 = oc[1] - oc[0], oc[3] - oc[0]
+    if np.linalg.norm(e1) < np.linalg.norm(e2): e1, e2 = e2, e1; oc = [oc[0], oc[3], oc[2], oc[1]]
+    L, W = float(np.linalg.norm(e1)), float(np.linalg.norm(e2))
+    if L < 3 or W < 1: continue
+    u, v = e1 / L, e2 / W
+    au, av = math.atan2(u[1], u[0]), math.atan2(v[1], v[0])
+    if pk in STREET_PK or (not pk and W < 7 and L > 3 * W):
+        # ---- stání podél ulice: jedna řada ----
+        loose = shapely.prepared.prep(p.buffer(0.6))
+        if ori == 'parallel' or (not ori and (pk in ('lane', 'on_kerb', 'half_on_kerb') or W < 4.0)): mode = 'par'
+        elif ori == 'diagonal': mode = 'diag'
+        else: mode = 'perp' if W >= 4.0 else 'par'
+        step = {'par': 6.0, 'perp': 2.5, 'diag': 3.0}[mode]
+        ang = {'par': au, 'perp': av, 'diag': au + math.radians(60)}[mode]
+        s_ = step / 2
+        while s_ < L - step / 2 + 1e-6:
+            c = oc[0] + u * s_ + v * W / 2
+            if loose.contains(stall(c[0], c[1], ang, 4.4 if mode == 'par' else 4.2, 1.8)):
+                if mode != 'par':
+                    a = oc[0] + u * (s_ - step / 2); b = a + v * W
+                    if loose.contains(Point(*a)) and loose.contains(Point(*b)): cd.line(P([tuple(a), tuple(b)]), fill=C['marking'], width=1)
+                if crng.random() < 0.62:                    # stání v pruhu smí ležet na okraji vozovky
+                    cars.append([float(c[0]), float(c[1]), ang, crng.randrange(8)])
+            s_ += step
+        continue
+    if p.area < 120: continue
     _ais = []
     if _aisle_tree is not None:
         _p05 = p.buffer(0.5)
@@ -747,24 +789,27 @@ for pid, p in parkings:
                     if crng.random() < 0.58: cars.append([_pc.x, _pc.y, math.atan2(_ny, _nx), crng.randrange(8)])
                 _s += 2.5
         continue
-    o = p.minimum_rotated_rectangle
-    oc = [np.array(c) for c in list(o.exterior.coords)[:4]]
-    e1, e2 = oc[1] - oc[0], oc[3] - oc[0]
-    if np.linalg.norm(e1) < np.linalg.norm(e2): e1, e2 = e2, e1; oc = [oc[0], oc[3], oc[2], oc[1]]
-    L, W = np.linalg.norm(e1), np.linalg.norm(e2)
-    u, v = e1 / L, e2 / W
-    rows = [(0, 5)] if W < 11 else [(0, 5), (W - 5, W)]
-    if W >= 22: rows += [(W / 2 - 5, W / 2), (W / 2, W / 2 + 5)]
-    pp = shapely.prepared.prep(p.buffer(-0.3))
-    for r0, r1 in rows:
-        s = 0.5
-        while s + 2.5 < L:
-            a = oc[0] + u * s + v * r0; b = oc[0] + u * s + v * r1
-            if pp.contains(Point(*a)) and pp.contains(Point(*b)):
-                cd.line(P([tuple(a), tuple(b)]), fill=C['marking'], width=1)
-            c = oc[0] + u * (s + 1.25) + v * (r0 + r1) / 2
-            if pp.contains(Point(*c)) and crng.random() < 0.58:
-                cars.append([float(c[0]), float(c[1]), math.atan2(v[1], v[0]), crng.randrange(8)])
+    # bez uliček: pásy řad napříč kratší osou (řada 5 m – ulička 6 m – řada 5 m), stání celé v ploše a mimo vozovku
+    inner = shapely.prepared.prep(p.buffer(0.3))
+    if W < 6.5: bands = [(W / 2 - 2.5, W / 2 + 2.5)]
+    else:
+        bands, pos = [], 0.0
+        while True:
+            bands.append((pos, pos + 5)); pos += 5 + 6
+            if pos + 5 <= W + 0.3: bands.append((pos, pos + 5)); pos += 5
+            if pos + 11 > W + 0.3: break
+        sh = max(0.0, (W - max(b for a, b in bands)) / 2)
+        bands = [(a + sh, b + sh) for a, b in bands]
+    for r0, r1 in bands:
+        s = 1.25
+        while s < L - 1.2:
+            c = oc[0] + u * s + v * (r0 + r1) / 2
+            st_ = stall(c[0], c[1], av)
+            if inner.contains(st_) and not drive_cover.intersects(st_) and _stani_volne(c[0], c[1]):
+                ca, sa = math.cos(av), math.sin(av)
+                for dw in (-1.25, 1.25):                          # čáry po stranách stání
+                    cd.line(P([(c[0] - ca * 2.4 - sa * dw, c[1] - sa * 2.4 + ca * dw), (c[0] + ca * 2.4 - sa * dw, c[1] + sa * 2.4 + ca * dw)]), fill=C['marking'], width=1)
+                if crng.random() < 0.58: cars.append([float(c[0]), float(c[1]), av, crng.randrange(8)])
             s += 2.5
 # auta podél ulic (ne na kolejích u přejezdu)
 _rail_park = shapely.STRtree([l for _, g, c, _w, _n in roads if c == 'rail' for l in lines(g)] or [Point(1e9, 1e9)])
