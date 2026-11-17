@@ -11,7 +11,9 @@ export function vytvorLidi(THREE, scene, api) {
   const VLASY = [0x1c1410, 0x3a2616, 0x6b4a2a, 0xa5793a, 0xd2b36a, 0x8a8a8a, 0x5a2a1a];
   const TRIKA = [0xc83a3a, 0x2f5fa8, 0x3c8a4c, 0xe0b13a, 0xf0f0f0, 0x1f1f24, 0x8a4aa0, 0xe07a2a, 0x4aa8b0, 0x7a7a82, 0xd86a8a, 0x5a6a3a];
   const KALHOTY = [0x23314f, 0x1f1f24, 0x4a4a52, 0x6a5a3a, 0x2a3f6a, 0x8a8a92, 0x3a2f28];
-  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  // náhoda chodce z jeho semínka (p.sd, api.nah = jizda/doprava.js): vzhled a rozhodování jdou zopakovat z jednoho čísla
+  const N = api.nah, pick = (p, a) => a[Math.floor(N(p) * a.length)];
+  let pocet = 0;
   // pouliční režim: typ 0 běžný chodec, 1 výtržník (tepláky), 2 opilec, 3 policista, 4 naštvaný řidič
   const VZHLED = {
     1: { trika: [0x1a1a1e, 0x23314f, 0x2a2a2e], kalh: [0x1a1a1e, 0x2a2a2e], vlasy: [0x111111, 0x2a2a2a] },
@@ -150,29 +152,30 @@ export function vytvorLidi(THREE, scene, api) {
       if (mesto(r)) blizko.push(r);
     }
   }
-  function ofsRoad(r) { return (BOK[r.c] || 4.5) * (Math.random() < 0.5 ? 1 : -1) + (Math.random() - 0.5) * 0.6; }
+  function ofsRoad(r, u = Math.random) { return (BOK[r.c] || 4.5) * (u() < 0.5 ? 1 : -1) + (u() - 0.5) * 0.6; }
 
   function novy() {
     const p = volni.pop() || { tr: null };
     p.mrtvy = false; p.mod = 0; p.cx = 0; p.cy = 0;
     p.ex = 0; p.ey = 0; p.blok = 0; p.bloky = 0; p.hint = 1; p.stop = -1;
-    p.faze = Math.random() * 6.28; p.bob = 0;
-    const kid = Math.random() < (skolniCas() ? 0.3 : 0.08);
-    p.sc = kid ? 0.62 + Math.random() * 0.18 : 0.95 + Math.random() * 0.13;
+    p.uid = 'p' + (++pocet); p.sd = (Math.random() * 4294967296) >>> 0;   // jediné místo, kde do chodce vstupuje Math.random
+    p.faze = N(p) * 6.28; p.bob = 0;
+    const kid = N(p) < (skolniCas() ? 0.3 : 0.08);
+    p.sc = kid ? 0.62 + N(p) * 0.18 : 0.95 + N(p) * 0.13;
     p.hl = kid ? 1.25 : 1;
-    p.v = (1.1 + Math.random() * 0.5) * (kid ? 0.9 : 1);
-    p.cKoze = pick(KOZE); p.cVlasy = pick(VLASY); p.cTrika = pick(TRIKA); p.cKalh = pick(KALHOTY);
+    p.v = (1.1 + N(p) * 0.5) * (kid ? 0.9 : 1);
+    p.cKoze = pick(p, KOZE); p.cVlasy = pick(p, VLASY); p.cTrika = pick(p, TRIKA); p.cKalh = pick(p, KALHOTY);
     p.typ = 0; p.stav = null; p.hp = HP[0]; p.lezi = 0; p.utok = 0; p.uder = 0; p.vf = 0; p.vytrv = 0; p._tr = null; p._prech = null; p._pbT = 0; p._nej = undefined; p._zas = 0; p._pruchod = 0;
-    p.pes = !kid && Math.random() < 0.07; p.tel = !kid && Math.random() < 0.12; p.destnik = Math.random() < 0.75;
-    p.cDest = pick(DESTNIKY); p.cPes = pick(PSI); p.lav = null; p.sedi = false;
+    p.pes = !kid && N(p) < 0.07; p.tel = !kid && N(p) < 0.12; p.destnik = N(p) < 0.75;
+    p.cDest = pick(p, DESTNIKY); p.cPes = pick(p, PSI); p.lav = null; p.sedi = false;
     return p;
   }
   function nastavTyp(p, typ) {
     p.typ = typ; p.hp = HP[typ];
     const v = VZHLED[typ];
-    if (v) { p.cTrika = pick(v.trika); p.cKalh = pick(v.kalh); p.cVlasy = pick(v.vlasy); }
+    if (v) { p.cTrika = pick(p, v.trika); p.cKalh = pick(p, v.kalh); p.cVlasy = pick(p, v.vlasy); }
     if (typ === 2) p.cKoze = 0xe0a088;                       // opilec: zarudlý obličej
-    if (typ === 3 || typ === 1) { p.sc = 1.02 + Math.random() * 0.08; p.hl = 1; }
+    if (typ === 3 || typ === 1) { p.sc = 1.02 + N(p) * 0.08; p.hl = 1; }
   }
   function pridej(p) { lide.push(p); barvy(lide.length - 1, p); }
 
@@ -186,10 +189,10 @@ export function vytvorLidi(THREE, scene, api) {
     const d = Math.hypot(x - hr.x, y - hr.y);
     if (d < MIN_SPAWN || d > DOSAH || api.hitBuilding(x, y, 0.4)) return false;
     const p = novy();
-    p.tr = t; p.s = s; p.dir = Math.random() < 0.5 ? 1 : -1; p.ofs = p.ofsT = ofs; p.hint = o.i;
+    p.tr = t; p.s = s; p.dir = N(p) < 0.5 ? 1 : -1; p.ofs = p.ofsT = ofs; p.hint = o.i;
     p.x = x; p.y = y; p.z = o.z; p.h = Math.atan2(o.dy * p.dir, o.dx * p.dir);
     if (boj() && p.sc > 0.9) {                               // pouliční režim: v noci víc výtržníků a opilců
-      const r = Math.random(), noc = api.doba() > 0.6, sance = noc ? 0.22 : 0.08;
+      const r = N(p), noc = api.doba() > 0.6, sance = noc ? 0.22 : 0.08;
       if (r < sance) nastavTyp(p, r < sance * 0.55 ? 1 : 2);
     }
     pridej(p); return true;
@@ -204,7 +207,7 @@ export function vytvorLidi(THREE, scene, api) {
     }
     const p = novy();
     nastavTyp(p, typ);
-    p.tr = null; p.mod = 3; p.x = x; p.y = y; p.z = api.gz(x, y); p.h = Math.random() * 6.28;
+    p.tr = null; p.mod = 3; p.x = x; p.y = y; p.z = api.gz(x, y); p.h = N(p) * 6.28;
     p.stav = stav || 'utoci'; p.vytrv = 40;
     pridej(p); return p;
   }
@@ -221,10 +224,10 @@ export function vytvorLidi(THREE, scene, api) {
     p.hp -= sila; p.uder = 0;
     const ox = ux * 0.7, oy = uy * 0.7;
     if (!api.hitBuilding(p.x + ox, p.y + oy, 0.3)) { p.x += ox; p.y += oy; }
-    if (p.hp <= 0) { p.stav = 'lezi'; p.lezi = 14 + Math.random() * 12; p.h = Math.atan2(-uy, -ux); return 'ko'; }
+    if (p.hp <= 0) { p.stav = 'lezi'; p.lezi = 14 + N(p) * 12; p.h = Math.atan2(-uy, -ux); return 'ko'; }
     if (p.typ === 3) p.stav = 'honi';
     else if (p.typ) p.stav = 'utoci';
-    else p.stav = Math.random() < 0.35 ? 'utoci' : 'utika';
+    else p.stav = N(p) < 0.35 ? 'utoci' : 'utika';
     p.vytrv = 30;
     return 'zasah';
   }
@@ -232,14 +235,14 @@ export function vytvorLidi(THREE, scene, api) {
     uvolni(p);
     const k = Math.min(6, 1 + v * 0.25);
     for (let f = k; f > 0.3; f *= 0.5) if (!api.hitBuilding(p.x + ux * f, p.y + uy * f, 0.3)) { p.x += ux * f; p.y += uy * f; break; }
-    p.hp = 0; p.stav = 'lezi'; p.lezi = 18 + Math.random() * 15; p.h = Math.atan2(uy, ux);
+    p.hp = 0; p.stav = 'lezi'; p.lezi = 18 + N(p) * 15; p.h = Math.atan2(uy, ux);
   }
   function panika(x, y, r) {                                 // běžní lidé kolem utečou
     let n = 0;
     for (const p of lide) {
       if (p.typ || p.stav || Math.hypot(p.x - x, p.y - y) > r) continue;
       n++;
-      if (Math.random() < 0.75) { uvolni(p); p.stav = 'utika'; p.vytrv = 20; }
+      if (N(p) < 0.75) { uvolni(p); p.stav = 'utika'; p.vytrv = 20; }
     }
     return n;
   }
@@ -287,7 +290,7 @@ export function vytvorLidi(THREE, scene, api) {
       if (p.stav === 'utoci' && (d > 45 || p.vytrv < 0) && !(B && B.drzi && B.drzi(p))) { p.stav = 'utika'; p.vytrv = 10; }
       if (d < dosah) {
         v = 0; p.utok -= dt;
-        if (p.utok <= 0) { p.utok = p.typ === 3 ? 0.8 : 1.1 + Math.random() * 0.4; p.uder = 0.3; if (B && B.utok) B.utok(p, d); }
+        if (p.utok <= 0) { p.utok = p.typ === 3 ? 0.8 : 1.1 + N(p) * 0.4; p.uder = 0.3; if (B && B.utok) B.utok(p, d); }
       } else p.utok = Math.min(p.utok, 0.4);
     }
     if (p.typ === 2 && v > 0) { const w = Math.sin(cas * 2.3 + p.faze) * 0.6; const c = Math.cos(w), s = Math.sin(w); [ux, uy] = [ux * c - uy * s, ux * s + uy * c]; }   // opilec se motá
@@ -322,7 +325,7 @@ export function vytvorLidi(THREE, scene, api) {
       const a = Math.random() * 6.28, r = 2 + Math.random() * 2, x = z.x + Math.cos(a) * r, y = z.y + Math.sin(a) * r;
       if (Math.hypot(x - hr.x, y - hr.y) < 25 || api.hitBuilding(x, y, 0.4)) continue;
       const p = novy();
-      p.mod = 2; p.stop = k; p.tr = null; p.x = x; p.y = y; p.z = api.gz(x, y); p.h = Math.random() * 6.28; p.v = 0;
+      p.mod = 2; p.stop = k; p.tr = null; p.x = x; p.y = y; p.z = api.gz(x, y); p.h = N(p) * 6.28; p.v = 0;
       idleNaZast.set(k, ma + 1);
       pridej(p); return;
     }
@@ -340,10 +343,10 @@ export function vytvorLidi(THREE, scene, api) {
     };
     for (const u of stezkyVse) zkus(u);
     for (const r of api.roads) if (TRIDY.has(r.c) && r.L >= 12 && mesto(r)) zkus(r);
-    if (!moz.length || Math.random() < 0.12) { p.dir = -p.dir; p.s = Math.min(t.L, Math.max(0, p.s)); return; }
-    const [u, d] = moz[Math.floor(Math.random() * moz.length)];
+    if (!moz.length || N(p) < 0.12) { p.dir = -p.dir; p.s = Math.min(t.L, Math.max(0, p.s)); return; }
+    const [u, d] = moz[Math.floor(N(p) * moz.length)];
     p.tr = u; p.dir = d; p.s = d > 0 ? 0 : u.L; p.hint = d > 0 ? 1 : u.len.length - 1;
-    p.ofsT = u.foot ? (Math.random() - 0.5) * 0.8 : ofsRoad(u);
+    p.ofsT = u.foot ? (N(p) - 0.5) * 0.8 : ofsRoad(u, () => N(p));
   }
 
   const tmpAng = (a) => { while (a > Math.PI) a -= 6.2832; while (a < -Math.PI) a += 6.2832; return a; };
@@ -375,7 +378,7 @@ export function vytvorLidi(THREE, scene, api) {
       if (p.stav) { volny(p, dt); continue; }
       if (p.mod !== 2 && !p.tr) { p.mrtvy = true; continue; }   // pojistka: bez trasy a bez volného pohybu nemá kam jít
       // výtržník si hráče všimne a jde po něm (v noci a na smradlavého bezdomovce častěji)
-      if (p.typ && boj() && vzd < 14 && !hr.vAuto && Math.random() < dt * (api.boj.provokace ? api.boj.provokace(p) : 0.15)) { uvolni(p); p.stav = 'utoci'; p.vytrv = 25; volny(p, dt); continue; }
+      if (p.typ && boj() && vzd < 14 && !hr.vAuto && N(p) < dt * (api.boj.provokace ? api.boj.provokace(p) : 0.15)) { uvolni(p); p.stav = 'utoci'; p.vytrv = 25; volny(p, dt); continue; }
       let krok = 0, cil = p.h;
       if (p.mod !== 2) {
         // přecházení silnice: na přechodu pro chodce (asi každý třetí, kdo kolem jde); mimo přechod jen výjimečně,
@@ -385,10 +388,10 @@ export function vytvorLidi(THREE, scene, api) {
           let na = null;
           if (sp) for (const sx of sp) if (Math.abs(sx - p.s) < 0.9) { na = sx; break; }
           if (na !== null) {
-            if (p._prech !== na) { p._prech = na; if (Math.random() < 0.35) { p.s = na; p.mod = 1; p.ofsT = -p.ofsT; } }
+            if (p._prech !== na) { p._prech = na; if (N(p) < 0.35) { p.s = na; p.mod = 1; p.ofsT = -p.ofsT; } }
           } else {
             if (!(p._pbT > cas)) { p._pbT = cas + 3; p._pb = PR ? PR.blizko(p.x, p.y, 200) : null; }
-            if (Math.random() < dt * (p._pb === false ? 0.004 : 0.0003)) { p.mod = 1; p.ofsT = -p.ofsT; }
+            if (N(p) < dt * (p._pb === false ? 0.004 : 0.0003)) { p.mod = 1; p.ofsT = -p.ofsT; }
           }
         }
         if (p.mod === 0) {
@@ -412,7 +415,7 @@ export function vytvorLidi(THREE, scene, api) {
             p.blok = 1.2; p.bloky++;
             if (p.mod === 1) p.ofsT = -p.ofsT; else p.dir = -p.dir;
             if (p.bloky > 4) p.mrtvy = true;
-          } else if (p.bloky > 0 && Math.random() < 0.05) p.bloky--;
+          } else if (p.bloky > 0 && N(p) < 0.05) p.bloky--;
         }
         p.h += tmpAng(cil - p.h) * Math.min(1, dt * 6);
       } else {
