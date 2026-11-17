@@ -226,7 +226,7 @@ export const nactiSit = (d) => pripravSit(d);
 
 // ---------------------------------------------------------------- ruční úpravy správce (functions/api/uzavirky.js, KV)
 // klíč uzavírky: odkaz na oznámení + ulice + začátek etapy (příští etapa je jiná uzavírka, úprava na ni nepřejde)
-export const klic = (u) => `${u.url || ''}#${u.nazev || ''}#${u.od || ''}`;
+export const klic = (u) => (u.jid ? `jsdi#${u.jid}` : `${u.url || ''}#${u.nazev || ''}#${u.od || ''}`);
 const POLE = ['line', 'od', 'do', 'nazev', 'popis', 'objizdka', 'castecna', 'zdroj', 'url'];
 
 // seznam + úpravy -> [viditelné, skryté (jen pro editor)]
@@ -318,6 +318,14 @@ export async function nactiUzavirky(base, hotovo) {
     const data = await Promise.all(zdroje.map((_, i) => j(`api/uzavirky?geo=${i}`)));
     data.forEach((d, i) => { if (d && Array.isArray(d.features)) { try { geo.set('geo' + i, zGeojson(S, d, i, zdroje[i], web.map((u) => u.line), dnes)); } catch (e) { console.warn('uzavírky geojson', i, e); } } });
   }
-  const [vid, skryte] = aplikuj([...rucni, ...web, ...[...geo.values()].flat()], api.upravy || []);
+  // JSDI (ŘSD ČR – NDIC, functions/api/jsdi.js): úsek přímo ze souřadnic, má přednost; stejný úsek z webu města nebo KSÚS se vynechá
+  const jsdi = (api.jsdi || []).flatMap((z) => (z.lines || []).map((line) => ({ nazev: z.nazev, line, od: z.od, do: z.do, popis: z.popis,
+    zdroj: 'JSDI, ŘSD ČR – NDIC', auto: 1, puvod: 'jsdi', jid: z.id, ...(z.castecna ? { castecna: true } : {}) })));
+  if (jsdi.length && sd) {
+    const S = pripravSit(sd), jl = jsdi.map((u) => u.line);
+    web = web.filter((u) => !prekryva(S, u.line, jl));
+    for (const [k, l] of geo) geo.set(k, l.filter((u) => !prekryva(S, u.line, jl)));
+  }
+  const [vid, skryte] = aplikuj([...rucni, ...jsdi, ...web, ...[...geo.values()].flat()], api.upravy || []);
   hotovo(vid, { skryte, upravy: api.upravy || [], upravyZapnute: !!api.upravyZapnute, zApi: true });
 }

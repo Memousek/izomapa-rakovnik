@@ -1281,8 +1281,8 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
   function showUz(u) {
     showCard({ title: (u.castecna ? 'Částečná uzavírka: ' : 'Uzavírka: ') + (u.nazev || 'silnice'), text: u.popis, lon: u.mid.lon, lat: u.mid.lat, k: u.k,
       rows: [['Platí', (u.nyni ? '' : 'chystá se, ') + uzPlati(u)], ['Objížďka', u.objizdka], ['Zdroj', u.zdroj],
-        ['Úsek', u.uprava ? 'upravený správcem mapy' : u.auto === 'odhad' ? 'odhad (celá ulice), přesný rozsah je u zdroje' : u.puvod && u.puvod !== 'web' ? 'podle mapy zdroje' : u.auto ? 'dopočítaný automaticky z textu oznámení' : null]],
-      link: u.url, linkText: 'Podrobnosti u zdroje ↗', target: '_blank' });
+        ['Úsek', u.uprava ? 'upravený správcem mapy' : u.auto === 'odhad' ? 'odhad (celá ulice), přesný rozsah je u zdroje' : u.puvod === 'jsdi' ? 'podle Jednotného systému dopravních informací' : u.puvod && u.puvod !== 'web' ? 'podle mapy zdroje' : u.auto ? 'dopočítaný automaticky z textu oznámení' : null]],
+      link: /^https?:\/\//.test(u.url || '') ? u.url : null, linkText: 'Podrobnosti u zdroje ↗', target: '_blank' });
     if (UZ_ED.upravit) { const b = document.createElement('button'); b.type = 'button'; b.className = 'px-btn'; b.textContent = 'Upravit uzavírku'; b.addEventListener('click', () => UZ_ED.upravit(u)); $('cardLinks').prepend(b); }
   }
   // nejbližší platná uzavírka do tol px obrázku od bodu
@@ -1371,11 +1371,13 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     for (const r of roads) r.uz = uzKryje(r.w);                // už načtené silnice: auta do uzavírky neodbočí
     for (let i = index.length - 1; i >= 0; i--) if (index[i].kind === 'uzavírka') index.splice(i, 1);   // druhé volání (čerstvá data) nahradí první
     $('uzList').replaceChildren(); $('uzBox').hidden = true;
-    for (const u of UZAV) index.push({ label: 'Uzavírka ' + (u.nazev || ''), kind: 'uzavírka', k: u.k, n: norm('uzavirka ' + (u.nazev || '') + ' ' + (u.popis || '')), go: () => { goTo(u.mid.ix, u.mid.iy, 1.2); showUz(u); } });
+    const jednou = UZAV.filter((u, i) => UZAV.findIndex((q) => q.klic === u.klic) === i);   // uzavírka z víc úseků (JSDI) jednou v seznamu i hledání
+    for (const u of jednou) index.push({ label: 'Uzavírka ' + (u.nazev || ''), kind: 'uzavírka', k: u.k, n: norm('uzavirka ' + (u.nazev || '') + ' ' + (u.popis || '')), go: () => { goTo(u.mid.ix, u.mid.iy, 1.2); showUz(u); } });
     if (!UZAV.length) return;                                  // seznam v panelu
     $('uzBox').hidden = false;
-    $('uzVal').textContent = UZ_AKT.length ? String(UZ_AKT.length) : 'chystané';
-    for (const u of UZAV) {
+    const aktivni = new Set(UZ_AKT.map((u) => u.klic)).size;
+    $('uzVal').textContent = aktivni ? String(aktivni) : 'chystané';
+    for (const u of jednou) {
       const li = document.createElement('li'), b = document.createElement('button'); b.type = 'button';
       const ico = document.createElement('span'); ico.className = 'uz-ico' + (u.nyni ? '' : ' pristi') + (u.castecna ? ' castecna' : ''); ico.setAttribute('aria-hidden', 'true');
       const nm = document.createElement('span'); nm.textContent = u.nazev || u.popis || 'Uzavírka';

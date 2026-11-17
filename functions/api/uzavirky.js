@@ -110,6 +110,13 @@ export async function onRequest(ctx) {
   const odp = await oznameniOdpoved(ctx);
   let d; try { d = JSON.parse(await odp.text()); } catch { d = { oznameni: [] }; }
   d.upravy = upravy; d.upravyZapnute = !!(env.UZAVIRKY_KV && env.UZAVIRKY_HESLO);
+  if (env.UZAVIRKY_KV) {                                   // uzavírky z JSDI (functions/api/jsdi.js), jen platné
+    try {
+      const j = JSON.parse((await env.UZAVIRKY_KV.get('jsdi')) || '{"zaznamy":{}}');
+      d.jsdi = Object.entries(j.zaznamy || {}).filter(([, z]) => !z.konec || Date.parse(z.konec) >= Date.now()).map(([id, z]) => ({ id, ...z }));
+      d.jsdiAktualizace = j.aktualizace || null;
+    } catch { d.jsdi = []; }
+  }
   const h = new Headers(odp.headers); h.set('cache-control', 'no-cache');   // úpravy správce mají platit hned
   return new Response(JSON.stringify(d), { status: odp.status, headers: h });
 }

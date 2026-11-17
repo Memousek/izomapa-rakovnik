@@ -390,7 +390,9 @@ def export_sit(sit, adresy, mista, obce, cfg):
            'adresy': [[n, ui.get(s_, -1), round(x, 1), round(y, 1)] for n, s_, x, y in adresy if x0 <= x <= x1 and y0 <= y <= y1],
            'mista': [[n, round(x, 1), round(y, 1)] for n, x, y in mista if n and len(n) >= 5 and x0 <= x <= x1 and y0 <= y <= y1]}
     json.dump(out, open('site/uzavirky_sit.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
-    json.dump({'url': cfg['url'], 'geojson': [z['url'] for z in geo.MESTO.get('uzavirky_geojson') or []]}, open('site/uzavirky_zdroj.json', 'w', encoding='utf-8'))
+    (lo0, lo1), (la0, la1) = geo.to_lonlat([x0, x1], [y0, y1])          # mapa + 400 m: co z JSDI (functions/api/jsdi.js) ukládat
+    json.dump({'url': cfg['url'], 'geojson': [z['url'] for z in geo.MESTO.get('uzavirky_geojson') or []],
+               'bbox': [round(float(la0), 5), round(float(lo0), 5), round(float(la1), 5), round(float(lo1), 5)]}, open('site/uzavirky_zdroj.json', 'w', encoding='utf-8'))
     print('síť pro prohlížeč:', len(klice), 'uzlů,', len(hrany) // 4, 'hran,', os.path.getsize('site/uzavirky_sit.json') // 1000, 'kB')
 
 
