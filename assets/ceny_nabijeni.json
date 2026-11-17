@@ -1,0 +1,33 @@
+{
+  "_info": "Ceníky veřejného nabíjení podle provozovatele (nastroje/pumpy.py). shoda = regulární výraz na provozovatele/značku/název z OSM. pasma: do_kw (null = bez horní hranice), cena = bez registrace (Kč/kWh), noc = noční cena bez registrace, reg / reg_noc = s registrací zdarma. Před zveřejněním a jednou za čas ověř u zdroje.",
+  "provozovatele": [
+    {
+      "shoda": "E\\.ON",
+      "nazev": "E.ON Drive",
+      "pasma": [
+        {"do_kw": 100, "cena": 10.5, "noc": 8.5, "reg": 9.5, "reg_noc": 8.0},
+        {"do_kw": 200, "cena": 14.5, "noc": 11.0, "reg": 13.0, "reg_noc": 10.0},
+        {"do_kw": null, "cena": 20.0, "noc": 14.0, "reg": 16.9, "reg_noc": 12.0}
+      ],
+      "noc": "20:00–8:00",
+      "platnost": "2026-04-01",
+      "zdroj": "E.ON (tisková zpráva), EV Magazín",
+      "url": "https://www.eon.cz/pro-media-tiskove-zpravy/nove-ceniky-e-on-drive-nabijeni-na-70-dobijecich-stanic-bude-za-9,50-kc-za-kw/",
+      "overeno": "2026-11-17"
+    },
+    {
+      "shoda": "ČEZ|futurego",
+      "nazev": "futurego (ČEZ)",
+      "pasma": [
+        {"do_kw": 49, "cena": 11.9, "reg": 9.9},
+        {"do_kw": 149, "cena": 16.9, "reg": 12.9},
+        {"do_kw": null, "cena": 22.9, "reg": 15.9}
+      ],
+      "poplatek": "2 Kč/min za obsazení: od 481. min (do 49 kW), od 91. min (do 149 kW), od 46. min (nad 150 kW) a od 11. min po dobití",
+      "platnost": "2026-11-03",
+      "zdroj": "futurego.cz, ceník (s DPH)",
+      "url": "https://futurego.cz/en/public-charging/pricelist",
+      "overeno": "2026-11-17"
+    }
+  ]
+}

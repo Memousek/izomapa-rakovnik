@@ -1292,13 +1292,17 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
   function puKonektory(p) {
     return (p.konektory || []).map(([s, n, v]) => `${n > 1 ? n + '× ' : ''}${KONEKTOR[s] || s}${v ? ' ' + v : ''}`).join(', ');
   }
+  const puD = (s) => { const [y, m, d] = String(s).split('-').map(Number); return `${d}. ${m}. ${y}`; };
+  const puPasmo = (q) => q.do_kw != null ? (q.od_kw ? `${q.od_kw + 1}–${q.do_kw} kW` : `do ${q.do_kw} kW`) : `nad ${q.od_kw} kW`;
+  const puNabCena = (q) => `${kc(q.cena)}/kWh${q.noc != null ? ', v noci ' + kc(q.noc) : ''}${q.reg != null ? ` · s registrací ${kc(q.reg)}${q.reg_noc != null ? ', v noci ' + kc(q.reg_noc) : ''}` : ''}`;
   function puPopis(p) {                                       // krátký řádek do seznamu
     if (p.druh === 'pumpa') {
       const c = puCena(p);
       if (c !== null) return Object.entries(p.ceny).map(([k, v]) => `${k === 'nafta' ? 'N' : k.toUpperCase()} ${v.toFixed(2).replace('.', ',')}`).join(' · ');
       return (p.paliva || []).map((k) => PALIVO[k] || k).join(', ') || 'paliva neuvedena';
     }
-    return puKonektory(p) || (p.druh === 'kolo' ? 'pro elektrokola' : 'nabíječka');
+    const od = p.nabijeni ? ` · od ${kc(Math.min(...p.nabijeni.pasma.map((q) => q.cena)))}/kWh` : '';
+    return (puKonektory(p) || (p.druh === 'kolo' ? 'pro elektrokola' : 'nabíječka')) + od;
   }
   function showPumpa(p) {
     const rows = [], ot = ohOtevreno(p.oteviraci);
@@ -1317,6 +1321,15 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
       rows.push(['Konektory', puKonektory(p) || 'neuvedeno']);
       if (p.stojanu) rows.push(['Míst k nabíjení', String(p.stojanu)]);
       if (p.placene !== undefined) rows.push(['Nabíjení', p.placene ? 'placené' : 'zdarma']);
+      const nb = p.nabijeni;
+      if (nb) {                                               // veřejný ceník provozovatele (assets/ceny_nabijeni.json)
+        text = 'Cena za kWh bez registrace podle ceníku provozovatele, s registrací zdarma je levnější.';
+        for (const q of nb.pasma) rows.push([`Cena ${puPasmo(q)}`, puNabCena(q)]);
+        if (nb.noc && nb.pasma.some((q) => q.noc != null)) rows.push(['Noční cena', nb.noc]);
+        if (nb.poplatek) rows.push(['Obsazení', nb.poplatek]);
+        rows.push(['Ceník', `${nb.zdroj || nb.nazev}${nb.platnost ? ', platí od ' + puD(nb.platnost) : ''}${nb.overeno ? ', ověřeno ' + puD(nb.overeno) : ''}`]);
+        if (nb.url) { link = nb.url; linkText = `Ceník ${nb.nazev || 'provozovatele'} ↗`; }
+      }
     }
     if (p.oteviraci) rows.push(['Otevřeno', ohCz(p.oteviraci) + (ot === null ? '' : ot ? ' (teď otevřeno)' : ' (teď zavřeno)')]);
     if (p.zakaznici) rows.push(['Přístup', 'jen pro zákazníky']);

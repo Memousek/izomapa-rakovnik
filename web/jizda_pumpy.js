@@ -116,9 +116,18 @@ export function vytvorPumpy(THREE, scene, api) {
     } else {
       radek('Konektory', (p.konektory || []).map(([s, n, v]) => `${n > 1 ? n + '× ' : ''}${KONEKTOR[s] || s}${v ? ' ' + v : ''}`).join(', ') || 'neuvedeno');
       if (p.placene !== undefined) radek('Nabíjení', p.placene ? 'placené' : 'zdarma');
+      const nb = p.nabijeni;
+      if (nb) for (const q of nb.pasma) {                         // ceník provozovatele: bez registrace, v noci, s registrací
+        const pas = q.do_kw != null ? (q.od_kw ? `${q.od_kw + 1}–${q.do_kw} kW` : `do ${q.do_kw} kW`) : `nad ${q.od_kw} kW`;
+        radek(pas, `${kc(q.cena)} Kč/kWh${q.noc != null ? ' (noc ' + kc(q.noc) + ')' : ''}${q.reg != null ? ', s reg. ' + kc(q.reg) : ''}`, true);
+      }
     }
     if (p.oteviraci) radek('Otevřeno', p.oteviraci === '24/7' ? 'nonstop' : p.oteviraci.replace(/Mo/g, 'po').replace(/Tu/g, 'út').replace(/We/g, 'st').replace(/Th/g, 'čt').replace(/Fr/g, 'pá').replace(/Sa/g, 'so').replace(/Su/g, 'ne').replace(/PH/g, 'svátky').replace(/;\s*/g, ', '));
     panel.append(h, dl);
+    if (p.druh === 'ev' && p.nabijeni) {
+      const s = document.createElement('p'); s.style.cssText = 'margin:8px 0 0;font-size:.8rem;color:var(--muted)';
+      s.textContent = `Ceník ${p.nabijeni.nazev || ''}${p.nabijeni.noc ? ' · noc ' + p.nabijeni.noc : ''}`; panel.append(s);
+    }
     if (p.druh === 'pumpa' && maCeny(p)) {
       const s = document.createElement('p'); s.style.cssText = 'margin:8px 0 0;font-size:.8rem;color:var(--muted)';
       const h_ = stari(p); s.textContent = `Ceny ${h_ < 1 ? 'před chvílí' : h_ < 24 ? 'před ' + Math.round(h_) + ' h' : 'před ' + Math.round(h_ / 24) + ' d'} · zdroj ${zdroj.zdroj || 'ceník'}`;

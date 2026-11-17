@@ -10,14 +10,20 @@ Ceny paliv (volitelné): assets/ceny_paliv.json
 Klíč je OSM id pumpy (typ/číslo, viz assets/pumpy.json). Cenu starší než 7 dní zápis vynechá, prohlížeč ji po 2 dnech zešedí.
 Ceny přebírej jen ze zdroje, který to výslovně dovoluje (smlouva, API s licencí), a vždy s uvedením zdroje.
 
+Ceny nabíjení (volitelné): assets/ceny_nabijeni.json, veřejné ceníky provozovatelů podle výkonu
+  {"provozovatele": [{"shoda": "E.ON", "nazev": "E.ON Drive", "pasma": [{"do_kw": 100, "cena": 10.5, "noc": 8.5, "reg": 9.5, "reg_noc": 8.0}, …],
+    "noc": "20:00–8:00", "poplatek": "…", "platnost": "2026-04-01", "zdroj": "…", "url": "…", "overeno": "2026-11-17"}]}
+„shoda“ je regulární výraz na provozovatele, značku a název nabíječky z OSM; k nabíječce se přiřadí pásma podle výkonu
+jejích konektorů (bez údaje o výkonu všechna). cena = bez registrace, reg = s registrací zdarma.
+
 Výstup pro prohlížeč i 3D jízdu: site/pumpy.json (zapsat(), volá ho i overlay.py). Render není potřeba.
 Použití: .venv/Scripts/python nastroje/pumpy.py [--bez-stahovani]
 """
-import json, os, subprocess, sys, time
+import json, os, re, subprocess, sys, time
 sys.path.insert(0, '.')
 import geo
 
-ASSET, CENY, OUT = 'assets/pumpy.json', 'assets/ceny_paliv.json', 'site/pumpy.json'
+ASSET, CENY, CENY_NAB, OUT = 'assets/pumpy.json', 'assets/ceny_paliv.json', 'assets/ceny_nabijeni.json', 'site/pumpy.json'
 PALIVA = [('octane_95', '95'), ('octane_98', '98'), ('octane_100', '100'), ('diesel', 'nafta'), ('lpg', 'lpg'), ('cng', 'cng'),
           ('lng', 'lng'), ('adblue', 'adblue'), ('propane', 'propan')]
 AUTO_SOCKETY = ('type2', 'type2_combo', 'type2_cable', 'chademo', 'type1', 'type1_combo', 'tesla_supercharger', 'tesla_standard', 'gb_dc')
@@ -87,14 +93,37 @@ def stahnout():
     return vse
 
 
+def kw(v):
+    """výkon konektoru v kW z textu „50 kW“ / „32 A“ (proud: třífázově 230 V); bez údaje None"""
+    m = re.match(r'([\d.,]+)\s*(kW|A)', v or '', re.I)
+    if not m: return None
+    x = float(m.group(1).replace(',', '.'))
+    return x if m.group(2).lower() == 'kw' else round(x * 0.69)
+
+
+def nabijeni(p, ceniky):
+    """ceník provozovatele pro nabíječku: jen pásma, do kterých spadají její konektory"""
+    text = ' '.join(str(p.get(k, '')) for k in ('provozovatel', 'znacka', 'nazev'))
+    c = next((c for c in ceniky if c.get('shoda') and re.search(c['shoda'], text, re.I)), None)
+    if not c or not c.get('pasma'): return None
+    vykony = {kw(k[2]) for k in p.get('konektory', [])} - {None}
+    pasma = c['pasma'] if not vykony else [q for q in c['pasma'] if any(
+        v <= (q['do_kw'] if q['do_kw'] is not None else 1e9) and v > max([0] + [r['do_kw'] for r in c['pasma'] if r['do_kw'] is not None and r['do_kw'] < (q['do_kw'] or 1e9)]) for v in vykony)]
+    od = lambda q: max([0] + [r['do_kw'] for r in c['pasma'] if r['do_kw'] is not None and r['do_kw'] < (q['do_kw'] or 1e9)])
+    pasma = [{**q, 'od_kw': od(q)} for q in (pasma or c['pasma'])]      # dolní hranice pásma pro popisek („nad 200 kW“)
+    return {k: c[k] for k in ('nazev', 'noc', 'poplatek', 'platnost', 'zdroj', 'url', 'overeno') if c.get(k)} | {'pasma': pasma}
+
+
 def zapsat():
     """site/pumpy.json: stanice z assets/pumpy.json + čerstvé ceny z assets/ceny_paliv.json (když jsou)"""
     if not os.path.exists(ASSET): return []
     vse = json.load(open(ASSET, encoding='utf-8'))
     ceny = json.load(open(CENY, encoding='utf-8')) if os.path.exists(CENY) else {}
     zdroj = {k: ceny[k] for k in ('zdroj', 'zdroj_url') if ceny.get(k)}
+    ceniky = json.load(open(CENY_NAB, encoding='utf-8')).get('provozovatele', []) if os.path.exists(CENY_NAB) else []
     ted = time.time()
     for p in vse:
+        if p['druh'] == 'ev' and (n := nabijeni(p, ceniky)): p['nabijeni'] = n
         c = (ceny.get('stanice') or {}).get(p['id'])
         if not c or not c.get('ceny') or not c.get('cas'): continue
         try: stari = ted - time.mktime(time.strptime(c['cas'][:16], '%Y-%m-%dT%H:%M'))
@@ -112,4 +141,4 @@ if __name__ == '__main__':
     if '--bez-stahovani' not in sys.argv: stahnout()
     v = zapsat()
     print('pump', sum(p['druh'] == 'pumpa' for p in v), 'nabíječek', sum(p['druh'] == 'ev' for p in v), 'pro kola', sum(p['druh'] == 'kolo' for p in v),
-          's cenou', sum('ceny' in p for p in v))
+          's cenou', sum('ceny' in p for p in v), 's ceníkem nabíjení', sum('nabijeni' in p for p in v))
