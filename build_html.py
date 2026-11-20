@@ -81,6 +81,7 @@ def postav_stranku(M, html_out='site/index.html', og_cesta='og.jpg', je_obec=Fal
         'POCASI': 'true' if M.get('pocasi') else 'false',
         'LETADLA': 'true' if M.get('letadla', False) else 'false',
         'PLUHY': 'true' if M.get('pluhy', False) else 'false',
+        'NASTUPISTE': 'true' if M.get('nastupiste', False) else 'false',
         'MHD': 'true' if mhd.get('gtfs') or os.path.exists('site/mhd.json') else 'false',   # mhd.json vyrábí mhd.py jen s GTFS
         'POHLED': json.dumps(pohled if isinstance(pohled, list) and len(pohled) >= 2 else None),
         'DOMU_CELEK': 'true' if M.get('domu_celek') else 'false',
