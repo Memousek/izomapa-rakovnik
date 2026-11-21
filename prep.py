@@ -833,6 +833,7 @@ for l, w, c, n in drive_lines:
 bld = load('building')
 # jen budovy z OpenStreetMap (nebo ručně potvrzené v upresneni.json)
 bld = bld[[(s is not None and any(x['dataset'] == 'OpenStreetMap' for x in s)) or i_ in UP['b'] for s, i_ in zip(bld.sources, bld.id)]].reset_index(drop=True)
+bld = bld[~bld.id.isin(UP.get('skryt_budovy', []))].reset_index(drop=True)   # duplicitní budovy v datech (např. části kostela přes celý obrys)
 for i, r in bld.iterrows():                             # výšky z upřesnění mají přednost před daty
     if 'h' in UP['b'].get(r.id, {}): bld.at[i, 'height'] = UP['b'][r.id]['h']
 if len(bld) and UP['roofs']:                            # přístřešky nástupišť (nejsou v OSM jako budovy)
