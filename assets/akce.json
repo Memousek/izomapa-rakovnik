@@ -1,0 +1,45 @@
+{
+  "_pozn": "Akce ve městě pro záložku Dnes a život na mapě (web/mapa_akce.js, web/mapa_zivot.js). Opsáno z oficiálního programu města (PDF), změna programu vyhrazena.",
+  "nazev": "Rakovnický advent 2026",
+  "zdroj": "Město Rakovník",
+  "url": "https://www.mesto-rakovnik.cz/aktualne/aktuality/program-rakovnickeho-adventu-2026-1188cs.html",
+  "misto": {"nazev": "Husovo náměstí", "lat": 50.10423, "lon": 13.73021},
+  "akce": [
+    {"den": "2026-11-29", "od": "14:40", "nazev": "Zahájení Rakovnického adventu"},
+    {"den": "2026-11-29", "od": "14:45", "do": "15:45", "nazev": "Tingltangl (písně Semaforu)"},
+    {"den": "2026-11-29", "od": "16:00", "do": "17:15", "nazev": "Rozsvícení vánočního stromu", "dav": 2},
+    {"den": "2026-11-29", "od": "18:00", "nazev": "Lunetic"},
+
+    {"den": "2026-12-05", "od": "15:30", "nazev": "Daniel Vojtíšek a Viktorie Zimmermannová – koncert téměř vánoční"},
+    {"den": "2026-12-05", "od": "16:30", "nazev": "Mikulášská show s Bárou Ladrovou"},
+    {"den": "2026-12-05", "od": "17:30", "nazev": "Krampus show"},
+
+    {"den": "2026-12-06", "od": "13:30", "do": "13:45", "nazev": "MŠ Vinohrady, vystoupení dětí"},
+    {"den": "2026-12-06", "od": "14:00", "nazev": "Divadlo DivaŽiva – představení „Anděl vypravuje“"},
+    {"den": "2026-12-06", "od": "15:00", "nazev": "Petra Černocká"},
+    {"den": "2026-12-06", "od": "17:00", "nazev": "Poutníci"},
+    {"den": "2026-12-06", "od": "19:00", "nazev": "Turbo"},
+
+    {"den": "2026-12-12", "od": "12:45", "do": "13:00", "nazev": "MŠ V Hradbách, vystoupení dětí"},
+    {"den": "2026-12-12", "od": "13:15", "nazev": "Marek Žihla a klavírní doprovod"},
+    {"den": "2026-12-12", "od": "14:30", "nazev": "bratři Hradečtí"},
+    {"den": "2026-12-12", "od": "17:00", "nazev": "Hodiny"},
+    {"den": "2026-12-12", "od": "19:00", "nazev": "Petr Kotvald"},
+
+    {"den": "2026-12-13", "od": "14:00", "nazev": "smíšený sbor Olešná"},
+    {"den": "2026-12-13", "od": "15:00", "nazev": "Martin Maxa"},
+    {"den": "2026-12-13", "od": "16:15", "do": "16:45", "nazev": "Katevent – vystoupení pro děti"},
+    {"den": "2026-12-13", "od": "17:00", "nazev": "Petr Kolář"},
+    {"den": "2026-12-13", "od": "19:00", "nazev": "Olga Lounová"},
+
+    {"den": "2026-12-19", "od": "14:00", "nazev": "Kája a Bambuláček"},
+    {"den": "2026-12-19", "od": "15:00", "do": "15:30", "nazev": "Katevent – vystoupení pro děti"},
+    {"den": "2026-12-19", "od": "16:00", "nazev": "Hop Trop"},
+    {"den": "2026-12-19", "od": "18:00", "nazev": "Martina Pártlová"},
+
+    {"den": "2026-12-20", "od": "14:00", "nazev": "PaDam – divadlo pro děti"},
+    {"den": "2026-12-20", "od": "15:00", "nazev": "Bohuš Matuš"},
+    {"den": "2026-12-20", "od": "16:00", "nazev": "Yvetta Blanarovičová"},
+    {"den": "2026-12-20", "od": "19:00", "nazev": "Tereza Mašková"}
+  ]
+}

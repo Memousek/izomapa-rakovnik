@@ -235,7 +235,8 @@
     let c = PSPR.get(id); if (c) return c;
     if (PSPR.size > 6000) PSPR.clear();
     const g = personGrid(o, back, frame, umb), f = 1 - nb * 0.12, at = (x, y) => y >= 0 && y < PGH && x >= 0 && x < PGW ? g[y][mir ? PGW - 1 - x : x] : null;
-    c = document.createElement('canvas'); c.width = PGW + 2; c.height = PGH + 2; const q = c.getContext('2d');
+    c = document.createElement('canvas'); c.width = PGW + 2; c.height = PGH + 3; const q = c.getContext('2d');
+    q.fillStyle = 'rgba(0,0,0,0.2)'; q.fillRect(PCX - 1, PBASE + 2, 5, 1);                 // stín pod nohama (ořízne se spolu s postavou)
     q.fillStyle = 'rgba(24,26,32,0.85)';
     for (let y = -1; y <= PGH; y++) for (let x = -1; x <= PGW; x++) if (!at(x, y) && (at(x - 1, y) || at(x + 1, y) || at(x, y - 1) || at(x, y + 1))) q.fillRect(x + 1, y + 1, 1, 1);
     for (let y = 0; y < PGH; y++) for (let x = 0; x < PGW; x++) {
@@ -244,6 +245,19 @@
       if (!at(x + 1, y)) { q.fillStyle = 'rgba(0,0,0,0.16)'; q.fillRect(x + 1, y + 1, 1, 1); }
     }
     PSPR.set(id, c); return c;
+  }
+  // postava pro doplňky (Izomapa.postava): stejný model jako chodci, oblečení podle období (nebo vlastní kostým),
+  // v noci ztmavená, za stromem, domem nebo výzdobou oříznutá. Volá se z onFrame (v = pohled snímku).
+  function postavaApi(v, x, y, q = {}) {
+    const z = gz(x, y), ip = toImg(x, y, z), hpx = Math.abs(toImg(0, 0, 1)[1] - toImg(0, 0, 0)[1]), ui = hpx * 0.1;
+    if (ui * v.sx < 0.3 || !v.vis(ip[0], ip[1], 30)) return false;
+    const dp = depth(x, y, z); if (occluded(ip[0], ip[1], dp) && occluded(ip[0], ip[1] - hpx * 1.7, dp)) return false;
+    const kid = !!q.kid, season = state.season;
+    const o = q.outfit ? { kid, season, skin: '#e8c4a0', hair: '#3a2a22', hairStyle: 'short', shoes: '#2a2a2e', top: 'jacket', topC: '#5a5a62', topC2: '#5a5a62', bot: 'trousers', botC: '#2a2a2e', ...q.outfit } : outfitOf(season, q.oi || 0, kid);
+    const key = q.outfit ? 'api' + (kid ? 'k' : '') + JSON.stringify(q.outfit) : season + (kid ? 'k' : '') + (q.oi || 0);
+    const nb = Math.min(4, Math.round((v.night || 0) * 5)), rain = state.weather === 'rain';
+    drawBehindTrees(personSprite(o, key, !!q.back, !!q.mir, q.frame || 0, nb, rain && o.umb), ip[0] - (PCX + 1.5) * ui, ip[1] - (PBASE + 2) * ui, (PGW + 2) * ui, (PGH + 3) * ui, x, y, z, v.sx, v.ox, v.oy);
+    return true;
   }
   // cyklista: mřížka 19 × 20 bodů po 10 cm (kola 0,7 m), z boku čelem doprava (mir = zrcadlově), nebo zepředu / zezadu
   const BGW = 19, BGH = 20, BCX = 9, BBASE = 19;

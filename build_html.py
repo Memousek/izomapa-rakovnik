@@ -94,6 +94,8 @@ def postav_stranku(M, html_out='site/index.html', og_cesta='og.jpg', je_obec=Fal
         'XMAS_LL': json.dumps((lambda v: v if v and isinstance(v[0], list) else [v] if v else [])(M.get('vanocni_strom'))),   # vánoční stromy [[lat, lon], ...]
         'KLUZISTE': json.dumps(M.get('kluziste') or []),
         'STANKY': json.dumps(M.get('vanocni_stanky') or []),
+        'NAMESTI_SEKTOR': json.dumps(M.get('namesti_sektor')),          # výseč náměstí u stromu pro dav [od, do] ve ° od východu (bez parkoviště a silnice)
+        'AUTOBUS': json.dumps(M.get('autobus') or 'liberec'),            # nátěr autobusů: liberec (bílý se zeleným a žlutým pruhem), pid (šedo-červený PID)
         'VANOCE': json.dumps(M.get('vanoce') or None),                 # termín vánoční vrstvy {"od": "11-11", "do": "01-06"} (assets/vanoce.json)
         'OBEC': json.dumps(M.get('nazev') if je_obec else None, ensure_ascii=False),
         'VLAK': json.dumps({'vychozi': (M.get('vlak') or {}).get('vychozi', 'regionova') if isinstance(M.get('vlak'), dict) else M.get('vlak', 'regionova'), 'linky': M['vlak'].get('linky', {}) if isinstance(M.get('vlak'), dict) else {}}),
@@ -157,6 +159,7 @@ for _f in os.listdir('web'):                           # moduly prohlížeče (p
 if (MESTO.get('zpravy_web') or {}).get('url'):   # adresa seznamu aktualit pro functions/api/zpravy.js (funkce jinou nestáhne)
     json.dump({k: MESTO['zpravy_web'][k] for k in ('url', 'zdroj') if MESTO['zpravy_web'].get(k)}, open('site/zpravy_zdroj.json', 'w', encoding='utf-8'), ensure_ascii=False)
 if os.path.exists('assets/sluzby.json'): shutil.copy('assets/sluzby.json', 'site/sluzby.json')   # pítka a WC (nastroje/sluzby.py)
+if os.path.exists('assets/akce.json'): shutil.copy('assets/akce.json', 'site/akce.json')         # akce ve městě (program z webu města), web/mapa_akce.js
 if os.path.exists('assets/hadanky.json'): shutil.copy('assets/hadanky.json', 'site/hadanky.json')   # hádanky v deníku (jen ověřené texty)   # ceny paliv z mBenzin.cz (functions/api/ceny.js) k pumpám, mapa i 3D jízda
 shutil.copy('web/uzavirky.js', 'site/uzavirky.js')   # uzavírky: načtení a dopočet úseků z oznámení (mapa i 3D jízda)
 shutil.copy('web/uzavirky_editor.js', 'site/uzavirky_editor.js')   # editor uzavírek pro správce (index.html?admin)

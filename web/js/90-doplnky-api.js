@@ -34,6 +34,8 @@
     toImg: (x, y, h = 0) => toImg(x, y, h),
     imgToWorld: (ix, iy) => imgToWorld(ix, iy),
     gz: (x, y) => gz(x, y),
+    postava: (v, x, y, opts) => postavaApi(v, x, y, opts),           // chodec jako v mapě: {oi, kid, back, mir, frame, outfit}
+    zakryto: (x, y, h) => zakrytoBod(x, y, h ?? gz(x, y)),          // postava v bodě světa je za stromem, domem nebo výzdobou
     latLonToWorld: (lat, lon) => [(lon - cam.lon0) * cam.kx, (lat - cam.lat0) * cam.ky],
     worldToLatLon: (x, y) => { const [lon, lat] = lonlat(x, y); return [lat, lon]; },
     latLonToImg: (lat, lon, hOffset = 0) => { const x = (lon - cam.lon0) * cam.kx, y = (lat - cam.lat0) * cam.ky; return toImg(x, y, gz(x, y) + hOffset); },
@@ -91,9 +93,12 @@
   {
     const xm = Array.isArray(OV.xmas) ? (typeof OV.xmas[0] === 'number' ? OV.xmas : OV.xmas[0]) : null;
     const rad = (OV.places || []).find((p) => /^Radnice/.test(p.name));
+    // akce ve městě (site/akce.json, web/mapa_akce.js): sekce v záložce Dnes, bublina nad místem konání, dav pro život na mapě
+    const jdi = (lat, lon) => { const x = (lon - cam.lon0) * cam.kx, y = (lat - cam.lat0) * cam.ky, ip = toImg(x, y, gz(x, y)); goTo(ip[0], ip[1], 1.4); };
+    const akce = import('./mapa_akce.js').then((m) => m.spust({ panelPo: $('dnesTop'), jdi })).catch(() => null);
     if (xm) {
       const [wx, wy] = imgToWorld(xm[0], xm[1]), [lo, la] = lonlat(wx, wy);
-      import('./mapa_zivot.js').then((m) => m.spust({ namesti: [la, lo], radnice: rad ? [rad.lat, rad.lon] : null })).catch(() => {});
+      Promise.all([import('./mapa_zivot.js'), akce]).then(([m, stav]) => m.spust({ namesti: [la, lo], radnice: rad ? [rad.lat, rad.lon] : null, akce: stav, namestiSektor: {{NAMESTI_SEKTOR}} })).catch(() => {});
     }
   }
 })();

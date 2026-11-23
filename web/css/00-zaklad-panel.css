@@ -103,10 +103,11 @@ button { font: inherit; color: inherit; }
 .mbar .px-btn[aria-pressed="true"] { color: #fff; }
 .seg .px-btn:focus-visible { outline-offset: 2px; }
 /* záložky panelu s pixelovými ikonami a podokna pod nimi */
-.tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
-.tab { position: relative; display: grid; justify-items: center; align-content: center; gap: 4px; cursor: pointer; min-height: 50px; padding: 7px 2px 6px;
+.tabs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 5px; }
+.tab { position: relative; display: grid; justify-items: center; align-content: center; gap: 4px; cursor: pointer; min-height: 50px; padding: 7px 0 6px;
   background: var(--panel-2); color: var(--muted); border: 2px solid var(--edge); box-shadow: 2px 2px 0 rgba(0, 0, 0, .35);
-  font-family: var(--display); font-size: .8rem; line-height: 1; }
+  font-family: var(--display); font-size: .74rem; line-height: 1; min-width: 0; }
+.tab > span:not(.vh) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tab[hidden] { display: none; }
 .tab .ico.px { width: 18px; height: 18px; image-rendering: pixelated; }
 .tab:hover { color: var(--ink); border-color: #55648a; }
@@ -225,3 +226,15 @@ input[type="range"] { width: 100%; accent-color: var(--lamp); }
 .zpravy-list .zprava { display: grid; gap: 2px; padding: 6px 8px; color: var(--ink); text-decoration: none; font-size: .88rem; }
 .zpravy-list .zprava:hover, .zpravy-list .zprava:focus-visible { background: var(--panel-2); outline: 1px solid var(--edge); }
 .zpravy-list small { color: var(--muted); font-size: .76rem; }
+
+/* akce ve městě (web/mapa_akce.js) */
+.akce-den { margin: 8px 0 0; font-size: .82rem; color: var(--ink); font-weight: 700; }
+.akce-list button { display: grid; grid-template-columns: 6.2em 1fr; column-gap: 8px; align-items: baseline; }
+.akce-list .akce-cas { color: var(--lamp); font-variant-numeric: tabular-nums; font-size: .84rem; }
+.akce-list small { grid-column: 2; color: var(--grass); font-size: .76rem; }
+.akce-list .akce-ted { background: rgba(242, 198, 109, .08); outline: 1px solid var(--lamp); }
+.akce-list .akce-bylo { color: var(--muted); }
+.akce-list .akce-bylo .akce-cas { color: var(--muted); }
+.akce-dalsi { margin: 6px 0 0; font-size: .78rem; color: var(--muted); }
+/* dlouhý nezalomitelný souhrn (sum-val) nesmí roztáhnout sloupec panelu: položky gridu smí být užší než svůj obsah */
+.panel > *, .pane > * { min-width: 0; }

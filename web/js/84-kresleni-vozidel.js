@@ -91,6 +91,32 @@
         bulbs: Array.from({ length: 6 }, (_, j) => P(-l + 0.25 + j * (wS - 0.5) / 5, -1.45, 1.9)) });
     }
   }
+  // výzdoba jako překážka pro chodce a vozidla (treeShapes ve 82-stromy-u-cest.js): obrys stromu a stánků v obrázku mapy.
+  // Rozměry podle render.html: strom kužel o poloměru 3,7 m od 1,2 m do špičky 14,7 m, stánek w × 2,4 m, střecha do 3,1 m.
+  const obal = (P) => {                                         // konvexní obal bodů [x, y] (monotone chain)
+    P = P.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]), lo = [], hi = [];
+    for (const p of P) { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+    for (const p of P.reverse()) { while (hi.length > 1 && cr(hi[hi.length - 2], hi[hi.length - 1], p) <= 0) hi.pop(); hi.push(p); }
+    return lo.slice(0, -1).concat(hi.slice(0, -1));
+  };
+  const xmasOcc = [];
+  for (const [lat, lon] of {{XMAS_LL}} || []) {
+    const x = (lon - cam.lon0) * cam.kx, y = (lat - cam.lat0) * cam.ky, g = gz(x, y), P = [toImg(x, y, g + 14.7)];
+    for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2; P.push(toImg(x + Math.cos(a) * 3.7, y + Math.sin(a) * 3.7, g + 1.2), toImg(x + Math.cos(a) * 0.35, y + Math.sin(a) * 0.35, g)); }
+    xmasOcc.push({ x, y, g, h: obal(P) });
+  }
+  for (const k of {{STANKY}} || []) {
+    const n = k.n || 5, wS = k.w || 3.0, m = k.m ?? 1.2, a = (k.a || 0) * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a);
+    const x0 = (k.lon - cam.lon0) * cam.kx, y0 = (k.lat - cam.lat0) * cam.ky, l = wS / 2 + 0.15, w = 1.5;
+    for (let i = 0; i < n; i++) {
+      const sc = (i - (n - 1) / 2) * (wS + m), cx = x0 + ux * sc, cy = y0 + uy * sc, g = gz(cx, cy), P = [];
+      for (const s_ of [-l, l]) for (const t_ of [-w, w]) for (const h of [0, 2.2]) P.push(toImg(cx + ux * s_ - uy * t_, cy + uy * s_ + ux * t_, g + h));
+      for (const s_ of [-l, l]) P.push(toImg(cx + ux * s_, cy + uy * s_, g + 3.1));
+      xmasOcc.push({ x: cx, y: cy, g, h: obal(P), st: 1 });
+    }
+  }
+  for (const o of xmasOcc) { const xs = o.h.map((p) => p[0]), ys = o.h.map((p) => p[1]); o.bb = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; }
   // svíčky na hrobech (overlay/<čtverec>.json "svicky": [x, y obrázku, náhoda]), kreslí se večer
   const svicky = [], SVB = 512, svGrid = new Map();             // mřížka po 512 px obrázku: každý snímek jen buňky ve výřezu
   onChunk.push((k, d) => {

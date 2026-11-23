@@ -365,9 +365,13 @@ print('pump a nabíječek', len(_pu.zapsat()))
 
 cam = {'x0': info['x0'], 'y1': info['y1'], 'mpp': info['mpp'], 'X': list(map(float, CAM_X)), 'Y': list(map(float, CAM_Y)),
        'half': HALF, 'grounds': grounds}
-# vánoční strom na náměstí (zima): mesto.json vanocni_strom = [lat, lon] (příp. více stromů z obce/*.json)
+# vánoční strom na náměstí (zima): mesto.json vanocni_strom = [lat, lon] (příp. více stromů z obce/*.json),
+# z assets/vanoce.json (geo.py) seznam [[lat, lon], …]
 stromy = []
+_ss = []
 for s in [MESTO.get('vanocni_strom')] + [o.get('vanocni_strom') for o in OBCE]:
+    _ss += s if isinstance(s, list) and s and isinstance(s[0], list) else [s]
+for s in _ss:
     if isinstance(s, list) and len(s) == 2 and all(isinstance(v, (int, float)) for v in s):
         _x, _y = to_local(s[1], s[0]); OFF = (0.0, 0.0)
         pt = list(px(float(_x), float(_y), gz(_x, _y))[:2])

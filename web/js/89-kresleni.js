@@ -158,17 +158,12 @@
         }
         if (PLAT.on) for (const q of platformPeople(share, now / 1000 - MHD.t)) if (vis(q[2][0], q[2][1], 30)) list.push(q);
         list.sort((a, b) => a[2][1] - b[2][1]);
-        const hidden = (x, y, h, ip) => {
-          const dp = depth(x, y, h);
-          if (occluded(ip[0], ip[1], dp) || occluded(ip[0], ip[1] - hpx * 1.2, dp)) return true;
-          for (const q of treeShapes(x, y, h, [ip[0] - 1, ip[1] - 9, ip[0] + 1, ip[1]]))
-            if (q[0] === 1 ? ((ip[0] - q[1][0]) / q[2]) ** 2 + ((ip[1] - 4 - q[1][1]) / q[3]) ** 2 < 1 : ip[1] - 4 > q[1][1] && ip[1] - 4 < q[2][1] && Math.abs(ip[0] - q[1][0]) < q[3] * (ip[1] - 4 - q[1][1]) / (q[2][1] - q[1][1])) return true;
-          return false;
-        };
-        const put = (o, key, ip, back, mir, fr) => {
-          const X = ox + ip[0] * sx, Y = oy + ip[1] * sx;
-          ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(X - 2.5 * u, Y - 0.6 * u, 5 * u, Math.max(1, u));
-          ctx.drawImage(personSprite(o, key, back, mir, fr, nb, rain && o.umb), X - (PCX + 1.5) * u, Y - (PBASE + 2) * u, (PGW + 2) * u, (PGH + 2) * u);
+        // celá postava za budovou se přeskočí (rychlé), částečné překryvy (strom, roh domu, výzdoba) ořízne drawBehindTrees po pixelech
+        const hidden = (x, y, h, ip) => { const dp = depth(x, y, h); return occluded(ip[0], ip[1], dp) && occluded(ip[0], ip[1] - hpx * 1.7, dp); };
+        const ui = hpx * 0.1;                                // bod postavy v px obrázku
+        const put = (o, key, q, back, mir, fr) => {          // q = [x, y, h, ip]: stín je součástí obrázku postavy, ořízne se s ní
+          const ip = q[3];
+          drawBehindTrees(personSprite(o, key, back, mir, fr, nb, rain && o.umb), ip[0] - (PCX + 1.5) * ui, ip[1] - (PBASE + 2) * ui, (PGW + 2) * ui, (PGH + 3) * ui, q[0], q[1], q[2], sx, ox, oy);
         };
         for (const [p, P, ip] of list) {
           if (hidden(P[0], P[1], P[2], ip)) continue;
@@ -176,8 +171,8 @@
           if (p.bike) {                                      // cyklista: z boku, nebo zepředu / zezadu, když jede po obrazovce svisle
             const sdx = s1[0] - ip[0], sdy = s1[1] - ip[1], view = Math.abs(sdx) > Math.abs(sdy) * 0.5 ? 's' : back ? 'b' : 'f';
             const o = outfitOf(state.season, p.oi, false), X = ox + ip[0] * sx, Y = oy + ip[1] * sx, w = view === 's' ? 7 : 2;
-            ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(X - w * u, Y - 0.6 * u, 2 * w * u, Math.max(1, u));
-            ctx.drawImage(bikeSprite(o, state.season + p.oi, p.bike, view, sdx < 0, p.moving ? Math.floor(p.ph) % 4 : 0, nb), X - (BCX + 1) * u, Y - (BBASE + 2) * u, (BGW + 2) * u, (BGH + 2) * u);
+            if (!treeShapes(P[0], P[1], P[2], [ip[0] - w * ui, ip[1] - 1, ip[0] + w * ui, ip[1] + 1]).length) { ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(X - w * u, Y - 0.6 * u, 2 * w * u, Math.max(1, u)); }
+            drawBehindTrees(bikeSprite(o, state.season + p.oi, p.bike, view, sdx < 0, p.moving ? Math.floor(p.ph) % 4 : 0, nb), ip[0] - (BCX + 1) * ui, ip[1] - (BBASE + 2) * ui, (BGW + 2) * ui, (BGH + 2) * ui, P[0], P[1], P[2], sx, ox, oy);
             continue;
           }
           const L = Math.hypot(P[3], P[4]) || 1, nx = -P[4] / L, ny = P[3] / L;   // kolmo ke směru chůze
@@ -189,9 +184,9 @@
           for (const [t, q, oi] of all) {
             if (t !== 'm' && hidden(q[0], q[1], q[2], q[3])) continue;
             const kid = t === 'k', o = outfitOf(state.season, oi, kid);
-            put(o, state.season + (kid ? 'k' : '') + oi, q[3], back, mir, fr);
+            put(o, state.season + (kid ? 'k' : '') + oi, q, back, mir, fr);
           }
-          if (p.dog) { const q = near(-0.9, 0.9); if (!hidden(q[0], q[1], q[2], q[3])) drawDogAt(ox + q[3][0] * sx, oy + q[3][1] * sx, u, mir, fr, p.dog); }
+          if (p.dog) { const q = near(-0.9, 0.9); if (!hidden(q[0], q[1], q[2], q[3]) && !treeShapes(q[0], q[1], q[2] + 0.3, [q[3][0] - 3, q[3][1] - 3, q[3][0] + 3, q[3][1]]).length) drawDogAt(ox + q[3][0] * sx, oy + q[3][1] * sx, u, mir, fr, p.dog); }
         }
       }
     }

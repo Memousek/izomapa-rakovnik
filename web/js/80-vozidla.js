@@ -74,6 +74,7 @@
     const depth = ([s, t, z]) => (fx_ * s + sxv * t) + (fy_ * s + syv * t);
     parts.sort((a, b) => depth(b) - depth(a) || a[2] - b[2]).forEach((p) => p[3]());
   }
+  const BUS_LIV = {{AUTOBUS}};                                               // nátěr autobusů z mesto.json "autobus" (build_html.py)
   function vehicleSprite(col, k, isBus, len, wid, snowy) {
     const key = `${col}|${k}|${isBus ? +isBus : 0}|${snowy ? 1 : 0}`;      // isBus: 1 autobus, 2 tramvaj, 3 nákladní auto, 4 vlak, 5–10 další vozidla (VTYP)
     if (VEH.has(key)) return VEH.get(key);
@@ -238,6 +239,44 @@
       box(-0.5, 0.4, -0.06, 0.06, rz + 0.15, rz + 0.75, YE); box(-0.05, 0.35, -0.06, 0.06, rz + 0.6, rz + 1.05, YE); box(0.15, 0.3, -0.75, 0.75, rz + 1.0, rz + 1.08, YE);
     } else if (isBus === 3) {
       truckFaces({ R, box, faces, fx_, fy_, sxv, syv, vis, sun, l, w, col, snow });
+    } else if (isBus && BUS_LIV === 'pid') {
+      // autobus v novém nátěru PID (Manuál jednotného vzhledu vozidel PID, autobusy, verze 09/2023): šedá RAL 7038,
+      // červená RAL 3020 v polích nad koly a v pruhu nad okny, černý pás oken (RAL 9005), čelo šedé s červeným svislým pásem
+      const GY = [188, 190, 182], RD = [214, 46, 30], BK = [30, 31, 35], GL = [52, 60, 72], DOOR = [40, 42, 48], ROOF = snow || [200, 202, 196];
+      const ch = 0.45, fp = [[-l + ch, -w], [l - ch, -w], [l, -w + ch], [l, w - ch], [l - ch, w], [-l + ch, w], [-l, w - ch], [-l, -w + ch]];
+      const RB = [[-l + 1.3, -l + 3.9], [l - 4.3, l - 1.7]];                    // červená pole nad koly (kola v -l + 2,6 a l − 3)
+      const Q = (A, B, z0, z1, rgb, d) => faces.push([[R(A[0], A[1], z0), R(B[0], B[1], z0), R(B[0], B[1], z1), R(A[0], A[1], z1)], lit(rgb, d)]);
+      const QP = (A, B, i, u0, u1, z0, z1, rgb, d) => {                           // výsek hrany A–B podle souřadnice i (0 = s, 1 = t)
+        const e = B[i] - A[i]; if (Math.abs(e) < 1e-6) return;
+        let q0 = (u0 - A[i]) / e, q1 = (u1 - A[i]) / e; if (q0 > q1) [q0, q1] = [q1, q0];
+        q0 = Math.max(0, q0); q1 = Math.min(1, q1); if (q1 <= q0) return;
+        const P = (q) => [A[0] + (B[0] - A[0]) * q, A[1] + (B[1] - A[1]) * q]; Q(P(q0), P(q1), z0, z1, rgb, d);
+      };
+      for (let i = 0; i < fp.length; i++) {
+        const A = fp[i], B = fp[(i + 1) % fp.length], es = B[0] - A[0], et = B[1] - A[1], el = Math.hypot(es, et), ns = et / el, nt = -es / el;
+        const nx = fx_ * ns + sxv * nt, ny = fy_ * ns + syv * nt;
+        if (!vis(nx, ny)) continue;
+        const d = sun(nx, ny, 0), front = ns > 0.9, back = ns < -0.9, corner = Math.abs(ns) < 0.9 && Math.abs(nt) < 0.9;
+        if (front) {                                                            // čelo: šedé, velké sklo, nahoře černý panel s cílem, červený pás vpravo dole
+          Q(A, B, 0.3, 0.95, GY, d); QP(A, B, 1, w * 0.05, w * 0.55, 0.3, 0.95, RD, d);
+          Q(A, B, 0.95, 2.6, GL, d); Q(A, B, 2.6, 3.0, BK, d); continue;
+        }
+        if (back) { Q(A, B, 0.3, 3.0, GY, d); Q(A, B, 1.6, 2.6, BK, d); QP(A, B, 1, -w * 0.6, -w * 0.1, 0.3, 1.6, RD, d); continue; }
+        if (corner) { Q(A, B, 0.3, 1.15, GY, d); Q(A, B, 1.15, 2.7, ns > 0 ? GL : BK, d); Q(A, B, 2.7, 3.0, GY, d); continue; }
+        Q(A, B, 0.3, 1.15, GY, d); Q(A, B, 1.15, 2.7, BK, d); Q(A, B, 2.7, 3.0, GY, d);
+        for (const [s0, s1] of RB) { QP(A, B, 0, s0, s1, 0.3, 1.15, RD, d); QP(A, B, 0, s0, s1, 2.7, 3.0, RD, d); }
+        for (let s_ = -l + 0.7; s_ < l - 1.0; s_ += 1.55) QP(A, B, 0, s_, s_ + 1.35, 1.3, 2.55, GL, d);   // okna v černém pásu
+        for (const ds of [-3.6, 0.2, 3.9]) QP(A, B, 0, ds, ds + 1.2, 0.35, 2.7, DOOR, d);                  // dveře
+      }
+      const rz = 3.0, ip = fp.map(([s_, t_]) => [s_ * 0.97, t_ * 0.86]);
+      for (let i = 0; i < fp.length; i++) {
+        const A = fp[i], B = fp[(i + 1) % fp.length], a = ip[i], b = ip[(i + 1) % fp.length], es = B[0] - A[0], et = B[1] - A[1], el = Math.hypot(es, et);
+        const ns = et / el, nx = fx_ * ns - sxv * es / el, ny = fy_ * ns - syv * es / el;
+        if (nx + ny >= 0.3) continue;
+        faces.push([[R(A[0], A[1], 2.95), R(B[0], B[1], 2.95), R(b[0], b[1], rz + 0.08), R(a[0], a[1], rz + 0.08)], lit(snow || GY, sun(nx * 0.6, ny * 0.6, 0.8))]);
+      }
+      faces.push([ip.map(([s_, t_]) => R(s_, t_, rz + 0.08)), lit(ROOF, sun(0, 0, 1))]);
+      box(-l * 0.45, l * 0.35, -0.75, 0.75, rz + 0.08, rz + 0.36, GY, ROOF);   // klimatizace na střeše
     } else if (isBus) {                                                     // autobus: bílý, zelený a žlutý pruh, tmavá okna, žluté čelo
       const WH = [238, 238, 234], GR = [30, 140, 84], YL = [244, 196, 28], GL = [40, 44, 52], DOOR = [54, 58, 66], ROOF = snow || [222, 224, 220];
       const ch = 0.45, fp = [[-l + ch, -w], [l - ch, -w], [l, -w + ch], [l, w - ch], [l - ch, w], [-l + ch, w], [-l, w - ch], [-l, -w + ch]];

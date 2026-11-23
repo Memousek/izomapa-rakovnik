@@ -1,7 +1,8 @@
 // Život na mapě podle kalendáře (inspirace izomapa.sachytynec.cz a Kopřivnice, kód vlastní). Bez stavu: co se kde děje,
 // se počítá jen z data, hodiny a semínka, takže všichni návštěvníci vidí totéž. Ilustrace, ne zpravodajství:
 //   31. 12. večer a o půlnoci ohňostroj nad městem, 5. 12. odpoledne a večer Mikuláš, anděl a čert na náměstí,
-//   v sobotu od května do září dopoledne svatba před radnicí, o adventních víkendech večer lidé u vánočního stromu.
+//   v sobotu od května do září dopoledne svatba před radnicí, o adventních víkendech večer lidé u vánočního stromu,
+//   při akci z programu města (web/mapa_akce.js) dav na náměstí. Postavy schované za stromem, domem nebo výzdobou se nekreslí.
 // Kreslí přes window.Izomapa.onFrame (web/js/90-doplnky-api.js). Zkouška jiného data: ?zivot=2026-12-05T17:30
 const praha = () => {
   const p = new URLSearchParams(location.search).get('zivot'), d = p ? new Date(p) : new Date();
@@ -9,16 +10,8 @@ const praha = () => {
 };
 const rnd = (s) => { const x = Math.sin(s * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
-// pixelová postavička: hlava, tělo, nohy (barvy), výška v obrázkových px podle měřítka
-function postava(ctx, x, y, s, telo, hlava = '#e8c4a0', extra) {
-  const u = Math.max(1, Math.round(1.6 * s));
-  ctx.fillStyle = '#1d1f24'; ctx.fillRect(Math.round(x - u), Math.round(y - u * 3), u, u * 3); ctx.fillRect(Math.round(x), Math.round(y - u * 3), u, u * 3);
-  ctx.fillStyle = telo; ctx.fillRect(Math.round(x - u * 1.5), Math.round(y - u * 7), u * 3, u * 4);
-  ctx.fillStyle = hlava; ctx.fillRect(Math.round(x - u), Math.round(y - u * 9), u * 2, u * 2);
-  if (extra) extra(Math.round(x), Math.round(y), u);
-}
-
-export function spust({ namesti, radnice }) {
+export function spust({ namesti, radnice, akce, namestiSektor }) {
+  const SEKTOR = (namestiSektor || [0, 360]).map((a) => a * Math.PI / 180);
   const I = window.Izomapa; if (!I || !namesti) return;
   const [nx, ny] = I.latLonToWorld(namesti[0], namesti[1]);
   const [rx, ry] = radnice ? I.latLonToWorld(radnice[0], radnice[1]) : [nx - 40, ny];
@@ -29,39 +22,56 @@ export function spust({ namesti, radnice }) {
   };
 
   // ---------- svět: lidé na náměstí a u radnice ----------
+  // Postavy jsou stejný model jako chodci v mapě (Izomapa.postava): oblečení podle období, v noci ztmavené, za stromem oříznuté.
+  // Kostýmy (Mikuláš, anděl, čert, nevěsta, ženich) jsou jen jiné barvy a střihy téhož modelu.
+  const KOSTYM = {
+    mikulas: { top: 'coat', topC: '#f4f2ea', bot: 'trousers', botC: '#f4f2ea', scarf: '#c8102e', hat: { t: 'beanie', c: '#f4f2ea' }, hair: '#e8e4da', hairStyle: 'long', shoes: '#6b4a30', gloves: '#c8102e' },
+    andel: { top: 'dress', topC: '#fbfbf6', bot: 'none', hair: '#f2d34f', hairStyle: 'long', shoes: '#fbfbf6' },
+    cert: { top: 'hoodie', topC: '#1d1d20', bot: 'trousers', botC: '#1d1d20', skin: '#5a3a30', hair: '#1a1a1a', hat: { t: 'beret', c: '#4a3a30' }, shoes: '#1a1a1a' },
+    nevesta: { top: 'dress', topC: '#fbfbf6', bot: 'none', hair: '#6b4a30', hairStyle: 'bun', shoes: '#fbfbf6' },
+    zenich: { top: 'jacket', topC: '#1d1f24', topC2: '#f2f2ee', bot: 'trousers', botC: '#1d1f24', hair: '#3a2a22', shoes: '#1a1a1a' },
+  };
   I.onFrame((ctx, v) => {
-    if (v.sx < 0.45) return;
+    if (v.sx < 0.45 || !I.postava) return;
     const d = praha(), h = d.getHours() + d.getMinutes() / 60, m = d.getMonth(), den = d.getDate(), wd = d.getDay(), t = d.getTime() / 1000;
-    const s = Math.min(2.2, v.sx);
-    const kresli = (wx, wy, telo, hlava, extra) => { const [ix, iy] = img(wx, wy); if (!v.vis(ix, iy, 40)) return; const [X, Y] = v.toScreen(ix, iy); postava(ctx, X, Y, s, telo, hlava, extra); };
+    const L = [];                                                   // [x, y, volby], kreslí se odzadu dopředu
+    const pridej = (x, y, q) => L.push([x, y, q, I.toImg(x, y, I.gz(x, y))[1]]);
+    const kOkoli = (x, y) => I.toImg(x, y, 0)[1] > I.toImg(nx, ny, 0)[1];   // stojí před stromem: k divákovi zády
     // Mikuláš, anděl a čert 5. 12. 15:30–20:30: obchůzka po náměstí, kolem děti
     if (m === 11 && den === 5 && h >= 15.5 && h < 20.5) {
-      const a = (t / 90) % (Math.PI * 2), R = 28;
-      const bod = (o) => [nx + Math.cos(a + o) * R, ny + Math.sin(a + o) * R * 0.6];
-      kresli(...bod(0), '#f2f2ee', '#e8c4a0', (x, y, u) => { ctx.fillStyle = '#c8102e'; ctx.fillRect(x - u * 2, y - u * 7, u, u * 4); ctx.fillRect(x + u, y - u * 7, u, u * 4); ctx.fillStyle = '#f2f2ee'; ctx.fillRect(x - u, y - u * 12, u * 2, u * 3); ctx.fillStyle = '#e3b23c'; ctx.fillRect(x + u * 2, y - u * 11, u, u * 9); });   // mitra a berla
-      kresli(...bod(0.06), '#fbfbf6', '#f0d2b0', (x, y, u) => { ctx.fillStyle = '#f2d34f'; ctx.fillRect(x - u * 3, y - u * 7, u, u * 3); ctx.fillRect(x + u * 2, y - u * 7, u, u * 3); });   // křídla
-      kresli(...bod(-0.06), '#1a1a1a', '#2a2020', (x, y, u) => { ctx.fillStyle = '#c8102e'; ctx.fillRect(x, y - u * 8, u, u); ctx.fillStyle = '#4a3a30'; ctx.fillRect(x - u, y - u * 10, u, u); ctx.fillRect(x + u, y - u * 10, u, u); });   // jazyk a rohy
+      const st = (SEKTOR[0] + SEKTOR[1]) / 2, sw = (SEKTOR[1] - SEKTOR[0]) / 2 * 0.8, f = t / 40;   // chodí sem a tam po volné výseči náměstí
+      const a = st + Math.sin(f) * sw, R = 9, kr = Math.floor(t * 3) % 4, smer = Math.cos(f) > 0;
+      const bod = (o) => [nx + Math.cos(a + o) * R, ny + Math.sin(a + o) * R];
+      const p0 = I.toImg(...bod(0), 0), p1 = I.toImg(...bod(smer ? 0.05 : -0.05), 0);
+      const sm = { mir: p1[0] < p0[0], back: p1[1] < p0[1], frame: kr };
+      pridej(...bod(0), { ...sm, outfit: KOSTYM.mikulas });
+      pridej(...bod(0.07), { ...sm, outfit: KOSTYM.andel });
+      pridej(...bod(-0.07), { ...sm, outfit: KOSTYM.cert });
       for (let k = 0; k < 7; k++) {
-        const o = rnd(k) * 6.28, r = 8 + rnd(k + 9) * 18;
-        kresli(nx + Math.cos(a * 0.3 + o) * r, ny + Math.sin(a * 0.3 + o) * r * 0.6, ['#2f6fd0', '#e05a2b', '#3a9a5b', '#d23a8a'][k % 4], '#e8c4a0');
+        const o = a + (rnd(k) - 0.5) * 1.2, r = 2 + rnd(k + 9) * 3, x = bod(0)[0] + Math.cos(o) * r, y = bod(0)[1] + Math.sin(o) * r;
+        pridej(x, y, { oi: 300 + k, kid: true, back: I.toImg(x, y, 0)[1] > I.toImg(...bod(0), 0)[1], mir: k % 2 === 0 });
       }
     }
     // svatba: sobota květen–září 10:30–14:00 před radnicí (nevěsta, ženich, hosté)
     if (wd === 6 && m >= 4 && m <= 8 && h >= 10.5 && h < 14) {
       const k = Math.floor(rnd(den + m * 31) * 3);                // ne každou sobotu
       if (k !== 0) {
-        kresli(rx + 4, ry - 6, '#fbfbf6', '#e8c4a0', (x, y, u) => { ctx.fillStyle = '#fbfbf6'; ctx.fillRect(x - u * 2.5, y - u * 4, u * 5, u * 4); });   // šaty
-        kresli(rx + 6, ry - 6, '#1d1f24', '#e8c4a0');
-        for (let g = 0; g < 9; g++) kresli(rx + 6 + Math.cos(g) * (5 + g), ry - 9 - rnd(g + 3) * 6, ['#3f5f8a', '#7a2f4f', '#2f6b4f', '#8a7a3a', '#5a5a62'][g % 5], '#e8c4a0');
+        pridej(rx + 4, ry - 6, { outfit: KOSTYM.nevesta, mir: true });
+        pridej(rx + 5.2, ry - 6, { outfit: KOSTYM.zenich });
+        for (let g = 0; g < 9; g++) pridej(rx + 6 + Math.cos(g) * (5 + g), ry - 9 - rnd(g + 3) * 6, { oi: 200 + g, back: true, mir: g % 2 === 0 });
       }
     }
-    // advent: o víkendech 16–20 h lidé u vánočního stromu na náměstí
-    if (advent(d) && (wd === 0 || wd === 6) && h >= 16 && h < 20) {
-      for (let k = 0; k < 16; k++) {
-        const o = rnd(k + 40) * 6.28, r = 7 + rnd(k + 70) * 20, kyv = Math.sin(t / 3 + k) * 0.6;
-        kresli(nx + Math.cos(o) * r + kyv, ny + Math.sin(o) * r * 0.6, ['#2f4f86', '#8a2f2f', '#3c6e47', '#6b5b4b', '#2a2c31'][k % 5], '#e8c4a0', (x, y, u) => { if (k % 3 === 0) { ctx.fillStyle = '#c8102e'; ctx.fillRect(x - u, y - u * 10, u * 2, u); } });   // čepice
-      }
+    // dav u vánočního stromu: při akci z programu města (rozsvícení stromu víc lidí), bez programu o adventních víkendech 16–20 h.
+    // Lidé stojí 4,6–12 m od stromu (strom má poloměr 3,7 m) ve volné výseči náměstí (namestiSektor, úhel od východu), čelem ke stromu.
+    const ak = akce ? akce(d) : { dav: 0 };
+    const n = ak.dav === 2 ? 44 : ak.dav === 1 ? 26 : advent(d) && (wd === 0 || wd === 6) && h >= 16 && h < 20 ? 16 : 0;
+    for (let k = 0; k < n; k++) {
+      const o = SEKTOR[0] + rnd(k + 40) * (SEKTOR[1] - SEKTOR[0]), r = 4.6 + rnd(k + 70) * 7.5;
+      const x = nx + Math.cos(o) * r, y = ny + Math.sin(o) * r, dite = k % 7 === 3;
+      pridej(x, y, { oi: 100 + k, kid: dite, back: kOkoli(x, y), mir: I.toImg(x, y, 0)[0] > I.toImg(nx, ny, 0)[0] });
     }
+    L.sort((p, q) => p[3] - q[3]);
+    for (const [x, y, q] of L) I.postava(v, x, y, q);
   }, { layer: 'world', priority: -1 });
 
   // ---------- nebe: silvestrovský ohňostroj ----------

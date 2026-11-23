@@ -86,8 +86,23 @@
       }
     }
     if (DG.size) deckShapes(x, y, z, dv, bb, out);
+    if (xmasOcc.length && xmasShow()) for (const o of xmasOcc)   // vánoční strom a stánky (84-kresleni-vozidel.js), jen když je výzdoba vidět
+      if (!(o.bb[0] > bb[2] || o.bb[2] < bb[0] || o.bb[1] > bb[3] || o.bb[3] < bb[1]) && depth(o.x, o.y, o.g) < dv - (o.st ? 1.0 : 0.5)) out.push([3, o.h]);
     buildingShapes(x, y, z, bb, out);
     return out;
+  }
+  // je postava stojící v (x, y, z) ve výšce ~1 m schovaná za stromem, domem nebo výzdobou? (pro doplňky, Izomapa.zakryto)
+  function zakrytoBod(x, y, z) {
+    const dp = depth(x, y, z), ip = toImg(x, y, z + 0.9);
+    if (occluded(ip[0], ip[1], dp)) return true;
+    const A = STROMY[state.season];
+    for (const q of treeShapes(x, y, z, [ip[0] - 1, ip[1] - 1, ip[0] + 1, ip[1] + 1])) {
+      if (q[0] === 3 && inPoly(ip[0], ip[1], q[1])) return true;
+      if (q[0] === 1 && ((ip[0] - q[1][0]) / q[2]) ** 2 + ((ip[1] - q[1][1]) / q[3]) ** 2 < 1) return true;
+      if (q[0] === 0 && ip[1] > q[1][1] && ip[1] < q[2][1] && Math.abs(ip[0] - q[1][0]) < q[3] * (ip[1] - q[1][1]) / (q[2][1] - q[1][1])) return true;
+      if (q[0] === 2 && A) { const [, , L, T, k] = q, cx = L + A.CW * k / 2, cy = T + A.CH * k * 0.42; if (((ip[0] - cx) / (A.CW * k * 0.38)) ** 2 + ((ip[1] - cy) / (A.CH * k * 0.4)) ** 2 < 1) return true; }
+    }
+    return false;
   }
   const occC = document.createElement('canvas'), occX = occC.getContext('2d');
   function drawBehindTrees(img, ix, iy, iw, ih, x, y, z, sx, ox, oy) {
