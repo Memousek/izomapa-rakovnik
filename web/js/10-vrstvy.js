@@ -232,12 +232,28 @@
   }
   const layersReady = initLayers();
   const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  // okna podle hodin (inspirace svamberk.net/horice): se skutečným časem svítí večer všechna, v noci jen část,
+  // ráno ve všední den se rozsvěcí; o víkendu a svátcích se chodí spát později a vstává později
+  const SVATKY = ['01-01', '05-01', '05-08', '07-05', '07-06', '09-28', '10-28', '11-17', '12-24', '12-25', '12-26'];
+  function oknaPodleHodin() {
+    if (!$('realTime').checked) return 1;
+    const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Prague' })), h = d.getHours() + d.getMinutes() / 60;
+    const md = String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const zitra = new Date(d.getTime() + 864e5), volnoZitra = zitra.getDay() === 0 || zitra.getDay() === 6;
+    const volno = d.getDay() === 0 || d.getDay() === 6 || SVATKY.includes(md);
+    const pozde = volnoZitra ? 0.75 : 0.55, noc = volnoZitra || volno ? 0.45 : 0.35;
+    if (h >= 17 && h < 22) return 1;
+    if (h >= 22) return 1 - (1 - pozde) * (h - 22) / 2;           // 22–24 h postupně zhasínají
+    if (h < 5) return noc;                                         // hluboká noc: svítí jen část oken
+    if (h < 7.5) return volno ? noc : 0.4 + 0.5 * (h - 5) / 2.5;   // ráno ve všední den se rozsvěcí
+    return 0.9;
+  }
   function applyTime() {
     const t = state.night;
     const warm = Math.max(0, 1 - Math.abs(t - 0.42) / 0.32) * 0.8;
     if (warmItem) warmItem.setOpacity(warm * 0.32);
     if (darkItem) darkItem.setOpacity(smooth(0.35, 0.95, t) * 0.78);
-    for (const l of LAYERS) if (l.light) l.light.setOpacity(shown(l.key) ? smooth(0.5, 0.95, t) : 0);
+    for (const l of LAYERS) if (l.light) l.light.setOpacity(shown(l.key) ? smooth(0.5, 0.95, t) * oknaPodleHodin() : 0);
     const d = smooth(0.35, 0.95, t);
     const mix = (a, b) => Math.round(a + (b - a) * d);
     $('map').style.background = $('osd').style.background = `rgb(${mix(27 + warm * 30, 9)},${mix(35 + warm * 12, 12)},${mix(51, 24)})`;

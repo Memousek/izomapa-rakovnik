@@ -330,6 +330,42 @@
     }
     ctx.restore();
   }
+  // ---------- pítka a veřejné WC (nastroje/sluzby.py -> site/sluzby.json, OSM) ----------
+  let SLUZBY = [];
+  fetch('sluzby.json').then((r) => (r.ok ? r.json() : [])).catch(() => []).then((d) => {
+    SLUZBY = (Array.isArray(d) ? d : []).map((p) => {
+      const x = (p.lon - cam.lon0) * cam.kx, y = (p.lat - cam.lat0) * cam.ky, [ix, iy] = toImg(x, y, gz(x, y));
+      return { ...p, ix, iy, k: `c${Math.round(x / (2 * cam.half))}_${Math.round(y / (2 * cam.half))}` };
+    });
+    if (SLUZBY.length) $('l-sluzby-row').hidden = false;
+  });
+  function slAt(ix, iy, tol) {
+    if (!SLUZBY.length || !$('l-sluzby').checked) return null;
+    let best = null, bd = tol;
+    for (const p of SLUZBY) { if (!shown(p.k)) continue; const d = Math.hypot(ix - p.ix, iy - (p.iy - 30)); if (d < bd) { bd = d; best = p; } }
+    return best;
+  }
+  function showSluzba(p) {
+    showCard({ title: p.nazev || (p.druh === 'pitko' ? 'Pítko' : 'Veřejné WC'), text: p.druh === 'pitko' ? 'Pítko s pitnou vodou.' : '', lon: p.lon, lat: p.lat, k: p.k, rows: [
+      ['Poplatek', p.poplatek === undefined ? null : p.poplatek ? 'placené' : 'zdarma'], ['Otevřeno', p.oteviraci ? ohCz(p.oteviraci) : null],
+      ['Bezbariérové', p.bezbarier ? 'ano' : null], ['Přístup', p.zakaznici ? 'jen pro zákazníky' : null], ['Zdroj', 'OpenStreetMap']] });
+  }
+  function kresliSluzby(sx, ox, oy, cw, ch) {
+    if (!SLUZBY.length || !$('l-sluzby').checked || sx < 0.25) return;
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const p of SLUZBY) {
+      if (!shown(p.k)) continue;
+      const x = ox + p.ix * sx, y = oy + p.iy * sx; if (x < -30 || y < -40 || x > cw + 30 || y > ch + 30) continue;
+      const q = Math.round(Math.min(9, Math.max(5, 7 * Math.sqrt(sx)))), X = Math.round(x - q), Y = Math.round(y - q * 2 - 4);
+      ctx.fillStyle = 'rgba(15,18,26,.7)'; ctx.fillRect(Math.round(x) - 1, Y + q * 2, 2, 4);
+      ctx.fillStyle = 'rgba(15,18,26,.75)'; ctx.fillRect(X - 1, Y - 1, q * 2 + 2, q * 2 + 2);
+      ctx.fillStyle = p.druh === 'pitko' ? '#2f8cff' : '#6b5bd6'; ctx.fillRect(X, Y, q * 2, q * 2);
+      ctx.fillStyle = '#fff';
+      if (p.druh === 'wc') { ctx.font = `700 ${Math.max(7, Math.round(q * 0.95))}px system-ui, sans-serif`; ctx.fillText('WC', x, Y + q + 0.5); }
+      else { ctx.beginPath(); ctx.moveTo(x, Y + q * 0.35); ctx.quadraticCurveTo(x + q * 0.75, Y + q * 1.1, x, Y + q * 1.65); ctx.quadraticCurveTo(x - q * 0.75, Y + q * 1.1, x, Y + q * 0.35); ctx.fill(); }   // kapka
+    }
+    ctx.restore();
+  }
   function puNastav(data) {
     const st = (data && data.stanice) || [];
     PU_ZDROJ = (data && data.zdroj) || {};
@@ -920,6 +956,57 @@
       li.appendChild(b); return li;
     }));
   }
+  // ---------- linky: celá trasa jednoho směru na mapě, opačný směr, kolik spojů právě jede (inspirace izomapa.fun) ----------
+  const LINKA = { ri: null, smer: 0, smery: [], sh: null };
+  const typNazev = (typ) => (typ === 2 ? 'Vlak' : typ === 0 ? 'Tramvaj' : 'Autobus');
+  function linkaVyber(line, typ) {
+    const ri = MHD.routes.map((r, i) => (r[0] === line && r[1] === typ ? i : -1)).filter((i) => i >= 0);
+    const podleCile = new Map();                             // směr = cíl spoje; tvar trasy = nejčastější tvar spojů do toho cíle
+    MHD.trips.forEach((t) => { if (!ri.includes(t[0])) return; const k = t[5]; if (!podleCile.has(k)) podleCile.set(k, new Map()); const m = podleCile.get(k); m.set(t[1], (m.get(t[1]) || 0) + 1); });
+    const smery = [...podleCile.entries()].map(([cil, m]) => ({ cil, sh: [...m.entries()].sort((a, b) => b[1] - a[1])[0][0], n: [...m.values()].reduce((a, b) => a + b, 0) }))
+      .sort((a, b) => b.n - a.n).slice(0, 2);
+    if (!smery.length) return;
+    Object.assign(LINKA, { line, typ, ri, smer: 0, smery });
+    MHD.follow = null; $('follow').hidden = true;
+    linkaUkaz(true);
+  }
+  function linkaUkaz(najet) {
+    const s = LINKA.smery[LINKA.smer]; if (!s) return;
+    const sh = MHD.shapes[s.sh]; if (!sh.img) sh.img = sh.w.map(([x, y]) => toImg(x, y, gz(x, y)));
+    LINKA.sh = sh;
+    const jede = mhdActive().filter(([i]) => LINKA.ri.includes(MHD.trips[i][0]) && MHD.trips[i][5] === s.cil).length;
+    $('linkaTxt').replaceChildren(Object.assign(document.createElement('b'), { textContent: `${typNazev(LINKA.typ)} ${LINKA.line}` }), ` → ${MHD.names[s.cil]} · ${jede ? `právě jede ${jede} ${jede === 1 ? 'spoj' : jede < 5 ? 'spoje' : 'spojů'}` : 'teď nejede'}`);
+    $('linkaOtoc').hidden = LINKA.smery.length < 2; $('linkaBar').hidden = false;
+    if (najet) {
+      const xs = sh.img.map((p) => p[0]), ys = sh.img.map((p) => p[1]), m = 60;
+      viewer.viewport.fitBounds(new OpenSeadragon.Rect((Math.min(...xs) - m) / W, (Math.min(...ys) - m) / W, (Math.max(...xs) - Math.min(...xs) + 2 * m) / W, (Math.max(...ys) - Math.min(...ys) + 2 * m) / W));
+      if (isMobile()) setMenu(false);
+    }
+  }
+  function kresliLinku(sx, ox, oy) {
+    const sh = LINKA.sh; if (!sh || $('linkaBar').hidden) return;
+    const col = LINKA.typ === 2 ? '#ff9f1c' : LINKA.typ === 0 ? '#e0483a' : '#2f8cff', path = () => { ctx.beginPath(); sh.img.forEach(([ix, iy], k) => (k ? ctx.lineTo(ox + ix * sx, oy + iy * sx) : ctx.moveTo(ox + ix * sx, oy + iy * sx))); };
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(16,20,30,.5)'; ctx.lineWidth = Math.max(5, 11 * sx); path(); ctx.stroke();
+    ctx.strokeStyle = col; ctx.lineWidth = Math.max(3, 6 * sx); ctx.setLineDash([Math.max(6, 14 * sx), Math.max(3, 6 * sx)]); path(); ctx.stroke();
+    ctx.restore();
+  }
+  $('linkaOtoc').addEventListener('click', () => { LINKA.smer = (LINKA.smer + 1) % LINKA.smery.length; linkaUkaz(false); });
+  $('linkaZavri').addEventListener('click', () => { $('linkaBar').hidden = true; LINKA.sh = null; });
+  setInterval(() => { if (!$('linkaBar').hidden) linkaUkaz(false); }, 15000);
+  function seznamLinek() {
+    const act = mhdActive(), seen = new Map();
+    MHD.routes.forEach(([line, typ], ri) => { const k = typ + '|' + line; if (!seen.has(k)) seen.set(k, { line, typ, n: 0 }); });
+    for (const [i] of act) { const [line, typ] = MHD.routes[MHD.trips[i][0]]; const q = seen.get(typ + '|' + line); if (q) q.n++; }
+    const ul = $('linkyList'), PORADI = (t) => (t === 0 ? 1 : t === 2 ? 2 : 0), lin = [...seen.values()].sort((a, b) => PORADI(a.typ) - PORADI(b.typ) || String(a.line).localeCompare(String(b.line), 'cs', { numeric: true }));   // autobusy, tramvaje, vlaky
+    ul.replaceChildren(...lin.map(({ line, typ, n }) => {
+      const li = document.createElement('li'), b = document.createElement('button'), l = document.createElement('span'), t = document.createElement('span'), sm = document.createElement('small');
+      l.className = 'linka ' + (typ === 2 ? 'vlak' : typ === 0 ? 'tram' : 'bus'); l.textContent = line;
+      sm.textContent = n ? ` · právě jede ${n}` : ' · teď nejede'; t.append(typNazev(typ), sm);
+      b.type = 'button'; b.append(l, t); b.addEventListener('click', () => linkaVyber(line, typ)); li.append(b); return li;
+    }));
+  }
+  $('linkyBtn').addEventListener('click', () => { const ul = $('linkyList'); ul.hidden = !ul.hidden; $('linkyBtn').setAttribute('aria-expanded', String(!ul.hidden)); if (!ul.hidden) seznamLinek(); });
   $('sledBtn').addEventListener('click', () => { const ul = $('sledList'); ul.hidden = !ul.hidden; $('sledBtn').setAttribute('aria-expanded', String(!ul.hidden)); if (!ul.hidden) seznamSpoju(); });
   setInterval(() => { if (!$('sledList').hidden) seznamSpoju(); }, 3000);
   function stopsReady() {

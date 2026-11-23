@@ -29,6 +29,8 @@
     const [ix, iy] = vpToImg(e.position);
     const st = stopAt(ix, iy);
     if (st) { showStop(st); return; }
+    const sl = slAt(ix, iy, 16 / imgScale());
+    if (sl) { showSluzba(sl); return; }
     const pu = puAt(ix, iy, 16 / imgScale());
     if (pu) { showPumpa(pu); return; }
     const uz = uzAt(ix, iy, 14 / imgScale());
@@ -47,7 +49,7 @@
     if (!$('l-hover').checked || e.pointerType === 'touch') { state.hover = null; $('osd').style.cursor = ''; return; }
     const [ix, iy] = vpToImg(new OpenSeadragon.Point(mx, my));
     state.hover = hit(ix, iy);
-    $('osd').style.cursor = state.hover || stopAt(ix, iy) || uzAt(ix, iy, 14 / imgScale()) || puAt(ix, iy, 16 / imgScale()) ? 'pointer' : '';
+    $('osd').style.cursor = state.hover || stopAt(ix, iy) || uzAt(ix, iy, 14 / imgScale()) || slAt(ix, iy, 16 / imgScale()) || puAt(ix, iy, 16 / imgScale()) ? 'pointer' : '';
   });
 
 

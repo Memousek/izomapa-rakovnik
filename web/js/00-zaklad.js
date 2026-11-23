@@ -33,6 +33,11 @@
       const m = new Date().getMonth();
       if (!obdobiZOdkazu && (m === 10 || m === 2) && (c.snow_depth || 0) >= 0.02 && state.season !== 'winter') setSeason('winter');
     }).catch(() => {});
+  // aktuality z webu města (functions/api/zpravy.js, web/mapa_zpravy.js): titulek pod hledáním a seznam v panelu
+  if ({{ZPRAVY}}) import('./mapa_zpravy.js').then((m) => m.spust({ panelPred: $('uzBox'), lista: $('zpravyLista') })).catch(() => {});
+  // výstrahy ČHMÚ (functions/api/vystrahy.js, web/mapa_vystrahy.js): pruh nahoře a seznam v panelu nad počasím
+  import('./mapa_vystrahy.js').then((m) => m.spust({ oblasti: {{VYSTRAHY_OBLASTI}}, panelPred: $('predpovedBox'),
+    ukazKartu: (o) => showCard({ ...o, lon: OV.cam.lon0, lat: OV.cam.lat0, target: '_blank' }) })).catch(() => {});
   const W = OV.w, Hh = OV.h;
   const $ = (id) => document.getElementById(id);
   const isMobile = () => matchMedia('(max-width: 640px)').matches;

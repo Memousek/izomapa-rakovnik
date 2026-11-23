@@ -29,11 +29,14 @@
     <input id="q" type="search" placeholder="Ulice, adresa nebo místo" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
     <ul class="results" id="results"></ul>
   </div>
+  <p class="zpravy-radek" id="zpravyLista" hidden><span class="label">Aktuálně</span> </p>
 
   <div id="sledBox" class="sec" hidden>
     <p class="label">Sledovat spoj</p>
     <button class="px-btn sled-btn" id="sledBtn" type="button" aria-expanded="false" aria-controls="sledList">Autobusy a vlaky na mapě</button>
     <ul class="sled-list" id="sledList" hidden></ul>
+    <button class="px-btn sled-btn" id="linkyBtn" type="button" aria-expanded="false" aria-controls="linkyList">Linky: celá trasa</button>
+    <ul class="sled-list" id="linkyList" hidden></ul>
   </div>
 
   <details class="sec" id="vzhled">
@@ -88,11 +91,18 @@
   </div>
 
   <div class="ovl">
+    <p class="label">Rychlá volba</p>
+    <div class="predvolby" role="group" aria-label="Rychlá volba vrstev">
+      <button class="px-btn" type="button" data-predvolba="kolo" title="Cyklotrasy, pítka a WC, bez pump">Na kole</button>
+      <button class="px-btn" type="button" data-predvolba="deti" title="Lidé, pítka a WC, místa a deník">S dětmi</button>
+      <button class="px-btn" type="button" data-predvolba="deje" title="Doprava, uzavírky, výstrahy, aktuality">Co se děje</button>
+    </div>
     <p class="label">Na mapě</p>
     <div class="prepinace">
       <label class="chip"><input type="checkbox" id="l-labels" checked><span>Popisky</span></label>
       <label class="chip"><input type="checkbox" id="l-traffic" checked><span>Doprava</span></label>
       <label class="chip" id="l-pumpy-row" hidden><input type="checkbox" id="l-pumpy" checked><span>Pumpy</span></label>
+      <label class="chip" id="l-sluzby-row" hidden><input type="checkbox" id="l-sluzby" checked><span>Pítka a&nbsp;WC</span></label>
       <label class="chip"><input type="checkbox" id="l-smoke" checked><span>Kouř</span></label>
       <label class="chip"><input type="checkbox" id="l-hover" checked><span>Obrys budov</span></label>
       <label class="chip" id="l-trasy-row" hidden><input type="checkbox" id="l-trasy"><span>Trasy</span></label>
@@ -138,6 +148,7 @@
   </details>
 </aside>
 
+<div class="follow linka-bar" id="linkaBar" hidden aria-live="polite"><span id="linkaTxt"></span><button class="px-btn" id="linkaOtoc" type="button">Opačný směr</button><button class="px-btn" id="linkaZavri" type="button" aria-label="Skrýt trasu linky">×</button></div>
 <div class="follow" id="follow" hidden aria-live="polite"><span id="followTxt"></span><button class="px-btn" id="followStop" type="button" aria-label="Přestat sledovat">×</button></div>
 <section class="card" id="card" hidden aria-live="polite">
   <div class="grab" id="grab" aria-hidden="true"></div>

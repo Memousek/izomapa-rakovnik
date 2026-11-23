@@ -79,6 +79,8 @@ def postav_stranku(M, html_out='site/index.html', og_cesta='og.jpg', je_obec=Fal
         'HLASENI': 'true' if M.get('hlaseni') else 'false',
         'VITR': 'true' if M.get('vitr') else 'false',
         'POCASI': 'true' if M.get('pocasi') else 'false',
+        'ZPRAVY': 'true' if (M.get('zpravy_web') or {}).get('url') else 'false',   # aktuality z webu města (functions/api/zpravy.js)
+        'VYSTRAHY_OBLASTI': json.dumps(M.get('vystrahy_oblasti') or [x for x in (M.get('nazev'), M.get('kraj') or (M.get('doprava') or {}).get('kraj')) if x], ensure_ascii=False),   # výstrahy ČHMÚ: ORP a kraj podle <areaDesc>
         'LETADLA': 'true' if M.get('letadla', False) else 'false',
         'JIZDA': 'true' if M.get('jizda') else 'false',
         'TRASY': 'true' if os.path.exists('assets/trasy.json') else 'false',
@@ -152,6 +154,9 @@ if os.path.exists('assets/trasy.json'): shutil.copy('assets/trasy.json', 'site/t
 shutil.copy('web/ceny_paliv.js', 'site/ceny_paliv.js')
 for _f in os.listdir('web'):                           # moduly prohlížeče (pohlednice, přelet, Wikipedie, deník, zvuky): web/mapa_*.js -> site/
     if _f.startswith('mapa_') and _f.endswith('.js'): shutil.copy(f'web/{_f}', f'site/{_f}')
+if (MESTO.get('zpravy_web') or {}).get('url'):   # adresa seznamu aktualit pro functions/api/zpravy.js (funkce jinou nestáhne)
+    json.dump({k: MESTO['zpravy_web'][k] for k in ('url', 'zdroj') if MESTO['zpravy_web'].get(k)}, open('site/zpravy_zdroj.json', 'w', encoding='utf-8'), ensure_ascii=False)
+if os.path.exists('assets/sluzby.json'): shutil.copy('assets/sluzby.json', 'site/sluzby.json')   # pítka a WC (nastroje/sluzby.py)
 if os.path.exists('assets/hadanky.json'): shutil.copy('assets/hadanky.json', 'site/hadanky.json')   # hádanky v deníku (jen ověřené texty)   # ceny paliv z mBenzin.cz (functions/api/ceny.js) k pumpám, mapa i 3D jízda
 shutil.copy('web/uzavirky.js', 'site/uzavirky.js')   # uzavírky: načtení a dopočet úseků z oznámení (mapa i 3D jízda)
 shutil.copy('web/uzavirky_editor.js', 'site/uzavirky_editor.js')   # editor uzavírek pro správce (index.html?admin)

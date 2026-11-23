@@ -97,6 +97,7 @@
         for (const q of RT.d.values()) q.v += Math.max(-0.5 * dt, Math.min(0.85 * dt, (q.c - q.v) * Math.min(1, dt / 6)));   // zpoždění plynule a vozidlo nikdy necouvne
         if (ns !== MHD.t) { MHD.t = ns; MHD.act = mhdActive(); updateXings(); if (MHD.follow !== null) mhdFollowText(); }
         MHD.drawn = [];
+        kresliLinku(sx, ox, oy);                          // zvýrazněná linka (celá trasa jednoho směru)
         if (MHD.follow !== null && MHD.trips[MHD.follow]) followRoute(sx, ox, oy);   // trasa sledovaného spoje pod vozidly
         if (MHD.follow !== null) {
           const a = MHD.act.find((q) => q[0] === MHD.follow);
@@ -325,6 +326,7 @@
       }
     }
     kresliPumpy(sx, ox, oy, cw, ch);
+    kresliSluzby(sx, ox, oy, cw, ch);
     // mraky (jen při oddálení); při dešti a sněžení tmavší a víc
     {
       const fade = Math.max(0, Math.min(1, (0.45 - sx) / 0.25));

@@ -236,3 +236,18 @@
   }
   $('l-labels').addEventListener('change', (e) => $('map').classList.toggle('nolabels', !e.target.checked));
 
+
+  // rychlá volba vrstev (inspirace brno2000.cz): jedním klikem sada vrstev a otevřené sekce panelu
+  const PREDVOLBY = {
+    kolo: { zap: ['l-trasy', 'l-sluzby', 'l-people', 'l-traffic'], vyp: ['l-pumpy', 'l-smoke'], otevri: ['predpovedBox'] },
+    deti: { zap: ['l-people', 'l-sluzby', 'l-labels', 'l-traffic'], vyp: ['l-pumpy', 'l-trasy'], otevri: ['placesBox', 'denikBox'] },
+    deje: { zap: ['l-traffic', 'l-pluhy', 'l-labels', 'l-people'], vyp: [], otevri: ['vystrahyBox', 'aktualityBox', 'uzBox', 'predpovedBox'] },
+  };
+  document.querySelectorAll('[data-predvolba]').forEach((b) => b.addEventListener('click', () => {
+    const p = PREDVOLBY[b.dataset.predvolba];
+    const nastav = (id, v) => { const c = $(id); if (!c || c.closest('[hidden]') || c.checked === v) return; c.checked = v; c.dispatchEvent(new Event('change')); };
+    p.zap.forEach((id) => nastav(id, true)); p.vyp.forEach((id) => nastav(id, false));
+    for (const id of ['placesBox', 'denikBox', 'vystrahyBox', 'aktualityBox', 'uzBox', 'predpovedBox', 'puBox']) { const d = $(id); if (d) d.open = p.otevri.includes(id) && !d.hidden; }
+    document.querySelectorAll('[data-predvolba]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    const prvni = p.otevri.map((id) => $(id)).find((d) => d && !d.hidden); if (prvni) prvni.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }));

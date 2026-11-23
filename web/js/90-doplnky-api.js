@@ -87,4 +87,13 @@
       }
     });
   }
+  // život na mapě podle kalendáře (web/mapa_zivot.js): náměstí = vánoční strom z mesto.json, radnice z příběhů míst
+  {
+    const xm = Array.isArray(OV.xmas) ? (typeof OV.xmas[0] === 'number' ? OV.xmas : OV.xmas[0]) : null;
+    const rad = (OV.places || []).find((p) => /^Radnice/.test(p.name));
+    if (xm) {
+      const [wx, wy] = imgToWorld(xm[0], xm[1]), [lo, la] = lonlat(wx, wy);
+      import('./mapa_zivot.js').then((m) => m.spust({ namesti: [la, lo], radnice: rad ? [rad.lat, rad.lon] : null })).catch(() => {});
+    }
+  }
 })();
