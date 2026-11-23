@@ -1,6 +1,6 @@
 import sys, unittest
 sys.path.insert(0, 'nastroje')
-import semafory
+import semafory_osm as semafory   # naše OSM semafory pro 3D jízdu (nastroje/semafory.py je upstreamový)
 
 
 class TestSemafory(unittest.TestCase):

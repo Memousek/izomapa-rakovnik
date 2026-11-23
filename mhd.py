@@ -48,7 +48,8 @@ if 'shapes.txt' in zf.namelist():
         shapes.append([[round(a, 1), round(b, 1)] for a, b in shapely.simplify(l, 1.0).coords])
     trips = [t for t in trips if t['shape_id'] in SI]
 TI = {t['trip_id'] for t in trips}
-st, PRUJ = {}, set()                                     # PRUJ: (spoj, pořadí) průjezdů bez nástupu i výstupu (provozní body na trati)
+st, PRUJ = {}, set(); PRUJEZD = PRUJ   # upstream značí průjezd v seznamu zastávek jménem None
+# PRUJ: (spoj, pořadí) průjezdů bez nástupu i výstupu (provozní body na trati)
 for r in T('stop_times'):
     if r['trip_id'] not in TI: continue
     if r.get('pickup_type') == '1' and r.get('drop_off_type') == '1': PRUJ.add((r['trip_id'], int(r['stop_sequence'])))
@@ -74,7 +75,7 @@ if 'shapes.txt' not in zf.namelist():                      # GTFS bez tvarů tra
         st[t['trip_id']] = [(q, a_, d_, dist, z) for (q, a_, d_, _, z), dist in zip(s, dists)]
     print('trasy dopočítané po silnicích:', len(shapes), 'úseků bez silnice:', R.fails)
 TI = {t['trip_id'] for t in trips}; SV = {t['service_id'] for t in trips}
-st = {k: [(q, a_, d_, dist, SN.get(z, '')) for q, a_, d_, dist, z in v] for k, v in st.items() if k in TI}
+st = {k: [(q, a_, d_, dist, SN.get(z, '') if (k, q) not in PRUJEZD else None) for q, a_, d_, dist, z in v] for k, v in st.items() if k in TI}
 routes, RI = [], {}
 for rid in dict.fromkeys(t['route_id'] for t in trips):
     RI[rid] = len(routes); routes.append([RT[rid]['route_short_name'], KIND(int(RT[rid]['route_type'] or 3))])
@@ -151,7 +152,7 @@ for t in trips:
         seq += [a - t0, round(dist * k)]
         if d > a: seq += [d - t0, round(dist * k)]              # pobyt v zastávce
         if not pruj: zs += [nid(nm), a - t0]
-    out.append([RI[t['route_id']], tvar_trasy(t, s, k), t['service_id'], t0, seq, nid(t['trip_headsign'] or s[-1][4]), zs])
+    out.append([RI[t['route_id']], tvar_trasy(t, s, k), t['service_id'], t0, seq, nid(t['trip_headsign'] or s[-1][4] or ''), zs])
     TID[id(out[-1])] = t['trip_id']                            # spárování s polohami vozidel v reálném čase (GTFS-RT)
 # čekání na konečné (q[7] = s do odjezdu, kdy vůz už stojí na první zastávce): GTFS čekání nezná, spoj začíná až odjezdem
 print('spojů s čekáním na konečné', cekani_na_konecne(out, lambda q: routes[q[0]][1]))
