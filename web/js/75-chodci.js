@@ -3,7 +3,7 @@
   const PEOPLE = [], PWK = new Map();                         // PWK: konce pěších čar -> [čára, směr]
   const PDENS = { p: 3, f: 0.9, s: 0.5, t: 0.2, k: 0.2, c: 0, d: 0, l: 0 };   // lidí na 100 m podle druhu cesty (p pěší zóna, f chodník, s schody, t cesta, k cyklostezka, c / d cyklotrasa po silnici / po cestě, l lesní a polní cesta)
   const BDENS = { k: 0.9, t: 0.06, c: 0.25, d: 0.25, l: 0.04 };   // cyklistů na 100 m: cyklostezky, cyklotrasy, v lese a v parku občas
-  const TDENS = { l: 0.5, t: 0.08 };                         // turistů s batohem na 100 m: lesní a polní cesty, parky málo
+  const TDENS = { l: 0.3, t: 0.05 };                         // turistů s batohem na 100 m: lesní a polní cesty, parky málo
   const TURA_SEASON = { spring: 0.9, summer: 1, autumn: 0.8, winter: 0.45 };
   const BIKE_SEASON = { spring: 0.35, summer: 1, autumn: 0.25, winter: 0.06 };   // na jaře a na podzim jen pár, v létě víc
   const BIKE_COL = ['#c23a2a', '#2a2c31', '#2f6fd1', '#e8e4da', '#2aa36b', '#f2c230', '#7a7f88', '#e86a2a', '#5a3a7a', '#1d6f8a'];
