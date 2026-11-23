@@ -255,3 +255,8 @@ input[type="range"] { width: 100%; accent-color: var(--lamp); }
 .vyluky-list small { grid-column: 2; font-size: .76rem; color: var(--muted); }
 .spoj-vyluky { display: grid; gap: 4px; }
 .spoj-vyluky .odkaz-btn { color: #f2c66d; font-size: .82rem; text-align: left; }
+
+/* na obloze (web/mapa_nebe.js) */
+.nebe-list li { display: grid; grid-template-columns: 7.4em 1fr; gap: 8px; padding: 4px 8px; font-size: .84rem; }
+.nebe-list .nebe-co { color: var(--lamp); font-variant-numeric: tabular-nums; }
+.iss-pruh { top: calc(env(safe-area-inset-top, 0px) + 50px); }

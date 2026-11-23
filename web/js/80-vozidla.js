@@ -173,6 +173,31 @@
           Pt(s_ - 0.05, s_ + 0.05, t_ - 0.05, t_ + 0.05, z1, z1 + 1.0, DK, DK, 3);
           Pt(s_ - 0.06, s_ + 0.06, ...tt(t_, t_ - Math.sign(t_) * 0.4), z1 + 0.65, z1 + 1.0, [255, 112, 30], [255, 112, 30], 3);
         }
+      } else if (isBus === 12) {                                            // kombajn: žací lišta vpředu, kabina, zásobník na zrno, výsypka podél boku
+        axles.push([l - 2.4, 0.85, w * 0.78, 0.32], [-l + 1.3, 0.55, w * 0.7, 0.24]);
+        Pt(-l + 0.3, l - 1.6, -w * 0.72, w * 0.72, 0.9, 3.0, A, A);                                // tělo
+        Pt(-l + 1.0, l - 3.2, -w * 0.66, w * 0.66, 3.0, 3.7, tone(A, 1.08), sn(tone(A, 1.12)), 2); // zásobník na zrno
+        cab(l - 2.6, l - 1.3, 1.9, 3.75, 2.7, A);                                                  // kabina
+        Pt(l - 1.6, l + 0.2, -0.7, 0.7, 0.7, 1.4, tone(A, 0.85), tone(A, 0.85), 0);                // šikmý dopravník
+        const lis = Pt(l + 0.2, l + 1.3, -3.0, 3.0, 0.25, 1.05, B, sn(B), 0);                      // žací lišta (6 m)
+        win(lis, l + 1.3, -2.9, l + 1.3, 2.9, 0.3, 0.55, DK);                                       // kosa
+        Pt(-l + 1.8, l - 2.6, w * 0.66, w * 0.66 + 0.35, 3.35, 3.6, tone(A, 0.9), tone(A, 0.9), 3); // složená výsypka
+        Pt(-l + 0.6, -l + 0.9, -0.15, 0.15, 3.0, 4.1, DK, DK, 3);                                   // výfuk
+      } else if (isBus === 13 || isBus === 14) {                            // traktor s pluhem nebo secím strojem (13), s vlekem (14)
+        axles.push([l - 0.75, 0.42, w * 0.8, 0.14], [-l + 1.05, 0.8, w, 0.24]);
+        Pt(-0.3, l, -0.55, 0.55, 0.75, 1.55, A, sn(A));
+        Pt(-l + 0.25, -0.3, -w * 0.72, w * 0.72, 0.95, 1.45, A, A);
+        Pt(-l + 0.3, -0.35, -w * 0.7, w * 0.7, 1.45, 2.6, GL, GL, 2);
+        Pt(-l + 0.2, -0.25, -w * 0.78, w * 0.78, 2.6, 2.75, A, sn(A), 3);
+        if (isBus === 13) {                                                 // pluh za traktorem: rám a radlice šikmo
+          Pt(-l - 0.6, -l + 0.2, -0.2, 0.2, 0.45, 0.7, DK, DK, 0);
+          Pt(-l - 3.4, -l - 0.6, -1.5, 1.5, 0.15, 0.55, B, B, 0);
+          for (let k = 0; k < 4; k++) Pt(-l - 3.3 + k * 0.7, -l - 2.9 + k * 0.7, -1.4 + k * 0.7, -0.9 + k * 0.7, 0.0, 0.4, tone(B, 0.7), tone(B, 0.7), 0);
+        } else {                                                            // vlek: valník se sklopnými bočnicemi
+          Pt(-l - 0.9, -l + 0.2, -0.15, 0.15, 0.6, 0.8, DK, DK, 0);
+          axles.push([-l - 3.2, 0.5, w * 0.95, 0.2], [-l - 5.0, 0.5, w * 0.95, 0.2]);
+          Pt(-l - 6.6, -l - 0.9, -w * 0.95, w * 0.95, 0.95, 2.3, B, sn(tone(B, 1.05)));
+        }
       }
       const wh = (side) => { for (const [s_, r_, th, hw] of axles) box(s_ - r_ * 0.8, s_ + r_ * 0.8, side * (th - 0.08) - hw, side * (th - 0.08) + hw, 0, r_ * 1.7, DK); };
       wh(-near);

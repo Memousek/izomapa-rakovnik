@@ -99,6 +99,7 @@ def postav_stranku(M, html_out='site/index.html', og_cesta='og.jpg', je_obec=Fal
         'HYDRO': 'true' if (M.get('hydro') or {}).get('stanice') else 'false',          # vodní stav ČHMÚ (functions/api/hydro.js)
         'KALENDAR': 'true' if (M.get('kalendar_web') or {}).get('url') or os.path.exists('assets/zapasy.json') else 'false',   # akce z infocentra a zápasy
         'VYLUKY': 'true' if 'pid.cz' in json.dumps(M.get('mhd') or {}) else 'false',   # výluky PID (functions/api/vyluky.js)
+        'ZVUKY_MISTA': json.dumps(M.get('zvuky_mista') or {}),          # zvuky podle místa: zvon (celé hodiny), nádraží (příjezd vlaku)
         'AUTOBUS': json.dumps(M.get('autobus') or 'liberec'),            # nátěr autobusů: liberec (bílý se zeleným a žlutým pruhem), pid (šedo-červený PID)
         'VANOCE': json.dumps(M.get('vanoce') or None),                 # termín vánoční vrstvy {"od": "11-11", "do": "01-06"} (assets/vanoce.json)
         'OBEC': json.dumps(M.get('nazev') if je_obec else None, ensure_ascii=False),
@@ -166,10 +167,21 @@ if (MESTO.get('hydro') or {}).get('stanice'):    # stanice ČHMÚ pro functions/
     json.dump({'stanice': MESTO['hydro']['stanice']}, open('site/hydro_zdroj.json', 'w', encoding='utf-8'))
 if (MESTO.get('kalendar_web') or {}).get('url'):   # adresa kalendáře akcí pro functions/api/kalendar.js
     json.dump({k: MESTO['kalendar_web'][k] for k in ('url', 'zdroj') if MESTO['kalendar_web'].get(k)}, open('site/kalendar_zdroj.json', 'w', encoding='utf-8'), ensure_ascii=False)
-for _f in ('akce_mista.json', 'zapasy.json'):      # místa konání akcí (nastroje/akce_mista.py) a ručně vedené domácí zápasy
+for _f in ('akce_mista.json', 'zapasy.json', 'firmy.json'):      # místa konání akcí (nastroje/akce_mista.py) a ručně vedené domácí zápasy
     if os.path.exists(f'assets/{_f}'): shutil.copy(f'assets/{_f}', f'site/{_f}')
 if os.path.exists('site/mhd.json'):                # linky v mapě pro výluky PID (functions/api/vyluky.js)
     json.dump({'linky': sorted({r[0] for r in json.load(open('site/mhd.json', encoding='utf-8'))['routes']})}, open('site/vyluky_zdroj.json', 'w', encoding='utf-8'))
+if os.path.exists('assets/zabaged.json'):          # pole pro práci na polích v prohlížeči (web/js/76-pole.js): bloky od 3 ha, plodina
+    import shapely
+    _ZB = json.load(open('assets/zabaged.json'))
+    _pp = []
+    for _r, _pl in zip(_ZB.get('orna_dil') or [], _ZB.get('orna_plodina') or []):
+        _g = shapely.Polygon([geo.to_local(lo, la) for la, lo in _r[0]])
+        if not _g.is_valid or _g.area < 3e4: continue
+        _g = _g.simplify(3.0)
+        if _g.geom_type != 'Polygon' or not any(abs(_g.centroid.x - cx) <= geo.HALF and abs(_g.centroid.y - cy) <= geo.HALF for cx, cy in map(geo.chunk_center, geo.CHUNKS)): continue
+        _pp.append([_pl or 'soil', round(_g.area / 1e4, 1), [[round(x, 1), round(y, 1)] for x, y in _g.exterior.coords[:-1]]])
+    json.dump(_pp, open('site/pole_prace.json', 'w', encoding='utf-8'), separators=(',', ':'))
 if os.path.exists('assets/sluzby.json'): shutil.copy('assets/sluzby.json', 'site/sluzby.json')   # pítka a WC (nastroje/sluzby.py)
 if os.path.exists('assets/akce.json'): shutil.copy('assets/akce.json', 'site/akce.json')         # akce ve městě (program z webu města), web/mapa_akce.js
 if os.path.exists('assets/hadanky.json'): shutil.copy('assets/hadanky.json', 'site/hadanky.json')   # hádanky v deníku (jen ověřené texty)   # ceny paliv z mBenzin.cz (functions/api/ceny.js) k pumpám, mapa i 3D jízda

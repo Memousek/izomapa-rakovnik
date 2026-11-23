@@ -132,8 +132,18 @@
   // zvuky prostředí (web/mapa_zvuky.js), výchozí vypnuto; prohlížeč pustí zvuk až po kliknutí, proto se jen pamatuje volba
   // AudioContext se musí spustit přímo v obsluze kliknutí (mobil): modul se proto načte dopředu, když je volba uložená
   let zvukyMod = null;
-  const zvukyStav = () => ({ noc: state.night, obdobi: state.season, pocasi: state.weather, doprava: $('l-traffic').checked,
-    km: +((location.hash.split('@')[1] || '').split(',')[2]) || 3 });
+  const ZVM = {{ZVUKY_MISTA}};
+  const zvukyStav = () => {
+    const h = (location.hash.split('@')[1] || '').split(','), la = +h[0], lo = +h[1];
+    const vzd = (p) => (p && la ? Math.hypot((p[0] - la) * 111320, (p[1] - lo) * 111320 * Math.cos(la * Math.PI / 180)) : Infinity);   // metry od středu pohledu
+    let vlak = Infinity;                                   // nejbližší jedoucí vlak k nádraží (m), podle jízdních řádů
+    if (ZVM.nadrazi && typeof MHD !== 'undefined' && MHD.act && vzd(ZVM.nadrazi) < 900) {
+      const nx = (ZVM.nadrazi[1] - cam.lon0) * cam.kx, ny = (ZVM.nadrazi[0] - cam.lat0) * cam.ky;
+      for (const a of MHD.act) { const t = MHD.trips[a[0]]; if (MHD.routes[t[0]][1] !== 2 || a[2]) continue; const o = mhdPos(t, a[1]); vlak = Math.min(vlak, Math.hypot(o.x - nx, o.y - ny)); }
+    }
+    return { noc: state.night, obdobi: state.season, pocasi: state.weather, doprava: $('l-traffic').checked,
+      km: +h[2] || 3, zvon: vzd(ZVM.zvon), nadrazi: vzd(ZVM.nadrazi), vlak };
+  };
   const zvukyPouzij = (m, zap) => { zvukyMod = m; if (zap) m.zapni(zvukyStav); else m.vypni(); };
   $('l-zvuky').addEventListener('change', (e) => {
     const zap = e.target.checked;
