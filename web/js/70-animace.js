@@ -873,6 +873,8 @@
     vuz810: ['Motorový vůz řady 810', 'Jednovozový „orchestrion“ na lokálkách.'],
     cityelefant: ['CityElefant (řada 471)', 'Patrová elektrická jednotka pro příměstskou dopravu.'],
     rychlik: ['Rychlík', 'Lokomotiva řady 380 a osobní vozy.'],
+    arriva628: ['Arriva vlaky, řada 845/945', 'Dvouvozová motorová jednotka (původně DB řady 628) v barvách Arrivy.'],
+    dlb654: ['Die Länderbahn, RegioSprinter (řada 654)', 'Kloubový motorový vůz s nízkou podlahou v barvách Dopravy Ústeckého kraje.'],
   };
   const AUTO_POPIS = {
     car: ['Osobní auto', ''], van: ['Dodávka', 'Asi každé desáté osobní vozidlo.'], truck: ['Nákladní auto', ''],

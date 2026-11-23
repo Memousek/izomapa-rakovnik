@@ -17,6 +17,11 @@
     vuz810: { h: 3.7, ...CDW, nose: 0.7, cars: [{ len: 13.97, f: 1, r: 1 }] },                                    // řada 810, 13,97 m
     cityelefant: { h: 4.6, ...CDW, nose: 1.6, deck: 2, top: 'panto', cars: [{ len: 26.2, f: 1 }, { len: 26.2 }, { len: 26.2, r: 1 }] },   // řada 471, 79,2 m
     rychlik: { h: 4.1, ...CD, nose: 1.4, cars: [{ len: 18, f: 1, loco: 1, top: 'panto' }, { len: 26.4 }, { len: 26.4 }, { len: 26.4 }] },   // lokomotiva 380 (18 m) a vozy
+    // jiní dopravci (podle fotek z Wikimedia Commons): upper = pás nad okny, endLow = spodek čela, win = pás oken
+    arriva628: { h: 3.85, low: [36, 146, 198], body: [36, 146, 198], band: [36, 146, 198], upper: [36, 146, 198], roof: [112, 160, 190], win: [52, 58, 68],
+      endLow: [232, 214, 60], nose: 0.9, top: 'box', cars: [{ len: 23.2, f: 1 }, { len: 23.2, r: 1 }] },               // Arriva vlaky, řada 845/945 (ex-DB 628), 46,4 m
+    dlb654: { h: 3.55, low: [118, 188, 64], body: [118, 188, 64], band: [238, 160, 42], upper: [44, 62, 150], roof: [138, 146, 158],
+      endLow: [118, 188, 64], nose: 1.9, cars: [{ len: 24.8, f: 1, r: 1 }] },                                            // Die Länderbahn, RegioSprinter (řada 654), 24,8 m
   };
   const VLAK = {{VLAK}};
   const trainOf = (line) => TRAINS[VLAK.linky[line]] ? VLAK.linky[line] : TRAINS[VLAK.vychozi] ? VLAK.vychozi : 'regionova';
@@ -180,7 +185,7 @@
       const fp = [[-l + nr, -w], [l - nf, -w], [l, -w * (nf ? 0.5 : 1)], [l, w * (nf ? 0.5 : 1)], [l - nf, w], [-l + nr, w], [-l, w * (nr ? 0.5 : 1)], [-l, -w * (nr ? 0.5 : 1)]];
       const bands = car.loco ? [[0.6, 1.2, M.low], [1.2, 1.5, M.band], [1.5, h - 0.3, M.body]]
         : M.deck === 2 ? [[0.6, 1.05, M.low], [1.05, 1.95, null], [1.95, 2.3, M.band], [2.3, 3.5, null], [3.5, h - 0.3, M.body]]
-          : [[0.6, 1.05, M.low], [1.05, 1.3, M.band], [1.3, 2.75, null], [2.75, h - 0.3, M.body]];
+          : [[0.6, 1.05, M.low], [1.05, 1.3, M.band], [1.3, 2.75, null], [2.75, h - 0.3, M.upper || M.body]];
       const Q = (A, B, z0, z1, rgb, d) => faces.push([[R(A[0], A[1], z0), R(B[0], B[1], z0), R(B[0], B[1], z1), R(A[0], A[1], z1)], lit(rgb, d)]);
       for (let i = 0; i < fp.length; i++) {
         const A = fp[i], B = fp[(i + 1) % fp.length], es = B[0] - A[0], et = B[1] - A[1], el = Math.hypot(es, et);
@@ -190,11 +195,11 @@
         const d = sun(nx, ny, 0), isEnd = Math.abs(ns) > 0.3, nose = isEnd && (ns > 0 ? nf : nr);
         if (car.loco && nose) { Q(A, B, 0.6, 1.5, M.low, d); Q(A, B, 1.5, 2.1, M.band, d); Q(A, B, 2.1, h - 0.9, GLASS, d); Q(A, B, h - 0.9, h - 0.3, M.body, d); continue; }
         for (const [z0, z1, cl] of bands) {
-          if (cl) { Q(A, B, z0, z1, cl, d); continue; }
+          if (cl) { Q(A, B, z0, z1, nose && z0 < 1 && M.endLow ? M.endLow : cl, d); continue; }
           if (isEnd) { Q(A, B, z0, z1, nose ? GLASS : M.body, d); continue; }
-          Q(A, B, z0, z1, M.body, d);
+          Q(A, B, z0, z1, M.win || M.body, d);
           const n = Math.max(1, Math.round(el / 2.4)), e = 0.22 / el, P = (q) => [A[0] + es * q, A[1] + et * q];
-          for (let k = 0; k < n; k++) Q(P(k / n + e), P((k + 1) / n - e), z0, z1, GLASS, d);
+          for (let k = 0; k < n; k++) Q(P(k / n + e), P((k + 1) / n - e), z0 + (M.win ? 0.1 : 0), z1 - (M.win ? 0.1 : 0), GLASS, d);
         }
       }
       const ip = fp.map(([s_, t_]) => [s_ * (1 - 0.3 / l), t_ * 0.78]), z1 = h - 0.3;
