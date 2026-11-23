@@ -311,11 +311,14 @@ ZAB = json.load(open('assets/zabaged.json')) if os.path.exists('assets/zabaged.j
 _zb = box(-HE, -HE, HE, HE)
 _pole = set(ZAB.get('pole', []))                # travní porost, který je na ortofotu žlutohnědý = pole (tuning/pole.py)
 ZTTP = [g for i, r in enumerate(ZAB['ttp']) if i not in _pole for g in [_zpoly(r)] if g.intersects(_zb)]
-ZORNA = [g for r in ZAB['orna'] + [ZAB['ttp'][i] for i in sorted(_pole)] for g in [_zpoly(r)] if g.intersects(_zb)]
+# orna_dil: bloky rozdělené podle cest a ortofota (nastroje/pole_cesty.py), orna_plodina: plodina podle barvy na ortofotu
+_orna = ZAB['orna_dil'] if 'orna_dil' in ZAB else ZAB['orna'] + [ZAB['ttp'][i] for i in sorted(_pole)]
+_plod = ZAB.get('orna_plodina') if 'orna_dil' in ZAB else None
+ZORNA = [(g, _plod[i] if _plod else None) for i, r in enumerate(_orna) for g in [_zpoly(r)] if g.intersects(_zb)]
 ZSAD = [g for g in map(_zpoly, ZAB['sad']) if g.intersects(_zb)]
 for g in ZTTP: fill(g, C['meadow'])
 CROPS = ['wheat'] * 4 + ['rape'] * 2 + ['maize'] * 2 + ['soil'] * 2
-for g in ZORNA:
+for g, cr in ZORNA:
     # plodina a směr řádků podle celého pole (ne podle kusu v tomto čtverci), aby pole na švu čtverců navazovalo
     o = g.minimum_rotated_rectangle; oc = list(o.exterior.coords)[:4]
     e1 = np.subtract(oc[1], oc[0]); e2 = np.subtract(oc[2], oc[1])
@@ -323,7 +326,7 @@ for g in ZORNA:
     u = e1 / np.linalg.norm(e1)
     if u[0] < 0 or (u[0] == 0 and u[1] < 0): u = -u              # stejná orientace ve všech čtvercích
     v = np.array([-u[1], u[0]]); c0 = np.array(g.centroid.coords[0])
-    cr = CROPS[int(h01(wkey(c0[0], c0[1]) + 'pole') * len(CROPS))]   # wkey sám přičte CX, CY (světové souřadnice)
+    cr = cr or CROPS[int(h01(wkey(c0[0], c0[1]) + 'pole') * len(CROPS))]   # wkey sám přičte CX, CY (světové souřadnice)
     for p in polys(g.intersection(DRAWBOX)):
         if p.area < 400: continue
         fill(p, C[cr])
@@ -1643,11 +1646,11 @@ for _, r in lu.iterrows():
     if s: scatter(r.geom, s, 0.25, 6, 15)
 # řídké stromy všude kromě luk, polí a pastvin (tam ve skutečnosti stromy nejsou)
 OPEN = shapely.unary_union([g for c, g in zip(lu['class'], lu.geom) if c in ('meadow', 'farmland', 'grass', 'village_green', 'downhill', 'pitch')]
-                           + [g for c, g in zip(land['class'], land.geom) if c in ('grassland', 'meadow') and g.geom_type != 'Point'] + ZTTP + ZORNA)
+                           + [g for c, g in zip(land['class'], land.geom) if c in ('grassland', 'meadow') and g.geom_type != 'Point'] + ZTTP + [g for g, _ in ZORNA])
 scatter(EXT.difference(OPEN.buffer(0)) if not OPEN.is_empty else EXT, 26, 0.3, 6, 14)
 if LESM is not None:                         # strom jen tam, kde je na ortofotu koruna; v zahradách a zástavbě pár řídkých i bez ní
     _sp = shapely.prepared.prep(shapely.unary_union(ZSAD + [r.geom for _, r in lu.iterrows() if r['class'] in ('residential', 'garden', 'allotments')]).buffer(0)
-                                  .difference(shapely.unary_union(ZORNA + ZTTP).buffer(0)))
+                                  .difference(shapely.unary_union([g for g, _ in ZORNA] + ZTTP).buffer(0)))
     def _ok(t):
         px_, py_ = pix(t[0], t[1])
         if not (0 <= px_ < TWE and 0 <= py_ < TWE) or LESM[py_, px_]: return True
