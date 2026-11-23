@@ -1,16 +1,31 @@
   // vodní třpytky: body na potocích a uvnitř rybníků
   const sparkles = [];
-  onChunk.push((wk, d) => {
+  // třpytky se počítají, až má prohlížeč volno (requestIdleCallback): při načtení čtverce by velký rybník s tisíci vrcholů
+  // a 400 body (test bodu v mnohoúhelníku) zdržel přibližování. Body v rybníku: řádky po 14 % výšky, průsečíky obrysu
+  // s řádkem jednou na řádek, bod se losuje jen uvnitř úseků mezi průsečíky.
+  const nacasuj = window.requestIdleCallback ? (f) => requestIdleCallback(f, { timeout: 2000 }) : (f) => setTimeout(f, 200);
+  onChunk.push((wk, d) => nacasuj(() => {
   const WT = d.water;
-  {
   for (const l of WT.streams) for (let i = 1; i < l.length; i++) { const [x0, y0] = l[i - 1], [x1, y1] = l[i]; const n = Math.floor(Math.hypot(x1 - x0, y1 - y0) / 14); for (let k = 0; k < n; k++) sparkles.push([x0 + (x1 - x0) * k / n, y0 + (y1 - y0) * k / n, rnd(sparkles.length), wk]); }
   for (const p of WT.ponds) {
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const [x, y] of p) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
-    const n = Math.min(400, Math.floor((x1 - x0) * (y1 - y0) / 140));
-    for (let k = 0; k < n; k++) { const x = x0 + rnd(k * 3 + x0) * (x1 - x0), y = y0 + rnd(k * 5 + y0) * (y1 - y0); if (inPoly(x, y, p)) sparkles.push([x, y, rnd(k + x), wk]); }
+    const n = Math.min(400, Math.floor((x1 - x0) * (y1 - y0) / 140)); if (!n) continue;
+    const R = Math.max(2, Math.min(40, Math.round(Math.sqrt(n) * 1.5))), useky = [];
+    for (let r = 0; r < R; r++) {                                  // průsečíky obrysu s vodorovnou přímkou y
+      const y = y0 + (r + 0.5) / R * (y1 - y0), xs = [];
+      for (let i = 0, j = p.length - 1; i < p.length; j = i++) { const [xi, yi] = p[i], [xj, yj] = p[j]; if ((yi > y) !== (yj > y)) xs.push(xi + (y - yi) / (yj - yi) * (xj - xi)); }
+      xs.sort((u, v) => u - v);
+      for (let k = 0; k + 1 < xs.length; k += 2) useky.push([y, xs[k], xs[k + 1]]);
+    }
+    const delka = useky.reduce((q, u) => q + u[2] - u[1], 0); if (!delka) continue;
+    const dy = (y1 - y0) / R;
+    for (let k = 0; k < n; k++) {                                  // bod úměrně délce úseků, svisle rozhozený v rámci řádku
+      let t = rnd(k * 3 + x0) * delka, u = useky[0];
+      for (const q of useky) { u = q; if (t <= q[2] - q[1]) break; t -= q[2] - q[1]; }
+      sparkles.push([u[1] + Math.min(t, u[2] - u[1]), u[0] + (rnd(k * 5 + y0) - 0.5) * dy * 0.3, rnd(k + x0), wk]);
+    }
   }
-  }
-  });
+  }));
   // mraky
   // mraky: 30 náhodně nad celou mapou (souřadnice obrázku čtverce 0,0, mapa sahá i do záporných)
   const MX0 = Math.min(...LAYERS.map((l) => l.x)) * W, MX1 = Math.max(...LAYERS.map((l) => l.x + l.w)) * W;

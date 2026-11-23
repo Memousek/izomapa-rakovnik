@@ -134,12 +134,13 @@
     const endPt = p.s < 0 ? r.w[0] : r.w[r.w.length - 1];
     if (Math.random() < (p.bike ? 0.02 : 0.15)) p.wait = 1 + Math.random() * 4;   // zastaví se (výloha, telefon)
     let opts;
-    if (p.m === 'l') opts = (PWK.get(pEk(endPt)) || []).filter(([q]) => q !== r && (p.bike ? q.c !== 's' : q.c !== 'c' && q.c !== 'd'));
-    if (p.m === 'l' && !p.bike && opts.length) {                 // turista se drží lesních a polních cest, městský chodec do lesa jen občas
-      const ok = opts.filter(([q]) => p.tura ? q.c === 'l' || q.c === 't' : q.c !== 'l');
-      if (ok.length && Math.random() < (p.tura ? 0.95 : 0.85)) opts = ok;
-    }
-    else opts = (ends.get(ek(endPt)) || []).filter(([j]) => j !== p.ri && pWalk(roads[j]));
+    if (p.m === 'l') {
+      opts = (PWK.get(pEk(endPt)) || []).filter(([q]) => q !== r && (p.bike ? q.c !== 's' : q.c !== 'c' && q.c !== 'd'));
+      if (!p.bike && opts.length) {                              // turista se drží lesních a polních cest, městský chodec do lesa jen občas
+        const ok = opts.filter(([q]) => p.tura ? q.c === 'l' || q.c === 't' : q.c !== 'l');
+        if (ok.length && Math.random() < (p.tura ? 0.95 : 0.85)) opts = ok;
+      }
+    } else opts = (ends.get(ek(endPt)) || []).filter(([j]) => j !== p.ri && pWalk(roads[j]));
     if (p.bike && opts.length) {                                                // cyklista se drží cyklostezky nebo cyklotrasy
       const G = (c) => c === 'k' ? 'k' : c === 'c' || c === 'd' ? 'r' : 'o', g = G(r.c);
       let ok = opts.filter(([q]) => G(q.c) === g); if (!ok.length) ok = opts.filter(([q]) => G(q.c) !== 'o');

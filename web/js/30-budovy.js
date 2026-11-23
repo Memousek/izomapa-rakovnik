@@ -13,12 +13,15 @@
   const onChunk = [];
   function loadChunk(k) {
     if (CH[k]) return CH[k].ready;
-    CH[k] = { ready: fetch(`overlay/${k}.json`).then((r) => r.json()).then((d) => {
+    // zpracování čtverce po krocích (každý handler zvlášť, mezi nimi může prohlížeč vykreslit snímek): jinak by se při
+    // přiblížení načetlo několik čtverců naráz a jedna dlouhá úloha by mapu na chvíli zastavila
+    const mezera = () => new Promise((r) => (window.scheduler?.yield ? scheduler.yield().then(r) : setTimeout(r, 0)));
+    CH[k] = { ready: fetch(`overlay/${k}.json`).then((r) => r.json()).then(async (d) => {
       Object.assign(CH[k], d);
       for (const b of d.buildings) b.k = k;
       addBuildings(d.buildings);
       for (const [cx, cy, cid, vys, kour] of d.chimneys) { const id = sid(cid); chimneys.push([cx, cy, cid.split(':')[0], id, rnd(id), rnd(id + 0.5), vys || 0, kour || 0]); }   // + výška a stálý kouř velkých komínů   // klíč čtverce a náhoda jednou, ne každý snímek
-      for (const f of onChunk) f(k, d);
+      for (const f of onChunk) { await mezera(); f(k, d); }
       return CH[k];
     }).catch(() => null) };
     return CH[k].ready;
