@@ -219,9 +219,34 @@
   new ResizeObserver(() => document.documentElement.style.setProperty('--pw', $('panel').offsetWidth + 'px')).observe($('panel'));
   try { if (localStorage.getItem('izo-fold') === '1' && !isMobile()) setFold(true); } catch {}
   if (isMobile()) { setMenu(false); $('placesBox').open = false; }
-  // Vzhled mapy: na počítači si pamatuje, jestli byl rozbalený
-  try { if (localStorage.getItem('izo-vzhled') === '1' && !isMobile()) $('vzhled').open = true; } catch {}
-  $('vzhled').addEventListener('toggle', () => { try { localStorage.setItem('izo-vzhled', $('vzhled').open ? '1' : '0'); } catch {} });
+  // záložky panelu (vzor izomapa.fun): ikona s názvem, pod nimi nejvýš jedno podokno. Záložka s prázdným podoknem
+  // (bez MHD, bez míst, předpověď ještě nedorazila) se schová a ukáže, jakmile v podokně něco je.
+  // Na počítači si prohlížeč pamatuje otevřenou záložku, poprvé je otevřené Objevuj.
+  const TABS = [...document.querySelectorAll('#tabs .tab')];
+  let paneOpen = null, chci = null;
+  function openPane(name) {
+    paneOpen = name;
+    for (const t of TABS) { const v = String(t.dataset.tab === name); if (t.getAttribute('aria-expanded') !== v) t.setAttribute('aria-expanded', v); }
+    for (const p of document.querySelectorAll('.pane')) { const h = p.id !== 'pane-' + name; if (p.hidden !== h) p.hidden = h; }
+  }
+  TABS.forEach((t) => t.addEventListener('click', () => {
+    chci = null; openPane(paneOpen === t.dataset.tab ? null : t.dataset.tab);
+    try { localStorage.setItem('izo-tab', paneOpen || '-'); } catch {}
+  }));
+  const plne = (p) => [...p.children].some((c) => !c.hidden && !c.classList.contains('pane-znacka'));
+  const hlidej = () => {
+    for (const t of TABS) {
+      const ok = plne($('pane-' + t.dataset.tab));
+      if (t.hidden !== !ok) t.hidden = !ok;
+      if (!ok && paneOpen === t.dataset.tab) { openPane(null); chci = t.dataset.tab; }
+      if (ok && chci === t.dataset.tab && !paneOpen) { chci = null; openPane(t.dataset.tab); }
+    }
+  };
+  new MutationObserver(hlidej).observe($('panel'), { subtree: true, childList: true, attributeFilter: ['hidden'] });
+  try {
+    if (!isMobile()) { const s = localStorage.getItem('izo-tab') || (localStorage.getItem('izo-vzhled') === '1' ? 'vzhled' : 'objevuj'); if (s !== '-') chci = s; }
+  } catch {}
+  hlidej();
   if ({{JIZDA}}) {                                       // 3D jízda (nastroje/jizda.py): otevře se na místě, kam se mapa právě dívá
     const a = $('jizda3d'); a.hidden = false;
     const kam = () => { a.href = 'jizda.html#@' + (location.hash.split('@')[1] || '').split(',').slice(0, 2).join(','); };
@@ -245,7 +270,7 @@
   };
   document.querySelectorAll('[data-predvolba]').forEach((b) => b.addEventListener('click', () => {
     const p = PREDVOLBY[b.dataset.predvolba];
-    const nastav = (id, v) => { const c = $(id); if (!c || c.closest('[hidden]') || c.checked === v) return; c.checked = v; c.dispatchEvent(new Event('change')); };
+    const nastav = (id, v) => { const c = $(id); if (!c || c.closest('.chip')?.hidden || c.checked === v) return; c.checked = v; c.dispatchEvent(new Event('change')); };
     p.zap.forEach((id) => nastav(id, true)); p.vyp.forEach((id) => nastav(id, false));
     for (const id of ['placesBox', 'denikBox', 'vystrahyBox', 'aktualityBox', 'uzBox', 'predpovedBox', 'puBox']) { const d = $(id); if (d) d.open = p.otevri.includes(id) && !d.hidden; }
     document.querySelectorAll('[data-predvolba]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));

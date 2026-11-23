@@ -31,17 +31,15 @@
   </div>
   <p class="zpravy-radek" id="zpravyLista" hidden><span class="label">Aktuálně</span> </p>
 
-  <div id="sledBox" class="sec" hidden>
-    <p class="label">Sledovat spoj</p>
-    <button class="px-btn sled-btn" id="sledBtn" type="button" aria-expanded="false" aria-controls="sledList">Autobusy a vlaky na mapě</button>
-    <ul class="sled-list" id="sledList" hidden></ul>
-    <button class="px-btn sled-btn" id="linkyBtn" type="button" aria-expanded="false" aria-controls="linkyList">Linky: celá trasa</button>
-    <ul class="sled-list" id="linkyList" hidden></ul>
-  </div>
+  <nav class="tabs" id="tabs" aria-label="Nabídka">
+    <button class="tab" type="button" data-tab="vzhled" aria-expanded="false" aria-controls="pane-vzhled" title="Roční období, denní doba a počasí"><svg class="ico px" viewBox="0 0 9 9" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" fill-rule="evenodd" d="M3 3h3v3H3zM4 0h1v2H4zM4 7h1v2H4zM0 4h2v1H0zM7 4h2v1H7zM1 1h1v1H1zM7 1h1v1H7zM1 7h1v1H1zM7 7h1v1H7z"/></svg><span>Vzhled</span> <span class="vh" id="vzhledVal"></span></button>
+    <button class="tab" type="button" data-tab="vrstvy" aria-expanded="false" aria-controls="pane-vrstvy" title="Co je na mapě vidět"><svg class="ico px" viewBox="0 0 9 9" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" fill-rule="evenodd" d="M4 0h1v1H4zM2 1h5v1H2zM1 2h7v1H1zM2 3h5v1H2zM4 4h1v1H4zM0 5h1v1H0zM8 5h1v1H8zM1 6h2v1H1zM6 6h2v1H6zM3 7h3v1H3z"/></svg><span>Vrstvy</span></button>
+    <button class="tab" type="button" data-tab="objevuj" aria-expanded="false" aria-controls="pane-objevuj" title="Místa, příběhy a deník"><svg class="ico px" viewBox="0 0 9 9" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" fill-rule="evenodd" d="M3 0h3v1H3zM2 1h5v1H2zM1 2h2v2H1zM6 2h2v2H6zM2 4h5v1H2zM3 5h3v1H3zM4 6h1v2H4zM2 8h5v1H2z"/></svg><span>Objevuj</span></button>
+    <button class="tab" type="button" data-tab="dnes" aria-expanded="false" aria-controls="pane-dnes" title="Výstrahy, počasí, aktuality a uzavírky"><svg class="ico px" viewBox="0 0 9 9" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" fill-rule="evenodd" d="M2 0h1v1H2zM6 0h1v1H6zM0 1h9v2H0zM0 3h1v5H0zM8 3h1v5H8zM0 8h9v1H0zM2 4h2v2H2z"/></svg><span>Dnes</span></button>
+    <button class="tab" type="button" data-tab="doprava" aria-expanded="false" aria-controls="pane-doprava" title="Spoje MHD, linky, pumpy a nabíječky"><svg class="ico px" viewBox="0 0 9 9" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" fill-rule="evenodd" d="M1 0h7v1H1zM0 1h9v6H0zM1 2h7v2H1zM1 5h1v1H1zM7 5h1v1H7zM1 7h2v2H1zM6 7h2v2H6z"/></svg><span>Doprava</span></button>
+  </nav>
+  <section class="pane" id="pane-vzhled" hidden aria-label="Vzhled">
 
-  <details class="sec" id="vzhled">
-    <summary>Vzhled mapy <span class="sum-val" id="vzhledVal"></span></summary>
-    <div class="vzhled-body">
   <div class="ovl">
     <p class="label">Zobrazit</p>
     <div class="seg" id="wipSel">
@@ -90,6 +88,8 @@
     <span id="realWeatherRow" hidden><input type="checkbox" id="realWeather" hidden></span>
   </div>
 
+  </section>
+  <section class="pane" id="pane-vrstvy" hidden aria-label="Vrstvy">
   <div class="ovl">
     <p class="label">Rychlá volba</p>
     <div class="predvolby" role="group" aria-label="Rychlá volba vrstev">
@@ -112,34 +112,42 @@
       <label class="chip" hidden><input type="checkbox" id="l-xmas"><span>Výzdoba</span></label>
     </div>
   </div>
-    </div>
-  </details>
-
-  <details class="sec" id="placesBox">
+  </section>
+  <section class="pane" id="pane-objevuj" hidden aria-label="Objevuj">
+  <details class="sec" id="placesBox" open>
     <summary>Místa a&nbsp;příběhy</summary>
     <ul class="places" id="places"></ul>
   </details>
-
+  <details class="sec" id="denikBox" hidden>
+    <summary>Deník <span class="sum-val"></span></summary>
+    <div class="denik-body"></div>
+  </details>
+  </section>
+  <section class="pane" id="pane-dnes" hidden aria-label="Dnes">
+    <span class="pane-znacka" id="dnesTop" hidden></span>
   <details class="sec" id="predpovedBox" hidden>
     <summary>Počasí <span class="sum-val" id="predpovedVal"></span></summary>
     <ul class="predpoved" id="predpoved"></ul>
     <p class="predpoved-zdroj">Předpověď: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0)</p>
   </details>
-
   <details class="sec" id="uzBox" hidden>
     <summary>Uzavírky silnic <span class="sum-val" id="uzVal"></span></summary>
     <ul class="places uz-list" id="uzList"></ul>
   </details>
-
+  </section>
+  <section class="pane" id="pane-doprava" hidden aria-label="Doprava">
+  <div id="sledBox" class="sec" hidden>
+    <p class="label">Sledovat spoj</p>
+    <button class="px-btn sled-btn" id="sledBtn" type="button" aria-expanded="false" aria-controls="sledList">Autobusy a vlaky na mapě</button>
+    <ul class="sled-list" id="sledList" hidden></ul>
+    <button class="px-btn sled-btn" id="linkyBtn" type="button" aria-expanded="false" aria-controls="linkyList">Linky: celá trasa</button>
+    <ul class="sled-list" id="linkyList" hidden></ul>
+  </div>
   <details class="sec" id="puBox" hidden>
     <summary>Pumpy a&nbsp;nabíječky <span class="sum-val" id="puVal"></span></summary>
     <ul class="places pu-list" id="puList"></ul>
   </details>
-
-  <details class="sec" id="denikBox" hidden>
-    <summary>Deník <span class="sum-val"></span></summary>
-    <div class="denik-body"></div>
-  </details>
+  </section>
 
   <details class="sec about">
     <summary>O&nbsp;projektu</summary>

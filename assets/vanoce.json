@@ -1,0 +1,20 @@
+{
+ "_pozn": "Rakovník: vánoční strom a trhy na Husově náměstí (podle uživatele, program Rakovnického adventu 2026). Kluziště je v zimním stadionu (krytá hala), proto tu není.",
+ "od": "11-28",
+ "do": "01-06",
+ "stromy": [
+  [
+   50.10423,
+   13.73021
+  ]
+ ],
+ "kluziste": [],
+ "stanky": [
+  {
+   "lat": 50.104288,
+   "lon": 13.729657,
+   "a": -9,
+   "n": 8
+  }
+ ]
+}

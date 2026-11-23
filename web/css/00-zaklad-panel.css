@@ -95,14 +95,28 @@ button { font: inherit; color: inherit; }
 .odkaz-btn:focus-visible { outline: 2px solid var(--grass); outline-offset: 2px; }
 .odkaz-btn[hidden] { display: none; }
 .odkaz-btn[aria-pressed="true"] { color: var(--grass); text-decoration: none; }
-.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 2px solid var(--edge); background: var(--panel-2); }
-.seg .px-btn { border: 0; box-shadow: none; background: transparent; min-height: 32px; padding: 4px 2px; font-size: .8rem; white-space: nowrap; color: var(--muted); }
-.seg .px-btn + .px-btn { border-left: 2px solid var(--edge); }
-.seg .px-btn:hover { color: var(--ink); background: var(--panel); }
-.seg .px-btn[aria-pressed="true"] { background: var(--lamp); color: var(--night); }
-.seg .px-btn:active { transform: none; box-shadow: none; }
-.mbar .px-btn[aria-pressed="true"] { background: var(--lamp); color: var(--night); border-color: var(--lamp); }   /* stejně jako lišty v panelu */
-.seg .px-btn:focus-visible { outline-offset: -4px; }
+/* přepínače: samostatná pixelová tlačítka se stínem, vybrané oranžové (vzor izomapa.fun) */
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+.seg .px-btn { min-height: 36px; padding: 4px 2px; font-size: .84rem; white-space: nowrap; color: var(--muted); }
+.seg .px-btn:hover { color: var(--ink); border-color: #55648a; }
+.seg .px-btn[aria-pressed="true"] { color: #fff; }
+.mbar .px-btn[aria-pressed="true"] { color: #fff; }
+.seg .px-btn:focus-visible { outline-offset: 2px; }
+/* záložky panelu s pixelovými ikonami a podokna pod nimi */
+.tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+.tab { position: relative; display: grid; justify-items: center; align-content: center; gap: 4px; cursor: pointer; min-height: 50px; padding: 7px 2px 6px;
+  background: var(--panel-2); color: var(--muted); border: 2px solid var(--edge); box-shadow: 2px 2px 0 rgba(0, 0, 0, .35);
+  font-family: var(--display); font-size: .8rem; line-height: 1; }
+.tab[hidden] { display: none; }
+.tab .ico.px { width: 18px; height: 18px; image-rendering: pixelated; }
+.tab:hover { color: var(--ink); border-color: #55648a; }
+.tab:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 rgba(0, 0, 0, .35); }
+.tab[aria-expanded="true"] { color: #fff; background: var(--tile); border-color: #e27a5c; }
+.pane { display: grid; gap: 14px; }
+.pane[hidden] { display: none; }
+.pane > .sec { border-top: 0; padding-top: 0; }
+.pane > :not([hidden], .pane-znacka) ~ :is(.sec, .ovl):not([hidden]) { border-top: 1px solid var(--edge); padding-top: 12px; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .daynight .ends { margin-top: -4px; }
 .prepinace { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { position: relative; display: inline-flex; align-items: center; gap: 7px; min-height: 30px; padding: 2px 10px 2px 8px; box-sizing: border-box;
@@ -201,8 +215,8 @@ input[type="range"] { width: 100%; accent-color: var(--lamp); }
 
 
 .predvolby { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.predvolby .px-btn { font-size: .8rem; min-height: 32px; padding: 4px 2px; white-space: nowrap; }
-.predvolby .px-btn[aria-pressed="true"] { background: var(--lamp); color: var(--night); border-color: var(--lamp); }
+.predvolby .px-btn { font-size: .84rem; min-height: 36px; padding: 4px 2px; white-space: nowrap; }
+.predvolby .px-btn[aria-pressed="true"] { color: #fff; }
 
 .zpravy-radek { margin: 0; display: flex; gap: 8px; align-items: baseline; min-width: 0; }
 .zpravy-radek .label { margin: 0; flex: none; }
