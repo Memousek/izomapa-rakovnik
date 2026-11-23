@@ -399,6 +399,34 @@ for st, n, g in zip(_dv.subtype, _dv.names, _dv.geometry):
     for naz in [MESTO['nazev']] + [o['nazev'] for o in OBCE if o.get('nazev')]:
         nm = nm.replace(naz + '-', '')
     districts.append({'name': nm, 'xy': list(px(rp.x, rp.y, gz(rp.x, rp.y))[:2]), 'a': round(gg.area / 1e6, 2)})
+# základní sídelní jednotky z RÚIAN (nastroje/zsj.py -> assets/zsj.json) mají přednost: úřední pojmenované části města
+# a vesnice. Popisek doprostřed největší souvislé zástavby části (adresy do 80 m od sebe), bez adres na střed části v mapě.
+# k: obec (ZSJ se jménem obce, větší písmo) / cast. "prejmenuj_casti": {"Rakovník-střed": "Rakovník"} v mesto.json.
+if os.path.exists('assets/zsj.json'):
+    _Z = json.load(open('assets/zsj.json', encoding='utf-8'))
+    _ren = MESTO.get('prejmenuj_casti', {})
+    _obceZ = set(_Z.get('obce', [])) | {MESTO['nazev']}
+    _mapaZ = shapely.unary_union([shapely.box((2 * i - 1) * HALF, (2 * j - 1) * HALF, (2 * i + 1) * HALF, (2 * j + 1) * HALF) for i, j in CHUNKS])
+    _adr = np.array([to_local(*shapely.from_wkb(r['geometry']).coords[0]) for r in pq.read_table('data_all/address.parquet', columns=['geometry']).to_pylist()], dtype=float)         if os.path.exists('data_all/address.parquet') else np.zeros((0, 2))
+    _adrP = shapely.points(_adr) if len(_adr) else np.array([])
+    districts = []
+    for z in _Z.get('zsj', []):
+        nm = _ren.get(z['nazev'], z['nazev'])
+        if not nm or nm in _SKIP or z['nazev'] in _SKIP: continue
+        gg = shapely.make_valid(shapely.Polygon(*[[to_local(lo, la) for la, lo in r] for r in z['poly'][:1]], [[to_local(lo, la) for la, lo in r] for r in z['poly'][1:]]))
+        vm = gg.intersection(_mapaZ)
+        if vm.is_empty or vm.area < 0.03e6: continue           # část skoro celá mimo mapu
+        inn = _adrP[shapely.contains(vm, _adrP)] if len(_adrP) else []
+        if len(inn) >= 5:
+            blob = max(getattr(u := shapely.unary_union(shapely.buffer(inn, 40)), 'geoms', [u]), key=lambda g: g.area)
+            inn = inn[shapely.contains(blob, inn)]
+            mx, my = np.median([[q.x, q.y] for q in inn], axis=0)
+            p = min(inn, key=lambda q: (q.x - mx) ** 2 + (q.y - my) ** 2)
+        elif vm.area > 0.15e6: p = vm.representative_point()  # bez domů (průmyslová zóna, pole): střed části v mapě
+        else: continue
+        if chunk_of(p.x, p.y) not in CKEY: continue
+        districts.append({'name': nm, 'xy': list(px(p.x, p.y, gz(p.x, p.y))[:2]), 'a': round(gg.area / 1e6, 2),
+                          'k': 'obec' if nm in _obceZ else 'cast'})
 # bez čtvrtí v Overture (menší města): obce a jejich části z adres ČÚZK (postal_city = část obce, poslední úroveň = obec),
 # popisek doprostřed největší souvislé zástavby části (domy do 80 m od sebe). Kromě města a obcí z obce/*.json
 # i každá obec, jejíž území (Overture localadmin) leží z víc než poloviny v mapě. k: obec (větší písmo) / cast (menší)
