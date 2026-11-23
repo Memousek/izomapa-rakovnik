@@ -35,6 +35,7 @@ def svet_js():
     a = src.index('const scene = await (await fetch(`${DIR}/scene.json`)).json();')
     b = src.index('// ---------- rozsah obrázku ----------')
     kod = src[a:b]
+    kod = 'const XMAS = false;   // vánoční vrstva dlaždic (render.html mode=xmas) ve 3D není' + chr(10) + kod
     r0 = kod.index('const renderer = new THREE.WebGLRenderer('); r1 = kod.index('document.body.appendChild(renderer.domElement);')
     kod = kod[:r0] + kod[r1 + len('document.body.appendChild(renderer.domElement);'):]           # renderer dodá stránka
     kod = jednou(kod, 'new THREE.WebGLRenderTarget(8192, 8192, { depthTexture: new THREE.DepthTexture(8192, 8192, THREE.FloatType) })',
@@ -52,8 +53,8 @@ def svet_js():
     # ---- kvalita obrazu zblízka (mapa je kreslená pro pohled shora po 0,2 m na pixel, chodec se dívá z 1,7 m) ----
     # detailní textura (stránka: O.uDet, dlaždicový šum s mipmapami; O.uDetS = 0 vše vypne) pro všechny materiály světa
     kod = jednou(kod, 'uniform float uLights; uniform vec2 uOff;', 'uniform float uLights; uniform vec2 uOff; uniform sampler2D uDet; uniform float uDetS; uniform float uOkna;')
-    kod = jednou(kod, 'uOff: { value: new THREE.Vector2(OFFX, -OFFY) }, ...extra,',
-                 'uOff: { value: new THREE.Vector2(OFFX, -OFFY) }, uDet: O.uDet || { value: null }, uDetS: O.uDetS || { value: 0 }, uOkna: O.uOkna || { value: 1 }, ...extra,')
+    kod = jednou(kod, 'uOff: { value: new THREE.Vector2(OFFX, -OFFY) }, uClip: CLIP, ...extra,',   # uClip: upstream (ořez dlaždic), ve 3D nevadí
+                 'uOff: { value: new THREE.Vector2(OFFX, -OFFY) }, uClip: CLIP, uDet: O.uDet || { value: null }, uDetS: O.uDetS || { value: 0 }, uOkna: O.uOkna || { value: 1 }, ...extra,')
     # okna v noci: podíl rozsvícených podle hodin (stránka: O.uOkna, 1 = jako v mapě, méně = k půlnoci zhasínají)
     kod = jednou(kod, 'if (hh > 0.52) e = vec3(1.0, 0.80, 0.46)', 'if (hh > 1.0 - 0.48 * uOkna) e = vec3(1.0, 0.80, 0.46)')
     kod = jednou(kod, 'else if (hh > 0.44) e = vec3(0.62, 0.74, 1.0)', 'else if (hh > 1.0 - 0.56 * uOkna) e = vec3(0.62, 0.74, 1.0)')
