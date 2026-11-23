@@ -100,6 +100,7 @@ button { font: inherit; color: inherit; }
 .odkaz-btn:hover { color: var(--ink); }
 .odkaz-btn:focus-visible { outline: 2px solid var(--grass); outline-offset: 2px; }
 .odkaz-btn[hidden] { display: none; }
+.odkaz-btn[aria-pressed="true"] { color: var(--grass); text-decoration: none; }
 .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 2px solid var(--edge); background: var(--panel-2); }
 .seg .px-btn { border: 0; box-shadow: none; background: transparent; min-height: 32px; padding: 4px 2px; font-size: .8rem; white-space: nowrap; color: var(--muted); }
 .seg .px-btn + .px-btn { border-left: 2px solid var(--edge); }
@@ -427,7 +428,10 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
   </div>
 
   <div class="ovl">
-    <p class="label">Počasí</p>
+    <div class="ovl-hlava">
+      <p class="label">Počasí</p>
+      <button class="odkaz-btn" type="button" id="pocasiRealne" aria-pressed="false" hidden title="Počasí podle skutečnosti nad městem (Open-Meteo)">Podle skutečnosti</button>
+    </div>
     <div class="seg" id="weather" role="group" aria-label="Počasí">
       <button class="px-btn" type="button" data-w="clear">Jasno</button>
       <button class="px-btn" type="button" data-w="rain">Déšť</button>
@@ -893,13 +897,17 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
   }
   document.querySelectorAll('[data-s]').forEach((b) => b.addEventListener('click', () => { if (b.dataset.s !== state.season) $('realWeather').checked = false; setSeason(b.dataset.s); }));
   const saveRW = (v) => { try { localStorage.setItem('izo-realweather', v ? '1' : '0'); } catch {} };
-  document.querySelectorAll('[data-w]').forEach((b) => b.addEventListener('click', () => { $('realWeather').checked = false; saveRW(false); setWeather(b.dataset.w); }));
-  applyRealWeather = () => { if ($('realWeather').checked && realWeather) setWeather(realWeather); };
+  document.querySelectorAll('[data-w]').forEach((b) => b.addEventListener('click', () => { $('realWeather').checked = false; saveRW(false); setWeather(b.dataset.w); ukazRealne(); }));
+  applyRealWeather = () => { if ($('realWeather').checked && realWeather) setWeather(realWeather); ukazRealne(); };
+  // stav přepínače u nadpisu Počasí (skryté zaškrtávátko realWeather drží volbu)
+  function ukazRealne() { const b = $('pocasiRealne'); if (b) { b.setAttribute('aria-pressed', String($('realWeather').checked)); } }
+  $('pocasiRealne').addEventListener('click', () => { $('realWeather').checked = !$('realWeather').checked; saveRW($('realWeather').checked); applyRealWeather(); });
   $('realWeather').addEventListener('change', (e) => { saveRW(e.target.checked); applyRealWeather(); });
   if ({{POCASI}}) {
-    $('realWeatherRow').hidden = false;
+    $('realWeatherRow').hidden = false; $('pocasiRealne').hidden = false;
     let rwOff = false; try { rwOff = localStorage.getItem('izo-realweather') === '0'; } catch {}
     $('realWeather').checked = !rwOff && !hashTokens.some((t) => SEASON_TOKEN[t] || t === 'noc' || t === 'soumrak');   // sdílený odkaz si drží svůj vzhled
+    ukazRealne();
   }
   document.querySelectorAll('[data-wip]').forEach((b) => b.addEventListener('click', () => { state.wip = b.dataset.wip === '1'; applyVisibility(); viewer.viewport.fitBounds(homeBounds()); }));
   document.querySelectorAll('[data-wip]').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.wip === '1') === state.wip)));
@@ -928,7 +936,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     casRezim = m;
     document.querySelectorAll('[data-cas]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cas === m)));
     $('realTime').checked = m === 'ted'; saveRT(m === 'ted');
-    if ({{POCASI}}) { $('realWeather').checked = m === 'ted'; if (uloz) saveRW(m === 'ted'); if (m === 'ted') applyRealWeather(); }   // skutečné počasí jen v režimu Právě teď (jinak by se měnilo neviditelně)
+    if ({{POCASI}} && m === 'ted') { $('realWeather').checked = true; if (uloz) saveRW(true); applyRealWeather(); ukazRealne(); }   // Právě teď = i skutečné počasí
     $('casPauza').hidden = m !== 'samo';
     if (m === 'samo') { samoPauza = false; $('casPauza').textContent = 'Zastavit čas'; samoT0 = performance.now() / 1000 - Math.acos(1 - 2 * state.night) / (2 * Math.PI) * SAMO_S; }
     if (uloz) try { localStorage.setItem('izo-cas', m); } catch {}
