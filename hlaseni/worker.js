@@ -39,8 +39,11 @@ async function report(req, env) {
   const recent = await env.DB.prepare("SELECT COUNT(*) n FROM reports WHERE dev = ? AND created > datetime('now', '-1 hour')").bind(dev).first();
   if (recent && recent.n >= 3) return json({ ok: false, err: 'limit', msg: 'Z tohoto zařízení přišla za poslední hodinu už 3 hlášení. Zkuste to prosím později.' }, 429);
   try {
-    await env.DB.prepare('INSERT INTO reports (target, title, kind, note, lon, lat, who, dev) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(target, String(d.title || '').slice(0, 120), kind, note, +d.lon || null, +d.lat || null, who, dev).run();
+    // příloha (migrations/0002): odkaz na pohled v mapě a malý snímek JPEG (jen data:image/jpeg, nejvýš ~300 kB)
+    const odkaz = typeof d.odkaz === 'string' && /^https?:\/\/[^\s"<>]{1,480}$/.test(d.odkaz) ? d.odkaz : null;
+    const snimek = typeof d.snimek === 'string' && d.snimek.length < 400000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(d.snimek) ? d.snimek : null;
+    await env.DB.prepare('INSERT INTO reports (target, title, kind, note, lon, lat, who, dev, odkaz, snimek) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(target, String(d.title || '').slice(0, 120), kind, note, +d.lon || null, +d.lat || null, who, dev, odkaz, snimek).run();
   } catch (e) {
     if (String(e).includes('UNIQUE')) return json({ ok: false, err: 'dup', msg: 'Tohle místo jste dnes už nahlásili, děkuji.' }, 409);
     throw e;
@@ -58,7 +61,7 @@ async function adminList(req, env) {
 
 async function adminDetail(req, env) {
   const t = new URL(req.url).searchParams.get('target') || '';
-  const r = await env.DB.prepare('SELECT id, created, kind, note, status FROM reports WHERE target = ? ORDER BY created DESC').bind(t).all();
+  const r = await env.DB.prepare('SELECT id, created, kind, note, status, odkaz, snimek FROM reports WHERE target = ? ORDER BY created DESC').bind(t).all();
   return json({ items: r.results });
 }
 

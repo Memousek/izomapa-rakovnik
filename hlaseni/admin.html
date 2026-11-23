@@ -75,7 +75,12 @@ async function load() {
       const d = await fetch(`/api/admin/detail?target=${encodeURIComponent(g.target)}`).then((x) => x.json());
       const row = document.createElement('tr'); row.className = 'detail'; const td = document.createElement('td'); td.colSpan = 5;
       const ul = document.createElement('ul');
-      for (const it of d.items) { const li = document.createElement('li'); li.textContent = `${it.created} · ${it.note || ''}`; ul.append(li); }
+      for (const it of d.items) {
+        const li = document.createElement('li'); li.textContent = `${it.created} · ${it.note || ''}`;
+        if (it.odkaz && /^https?:\/\//.test(it.odkaz)) { const a = document.createElement('a'); a.href = it.odkaz; a.target = '_blank'; a.rel = 'noopener'; a.textContent = ' · pohled v mapě'; li.append(a); }
+        if (it.snimek && it.snimek.startsWith('data:image/jpeg;base64,')) { const im = document.createElement('img'); im.src = it.snimek; im.alt = 'Snímek pohledu'; im.style.cssText = 'display:block;max-width:480px;width:100%;margin:6px 0'; li.append(im); }
+        ul.append(li);
+      }
       td.append(ul); row.append(td); tr.after(row);
     };
     tb.append(tr);

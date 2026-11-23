@@ -135,7 +135,10 @@ ikony_a_manifest(MESTO)
 postav_stranku(MESTO)
 SITE_URL = (MESTO.get('url') or '').rstrip('/')
 if os.path.exists('assets/trasy.json'): shutil.copy('assets/trasy.json', 'site/trasy.json')   # vrstva tras v prohlížeči
-shutil.copy('web/ceny_paliv.js', 'site/ceny_paliv.js')   # ceny paliv z mBenzin.cz (functions/api/ceny.js) k pumpám, mapa i 3D jízda
+shutil.copy('web/ceny_paliv.js', 'site/ceny_paliv.js')
+for _f in os.listdir('web'):                           # moduly prohlížeče (pohlednice, přelet, Wikipedie, deník, zvuky): web/mapa_*.js -> site/
+    if _f.startswith('mapa_') and _f.endswith('.js'): shutil.copy(f'web/{_f}', f'site/{_f}')
+if os.path.exists('assets/hadanky.json'): shutil.copy('assets/hadanky.json', 'site/hadanky.json')   # hádanky v deníku (jen ověřené texty)   # ceny paliv z mBenzin.cz (functions/api/ceny.js) k pumpám, mapa i 3D jízda
 shutil.copy('web/uzavirky.js', 'site/uzavirky.js')   # uzavírky: načtení a dopočet úseků z oznámení (mapa i 3D jízda)
 shutil.copy('web/uzavirky_editor.js', 'site/uzavirky_editor.js')   # editor uzavírek pro správce (index.html?admin)
 

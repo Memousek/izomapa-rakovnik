@@ -89,6 +89,34 @@ button { font: inherit; color: inherit; }
 
 .chips4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .chips2 { display: grid; grid-template-columns: 1fr 1.6fr; gap: 6px; }
+.chips3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px; }
+.cas-zkratky { display: flex; gap: 6px; margin-top: 6px; }
+.cas-zkratky .px-btn { flex: 1; font-size: .8rem; }
+.pohl { width: min(680px, calc(100vw - 32px)); }
+.odznaky { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.odznak { padding: 3px 8px; font-size: .75rem; border: 1px dashed var(--edge); color: var(--muted); }
+.odznak.ma { border: 1px solid var(--lamp); color: var(--lamp); background: rgba(242, 198, 109, .08); }
+.denik-list .skryte { color: var(--muted); }
+.hadanka { margin: 6px 0 10px; } .hadanka p { margin: 0 0 6px; font-size: .88rem; }
+.hadanka .px-btn { margin: 0 6px 6px 0; font-size: .8rem; }
+.denik-pozn { font-size: .75rem; margin: 10px 0 6px; }
+.card-wiki { margin: 8px 0; font-size: .86rem; line-height: 1.45; }
+.card-wiki img { float: right; width: 96px; height: 96px; object-fit: cover; margin: 2px 0 6px 10px; border: 2px solid var(--edge); }
+.card-wiki p { margin: 0 0 4px; }
+.card-wiki .wiki-zdroj { clear: both; font-size: .76rem; color: var(--muted); }
+.pruvodce { position: fixed; z-index: 6; left: 50%; bottom: 24px; transform: translateX(-50%); width: min(380px, calc(100vw - 32px)); box-sizing: border-box;
+  padding: 14px 16px; background: var(--panel); color: var(--ink); border: 2px solid var(--edge); border-left: 6px solid var(--lamp); box-shadow: 4px 4px 0 rgba(0, 0, 0, .35); }
+.pruvodce h3 { margin: 2px 0 6px; font-family: var(--display); font-weight: 500; }
+.pruvodce p { margin: 0; font-size: .9rem; line-height: 1.45; }
+.pruvodce .pr-krok { font-size: .75rem; color: var(--muted); }
+.pruvodce .pr-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+@media (max-width: 640px) { .pruvodce { bottom: 84px; } }
+.pohl-nahled { display: block; box-sizing: border-box; width: 100%; max-width: 100%; height: auto; margin: 8px 0; border: 2px solid var(--edge); background: var(--panel-2); }
+.pohl-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.pohl-btns .px-btn { flex: 1 1 140px; }
+.zkratky { display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; margin: 6px 0 12px; font-size: .88rem; }
+.zkratky dt { font-family: var(--display); color: var(--lamp); }
+.zkratky dd { margin: 0; }
 .wip-tag { display: inline-block; font-family: var(--display); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--night); background: var(--lamp); padding: 1px 6px; }
 .daynight { display: grid; gap: 4px; }
 .daynight .ends { display: flex; justify-content: space-between; font-family: var(--display); font-size: .78rem; color: var(--muted); }
@@ -349,10 +377,20 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
   </div>
 
   <div class="daynight">
+    <p class="label">Čas a&nbsp;počasí</p>
+    <div class="chips3" id="casRezim" role="group" aria-label="Režim času">
+      <button class="px-btn" type="button" data-cas="vlastni" title="Denní dobu a počasí nastavíte sami">Vlastní</button>
+      <button class="px-btn" type="button" data-cas="ted" title="Podle skutečné výšky slunce nad městem a skutečného počasí">Právě teď</button>
+      <button class="px-btn" type="button" data-cas="samo" title="Den a noc se samy střídají">Samo</button>
+    </div>
     <label class="label" for="night">Denní doba</label>
     <input id="night" type="range" min="0" max="100" value="0">
     <div class="ends"><span>Den</span><span>Zlatá hodinka</span><span>Noc</span></div>
-    <label class="realtime"><input type="checkbox" id="realTime"> Podle skutečného času</label>
+    <div class="cas-zkratky">
+      <button class="px-btn" type="button" id="zapad" title="Skočit na západ slunce (zlatá hodinka)">Západ slunce</button>
+      <button class="px-btn" type="button" id="casPauza" hidden>Zastavit čas</button>
+    </div>
+    <input type="checkbox" id="realTime" hidden>
   </div>
 
   <div>
@@ -375,6 +413,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
       <label><input type="checkbox" id="l-hover" checked> Zvýraznit budovy</label>
       <label id="l-pumpy-row" hidden><input type="checkbox" id="l-pumpy" checked> Pumpy a&nbsp;nabíječky</label>
       <label id="l-trasy-row" hidden><input type="checkbox" id="l-trasy"> Turistické a cyklotrasy</label>
+      <label><input type="checkbox" id="l-zvuky"> Zvuky prostředí</label>
     </div>
   </div>
     </div>
@@ -395,6 +434,11 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     <ul class="places pu-list" id="puList"></ul>
   </details>
 
+  <details class="sec" id="denikBox" hidden>
+    <summary>Deník <span class="sum-val"></span></summary>
+    <div class="denik-body"></div>
+  </details>
+
   <details class="sec about">
     <summary>O&nbsp;projektu</summary>
     <p>Mapa vznikla nástrojem <a href="https://github.com/adamklatovsky/izomapa" target="_blank" rel="noopener">izomapa</a> z&nbsp;otevřených dat. Budovy, adresy, silnice, voda a&nbsp;zeleň pochází z&nbsp;Overture Maps (OpenStreetMap), terén z&nbsp;modelu Terrarium, výšky budov, les a&nbsp;pole z&nbsp;dat ČÚZK. Lampy podél ulic, zaparkovaná auta, popelnice, hroby a&nbsp;část stromů v&nbsp;zahradách jsou doplněné podle typu území, nejde o&nbsp;přesné polohy.</p>
@@ -408,12 +452,14 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
   <button class="px-btn close" id="cardClose" type="button" aria-label="Zavřít">×</button>
   <h2 id="cardTitle"></h2>
   <p id="cardText" hidden></p>
+  <div class="card-wiki" id="cardWiki" hidden></div>
   <dl id="cardDl"></dl>
   <div class="links" id="cardLinks"></div>
   <details class="report" id="report" hidden>
     <summary>Nahlásit nepřesnost</summary>
     <form id="reportForm">
       <textarea id="repNote" rows="3" maxlength="500" required placeholder="Co tu nesedí se skutečností?"></textarea>
+      <label class="realtime"><input type="checkbox" id="repSnimek" checked> Přiložit snímek a&nbsp;odkaz na tento pohled</label>
       <button class="px-btn" type="submit">Odeslat</button>
       <span id="repMsg" role="status"></span>
     </form>
@@ -438,7 +484,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
 <dialog class="help" id="helpDlg" aria-labelledby="helpTitle">
   <button class="px-btn close" id="helpClose" type="button" aria-label="Zavřít">×</button>
   <h2 id="helpTitle">O&nbsp;mapě</h2>
-  <p><button class="px-btn app-btn" id="plochaBtn" type="button">📱 Přidat na plochu</button></p>
+  <p><button class="px-btn app-btn" id="plochaBtn" type="button">📱 Přidat na plochu</button> <button class="px-btn app-btn" id="preletBtn" type="button">Přelet po zajímavých místech</button></p>
   <p>{{POPIS}}</p>
   <h3>Ovládání</h3>
   <ul>
@@ -446,8 +492,28 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     <li><b>Budova:</b> klikněte na ni a&nbsp;ukáže se název, adresa a&nbsp;odkaz na Mapy.cz.</li>
     <li><b>Roční období, denní doba a&nbsp;počasí</b> se přepínají v&nbsp;panelu v&nbsp;části <b>Vzhled mapy</b>. Na mobilu jsou roční období a&nbsp;denní doba i&nbsp;ve spodní liště.</li>
     <li><b>Hledání</b> zná ulice, adresy, budovy i&nbsp;zajímavá místa.</li>
-    <li><b>Sdílet</b> <span class="ico-inline"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11M8 7l4-4 4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"/><path d="M8 10H5v11h14V10h-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"/></svg></span> zkopíruje odkaz přesně na to, co právě vidíte, včetně ročního období a&nbsp;denní doby.</li>
+    <li><b>Vlak, autobus nebo auto:</b> klikněte na něj a&nbsp;ukáže se, co je zač (u&nbsp;spojů i&nbsp;další zastávka).</li>
+    <li><b>Sdílet</b> <span class="ico-inline"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11M8 7l4-4 4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"/><path d="M8 10H5v11h14V10h-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"/></svg></span> vytvoří pohlednici (obrázek toho, co právě vidíte) a&nbsp;odkaz přesně na tento pohled, včetně ročního období a&nbsp;denní doby.</li>
   </ul>
+  <h3>Klávesové zkratky</h3>
+  <dl class="zkratky">
+    <dt>1 2 3 4</dt><dd>jaro, léto, podzim, zima</dd>
+    <dt>N</dt><dd>den, zlatá hodinka, noc</dd>
+    <dt>Z</dt><dd>západ slunce</dd>
+    <dt>T</dt><dd>režim času: vlastní, právě teď, samo</dd>
+    <dt>mezerník</dt><dd>zastavit nebo pustit čas (režim Samo)</dd>
+    <dt>P</dt><dd>počasí: jasno, déšť, sníh, mlha</dd>
+    <dt>L O B</dt><dd>popisky, doprava (auta), pumpy a&nbsp;nabíječky</dd>
+    <dt>U</dt><dd>zvuky prostředí</dd>
+    <dt>/</dt><dd>hledat</dd>
+    <dt>H</dt><dd>celá mapa</dd>
+    <dt>+ −</dt><dd>přiblížit, oddálit (šipky a&nbsp;W A S D posouvají)</dd>
+    <dt>K</dt><dd>zkopírovat odkaz na pohled</dd>
+    <dt>E</dt><dd>pohlednice: obrázek tohoto pohledu</dd>
+    <dt>V</dt><dd>přelet po zajímavých místech</dd>
+    <dt>J</dt><dd>3D jízda z&nbsp;tohoto místa</dd>
+    <dt>M ?</dt><dd>panel, nápověda</dd>
+  </dl>
   <p class="muted">Vytvořeno nástrojem <a href="https://github.com/adamklatovsky/izomapa" target="_blank" rel="noopener">izomapa</a> od <a href="https://www.adamklatovsky.cz/" target="_blank" rel="noopener">Adama Klatovského</a> (původní mapa: <a href="https://izomapa.fun" target="_blank" rel="noopener">izometrický Liberec</a>).<br>
   Mapová data © přispěvatelé <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL) a&nbsp;Overture Maps, terén Terrarium (AWS Open Data), výšky budov a&nbsp;stromů, ortofoto a&nbsp;ZABAGED{{RUIAN_ZDROJ}} © <a href="https://geoportal.cuzk.cz/" target="_blank" rel="noopener">ČÚZK</a> (CC BY 4.0){{MHD_ZDROJ}}{{VITR_ZDROJ}}{{LETADLA_ZDROJ}}{{DOPRAVA_ZDROJ}}<span id="puZdrojPata" hidden>, Ceny: <a href="https://www.mbenzin.cz" target="_blank" rel="noopener">mbenzin.cz</a></span>.</p>
 </dialog>
@@ -638,7 +704,9 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
         if (bb) state.sel = bb; else hereAt = pos;
       }
     };
+    const sdilenyOdkaz = location.hash.includes('@');
     goToLink(true, true);
+    if (!sdilenyOdkaz) nactiPrelet().then((m) => m.pruvodce({ spustPrelet: prelet })).catch(() => {});   // průvodce jen poprvé a bez sdíleného odkazu
     // odkaz vložený do už otevřené mapy: stránka se nenačte znovu, takže je potřeba přejít sem (replaceState níže tuto událost nespouští)
     addEventListener('hashchange', () => {
       if (Date.now() - uiBackAt < 1500) return;                  // návrat po zavření okna (Zpět) mapu nepřesouvá
@@ -646,7 +714,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
       for (const q of tok) if (SEASON_TOKEN[q]) setSeason(SEASON_TOKEN[q]);
       // sdílený odkaz má vždy roční období, noc nebo soumrak jen když platí; odkaz jen s polohou denní dobu nemění
       const denni = tok.includes('noc') ? 1 : tok.includes('soumrak') ? 0.42 : tok.some((q) => SEASON_TOKEN[q]) ? 0 : null;
-      if (denni !== null) { $('realTime').checked = false; state.night = denni; $('night').value = Math.round(denni * 100); applyTime(); }
+      if (denni !== null) { setCas('vlastni', false); state.night = denni; $('night').value = Math.round(denni * 100); applyTime(); }
       goToLink(false, false);
     });
     let hashT = null;
@@ -772,7 +840,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
   document.querySelectorAll('[data-wip]').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.wip === '1') === state.wip)));
   setSeason(state.season); setWeather(state.weather); applyRealWeather();
   $('night').value = Math.round(state.night * 100);
-  $('night').addEventListener('input', (e) => { state.night = e.target.value / 100; $('realTime').checked = false; saveRT(false); applyTime(); });
+  $('night').addEventListener('input', (e) => { state.night = e.target.value / 100; setCas('vlastni'); applyTime(); });
   // denní doba podle skutečné výšky slunce nad městem (zapíná se volitelně, pamatuje si to prohlížeč)
   function sunAlt(d) {
     const rad = Math.PI / 180, lat = OV.cam.lat0, lon = OV.cam.lon0;
@@ -788,11 +856,39 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     if (!$('realTime').checked) return;
     state.night = Math.round(nightFromSun(sunAlt(new Date())) * 100) / 100; $('night').value = Math.round(state.night * 100); applyTime();
   }
-  $('realTime').addEventListener('change', (e) => { saveRT(e.target.checked); tickReal(); });
+  // režim času (nápad z minimapa.cz): Vlastní = posuvník a tlačítka, Právě teď = skutečné slunce a počasí, Samo = den a noc se střídají
+  let casRezim = 'vlastni', samoT0 = 0, samoPauza = false, samoF = 0;
+  const SAMO_S = 120;                                         // jeden den a noc za 2 minuty
+  function setCas(m, uloz = true) {
+    casRezim = m;
+    document.querySelectorAll('[data-cas]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cas === m)));
+    $('realTime').checked = m === 'ted'; saveRT(m === 'ted');
+    if (m === 'ted' && {{POCASI}}) { $('realWeather').checked = true; saveRW(true); applyRealWeather(); }
+    $('casPauza').hidden = m !== 'samo';
+    if (m === 'samo') { samoPauza = false; $('casPauza').textContent = 'Zastavit čas'; samoT0 = performance.now() / 1000 - Math.acos(1 - 2 * state.night) / (2 * Math.PI) * SAMO_S; }
+    if (uloz) try { localStorage.setItem('izo-cas', m); } catch {}
+    tickReal();
+  }
+  document.querySelectorAll('[data-cas]').forEach((b) => b.addEventListener('click', () => setCas(b.dataset.cas)));
+  $('zapad').addEventListener('click', () => { if (casRezim !== 'samo') setCas('vlastni'); state.night = 0.42; $('night').value = 42; if (casRezim === 'samo') setCas('samo'); applyTime(); });
+  $('casPauza').addEventListener('click', () => {
+    samoPauza = !samoPauza; $('casPauza').textContent = samoPauza ? 'Pustit čas' : 'Zastavit čas';
+    if (!samoPauza) setCas('samo');
+  });
+  setInterval(() => {                                         // Samo: plynule den -> zlatá hodinka -> noc -> zpět
+    if (casRezim !== 'samo' || samoPauza || document.hidden) return;
+    const f = ((performance.now() / 1000 - samoT0) % SAMO_S) / SAMO_S, n = Math.round((1 - Math.cos(2 * Math.PI * f)) / 2 * 100) / 100;
+    if (n === samoF) return; samoF = n;
+    state.night = n; $('night').value = Math.round(n * 100); applyTime();
+  }, 250);
   // výchozí stav: léto, den, skutečný čas vypnutý (zapne si ho každý sám, volba se pak pamatuje)
-  try { if (localStorage.getItem('izo-realtime') === '1' && !hashTokens.includes('noc') && !hashTokens.includes('soumrak')) { $('realTime').checked = true; } } catch {}
+  {                                                         // uložený režim (dřív jen zaškrtávátko „Podle skutečného času“); sdílený odkaz s nocí/soumrakem drží svůj vzhled
+    let m = 'vlastni'; try { m = localStorage.getItem('izo-cas') || (localStorage.getItem('izo-realtime') === '1' ? 'ted' : 'vlastni'); } catch {}
+    if (hashTokens.includes('noc') || hashTokens.includes('soumrak')) m = 'vlastni';
+    setCas(['vlastni', 'ted', 'samo'].includes(m) ? m : 'vlastni', false);
+  }
   setInterval(tickReal, 60000);
-  $('mTime').addEventListener('click', () => { state.night = state.night < 0.25 ? 0.42 : state.night < 0.7 ? 1 : 0; $('realTime').checked = false; saveRT(false); $('night').value = Math.round(state.night * 100); applyTime(); });
+  $('mTime').addEventListener('click', () => { state.night = state.night < 0.25 ? 0.42 : state.night < 0.7 ? 1 : 0; setCas('vlastni'); $('night').value = Math.round(state.night * 100); applyTime(); });
 
   // ---------- souřadnice ----------
   const cam = OV.cam;
@@ -896,6 +992,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     $('cardTitle').textContent = title;
     if (k && !(LAYERS.find((l) => l.key === k) || {}).status?.startsWith('hotovo')) { const t = document.createElement('span'); t.className = 'wip-tag'; t.textContent = 'Rozpracováno'; $('cardTitle').append(' ', t); }
     $('cardText').hidden = !text; $('cardText').textContent = text || '';
+    $('cardWiki').hidden = true; $('cardWiki').replaceChildren(); kartaId++;
     const dl = $('cardDl'); dl.replaceChildren();
     for (const [k, v] of rows) { if (v === undefined || v === null || v === '') continue; const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v; dl.append(dt, dd); }
     const links = $('cardLinks'); links.replaceChildren();
@@ -931,8 +1028,13 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     $('reportForm').querySelector('button').disabled = true;
     repMsg('Odesílám…', '');
     try {
+      let pril = {};
+      if ($('repSnimek').checked) try {                        // snímek pohledu a odkaz na něj: oprava se pak snáz dohledá
+        const m = await import('./mapa_pohlednice.js'), c = m.slozSnimek({ osd: viewer.drawer.canvas, fx: $('fx'), max: 960, rozostrit: false });
+        pril = { odkaz: odkazPohledu(), snimek: c.toDataURL('image/jpeg', 0.7) };
+      } catch { pril = { odkaz: odkazPohledu() }; }
       const r = await fetch('api/report', { method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ...repTarget, note: $('repNote').value.trim() }) });
+        body: JSON.stringify({ ...repTarget, note: $('repNote').value.trim(), ...pril }) });
       const d = await r.json().catch(() => ({}));
       if (d.ok) { $('repNote').value = ''; repMsg('Díky! Hlášení je odeslané.', 'ok'); }
       else repMsg(d.msg || 'Hlášení se nepovedlo odeslat. Zkuste to prosím za chvíli.', 'err');
@@ -946,6 +1048,16 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     for (const p of OV.places) { const d = geoM(b.lat, b.lon, p); if (d < bd && inPoly(p.xy[0], p.xy[1], b.hull)) { best = p; bd = d; } }
     return best;
   }
+  // úryvek z Wikipedie pro pojmenované místo bez vlastního příběhu (web/mapa_wiki.js, jen při shodě názvu článku)
+  let kartaId = 0;
+  async function wikiDo(nazev, lat, lon) {
+    const id = kartaId;
+    try {
+      const m = await import('./mapa_wiki.js'); m.nastavMesto('{{MESTO}}');
+      const w = await m.hledej(nazev, lat, lon);
+      if (id === kartaId && !$('card').hidden) m.vykresli($('cardWiki'), w);
+    } catch {}
+  }
   function showBuilding(b) {
     state.sel = b;
     const pl = placeOf(b);
@@ -955,6 +1067,8 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     showCard({ title, text: story, lon: b.lon, lat: b.lat, k: b.k, rows: [
       ['Adresa', (b.addr || []).join(', ')], ['Typ', nm ? b.cls : null],
     ] });
+    if (nm && !story) wikiDo(nm, b.lat, b.lon);
+    if (nm && DENIK) DENIK.zapisPodleNazvu(nm);
     setReport(b.oid ? 'b:' + b.oid : b.id, [title, (b.addr || [])[0]].filter(Boolean).join(', '), b.lon, b.lat);
   }
   function showPoint(ix, iy) {
@@ -974,7 +1088,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     // místo bez budovy (náměstí, hřbitov, přehrada): klik do 40 m od jeho špendlíku (1 px = 0,2 m)
     let pl = null, bd = 200;
     for (const p of OV.places) { if (!shown(p.k)) continue; const d = Math.hypot(ix - p.xy[0], iy - p.xy[1]); if (d < bd) { pl = p; bd = d; } }
-    if (pl) { showCard({ title: pl.name, text: pl.text, lon: pl.lon, lat: pl.lat, k: pl.k, rows: [] }); return; }
+    if (pl) { showCard({ title: pl.name, text: pl.text, lon: pl.lon, lat: pl.lat, k: pl.k, rows: [] }); if (DENIK) DENIK.zapisPodleNazvu(pl.name); return; }
     showCard({ title: 'Vybrané místo', rows: [], lon, lat });
   }
   const closeCard = () => { $('card').hidden = true; state.sel = null; };
@@ -999,7 +1113,9 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
       if (pl) { planeFollow(pl[2]); return; }
     }
     const v = MHD.drawn.find((q) => Math.hypot(q[0] - e.position.x, q[1] - e.position.y) < 18);
-    if (v) { mhdFollow(v[2]); return; }
+    if (v) { mhdFollow(v[2]); showMhd(v[2]); return; }
+    const cv = CARS_DRAWN.find((q) => Math.hypot(q[0] - e.position.x, q[1] - e.position.y) < 12);
+    if (cv) { showCar(cv[2]); return; }
     const [ix, iy] = vpToImg(e.position);
     const st = stopAt(ix, iy);
     if (st) { showStop(st); return; }
@@ -1123,11 +1239,45 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     $('plochaDlg').addEventListener('click', (e) => { if (e.target === $('plochaDlg')) $('plochaDlg').close(); });
   }
   // sdílení: odkaz obsahuje polohu, přiblížení, roční období a denní dobu (#zima-noc@50.77,15.06,0.8)
-  async function share() {
+  function odkazPohledu() {
     const tok = [{ spring: 'jaro', summer: 'leto', autumn: 'podzim', winter: 'zima' }[state.season]];
     if (state.night > 0.7) tok.push('noc'); else if (state.night > 0.25) tok.push('soumrak');
-    const url = `${location.origin}${location.pathname}#${tok.join('-')}@${(location.hash.split('@')[1] || '')}`;
-    const toast = (t) => { $('toast').textContent = t; $('toast').hidden = false; clearTimeout(share.t); share.t = setTimeout(() => { $('toast').hidden = true; }, 2200); };
+    return `${location.origin}${location.pathname}#${tok.join('-')}@${(location.hash.split('@')[1] || '')}`;
+  }
+  const toast = (t) => { $('toast').textContent = t; $('toast').hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { $('toast').hidden = true; }, 2200); };
+  // pohlednice (web/mapa_pohlednice.js): obrázek pohledu s rozostřenými okraji, uložit, sdílet nebo zkopírovat odkaz
+  async function pohlednice() {
+    try {
+      const m = await import('./mapa_pohlednice.js');
+      m.otevri({ osd: viewer.drawer.canvas, fx: $('fx'), nazev: document.querySelector('.panel h1').textContent.trim(), odkaz: odkazPohledu(), toast });
+    } catch { share(); }
+  }
+  // přelet po zajímavých místech a průvodce ovládáním (web/mapa_prelet.js)
+  let preletMod = null;
+  const nactiPrelet = () => preletMod || (preletMod = import('./mapa_prelet.js'));
+  async function prelet() {
+    const nesleduj = () => { MHD.follow = null; if (typeof PLANES !== 'undefined') PLANES.follow = null; $('follow').hidden = true; };   // sledovaný spoj by pohled držel na místě
+    try { (await nactiPrelet()).prelet({ goView, OV, toast, popis: (on) => { if (on) { closeCard(); nesleduj(); } } }); } catch {}
+  }
+  // deník sbírání míst a hádanky (web/mapa_denik.js), jen v tomto prohlížeči
+  let DENIK = null;
+  import('./mapa_denik.js').then((m) => m.spust({
+    OV: { ...OV, districts: (OV.districts || []).map((x) => { const [wx, wy] = imgToWorld(x.xy[0], x.xy[1]), [lo, la] = lonlat(wx, wy); return { ...x, ll: [la, lo] }; }) },
+    mesto: '{{MESTO}}', toast, el: $('denikBox'), goView: (v) => { goView(v); if (isMobile()) setMenu(false); }, stav: () => ({ noc: state.night > 0.7, obdobi: state.season }),
+  })).then((d) => { DENIK = d; }).catch(() => {});
+  // zvuky prostředí (web/mapa_zvuky.js), výchozí vypnuto; prohlížeč pustí zvuk až po kliknutí, proto se jen pamatuje volba
+  $('l-zvuky').addEventListener('change', async (e) => {
+    try { localStorage.setItem('izo-zvuky', e.target.checked ? '1' : '0'); } catch {}
+    try {
+      const m = await import('./mapa_zvuky.js');
+      if (!e.target.checked) { m.vypni(); return; }
+      m.zapni(() => ({ noc: state.night, obdobi: state.season, pocasi: state.weather, doprava: $('l-traffic').checked,
+        km: +((location.hash.split('@')[1] || '').split(',')[2]) || 3 }));
+    } catch { e.target.checked = false; }
+  });
+  try { if (localStorage.getItem('izo-zvuky') === '1') addEventListener('pointerdown', () => { if (!$('l-zvuky').checked) { $('l-zvuky').checked = true; $('l-zvuky').dispatchEvent(new Event('change')); } }, { once: true }); } catch {}
+  async function share() {
+    const url = odkazPohledu();
     try {
       if (navigator.share && isMobile()) { await navigator.share({ title: document.title, url }); return; }
       await navigator.clipboard.writeText(url); toast('Odkaz na tento pohled je zkopírovaný');
@@ -1140,7 +1290,33 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
       } catch { toast(url); }
     }
   }
-  zbtn('share', share); zbtn('mShare', share);
+  zbtn('share', pohlednice); zbtn('mShare', pohlednice);
+  zbtn('preletBtn', () => { $('helpDlg').close(); prelet(); });
+  // ---------- klávesové zkratky (přehled v nápovědě) ----------
+  // W/A/S/D, šipky, + − 0, R a F obsluhuje OpenSeadragon sám, když je mapa zaměřená; tady jen písmena, která nepoužívá
+  addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented || e.isComposing) return;
+    if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]') || document.querySelector('dialog[open]')) return;
+    const vMape = e.target.closest && e.target.closest('#osd'), k = e.key.toLowerCase(), klik = (id) => { const b = $(id); if (b && !b.hidden) b.click(); };
+    const prepni = (id) => { const c = $(id); if (!c || (c.closest('[hidden]'))) return; c.checked = !c.checked; c.dispatchEvent(new Event('change')); };
+    const akce = {
+      '1': () => setSeason('spring'), '2': () => setSeason('summer'), '3': () => setSeason('autumn'), '4': () => setSeason('winter'),
+      n: () => klik('mTime'), z: () => klik('zapad'), p: () => {
+        const w = ['clear', 'rain', 'snow', 'fog'], i = (w.indexOf(state.weather) + 1) % w.length;
+        document.querySelector(`[data-w="${w[i]}"]`).click();
+      },
+      t: () => setCas({ vlastni: 'ted', ted: 'samo', samo: 'vlastni' }[casRezim]), ' ': () => (casRezim === 'samo' ? klik('casPauza') : null),
+      l: () => prepni('l-labels'), o: () => prepni('l-traffic'), u: () => prepni('l-zvuky'), b: () => prepni('l-pumpy'),
+      '/': () => { setMenu(true); setFold(false); $('q').focus(); }, m: () => klik('menu'), '?': () => klik('help'),
+      k: () => share(), e: () => (typeof pohlednice === 'function' ? pohlednice() : null), h: () => goHome(),
+      j: () => klik('jizda3d'), v: () => (typeof prelet === 'function' ? prelet() : null),
+      '+': () => (vMape ? null : viewer.viewport.zoomBy(1.6)), '=': () => (vMape ? null : viewer.viewport.zoomBy(1.6)), '-': () => (vMape ? null : viewer.viewport.zoomBy(1 / 1.6)),
+    };
+    const f = akce[e.key] || akce[k];
+    if (!f) return;
+    if (e.key === ' ' && e.target.closest && e.target.closest('button, a')) return;
+    e.preventDefault(); f();
+  });
   function setMenu(open) { $('panel').classList.toggle('closed', !open); $('menu').setAttribute('aria-expanded', String(open)); $('menu').textContent = open ? 'Skrýt' : 'Menu'; }
   $('menu').addEventListener('click', () => setMenu($('panel').classList.contains('closed')));
   // desktop: panel jde zasunout ouškem vpravo od něj, stav si pamatuje prohlížeč
@@ -2050,6 +2226,37 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
   }
   function mhdFollow(i) {                                  // kliknutí na vozidlo: pohled jede za ním, lišta ukazuje linku, cíl a další zastávku
     MHD.follow = i; $('follow').hidden = false; mhdFollowText(); closeCard();
+  }
+  // ---------- karta vozidla: klik na vlak, autobus, tramvaj nebo auto (nápad z minimapa.cz) ----------
+  const CARS_DRAWN = [];
+  const VLAK_POPIS = {
+    regiopanter: ['RegioPanter (řada 640/650)', 'Elektrická jednotka Škoda pro regionální dopravu, dva vozy.'],
+    regioshark: ['RegioShark (řada 844)', 'Motorová jednotka PESA, dva vozy s nízkou podlahou.'],
+    regionova: ['Regionova (řada 814)', 'Modernizovaný motorový vůz z 90. let s přívěsem.'],
+    vuz810: ['Motorový vůz řady 810', 'Jednovozový „orchestrion“ na lokálkách.'],
+    cityelefant: ['CityElefant (řada 471)', 'Patrová elektrická jednotka pro příměstskou dopravu.'],
+    rychlik: ['Rychlík', 'Lokomotiva řady 380 a osobní vozy.'],
+  };
+  const AUTO_POPIS = {
+    car: ['Osobní auto', ''], van: ['Dodávka', 'Asi každé desáté osobní vozidlo.'], truck: ['Nákladní auto', ''],
+    semi: ['Kamion s návěsem', 'Tahač s návěsem, jezdí nejvýš 80 km/h.'], garbage: ['Popelářský vůz', 'Jezdí ve dne po vedlejších ulicích.'],
+    tractor: ['Traktor', 'Vzácný host na vedlejších silnicích, nejvýš 30 km/h.'],
+  };
+  const mistoZ = (ix, iy) => { const [x, y] = imgToWorld(ix, iy); return lonlat(x, y); };
+  function showMhd(i) {
+    const t = MHD.trips[i], a = MHD.act.find((q) => q[0] === i); if (!t || !a) return;
+    const [line, typ] = MHD.routes[t[0]], z = t[6], o = mhdPos(t, a[2] ? 0 : a[1]), [lon, lat] = mistoZ(o.ix, o.iy);
+    let next = ''; for (let k = 0; k < z.length; k += 2) if (z[k + 1] >= a[1]) { next = MHD.names[z[k]]; break; }
+    const druh = typ === 0 ? 'Tramvaj' : typ === 2 ? 'Vlak' : 'Autobus', vl = typ === 2 ? VLAK_POPIS[trainOf(line)] : null;
+    const zp = rtDelay(i), rt = !RT.d.has(i) ? 'podle jízdního řádu' : zp >= 90 ? `zpoždění ${Math.round(zp / 60)} min` : zp <= -90 ? `${Math.round(-zp / 60)} min napřed` : 'jede včas';
+    showCard({ title: `${druh} ${line} → ${MHD.names[t[5]]}`, text: vl ? vl[1] : 'Jede podle jízdních řádů dopravce.', lon, lat, rows: [
+      ['Vozidlo', vl ? vl[0] : druh.toLowerCase()], ['Další zastávka', a[2] ? `stojí na konečné, odjezd za ${Math.max(1, Math.round(a[2] / 60))} min` : next], ['Stav', rt]] });
+  }
+  function showCar(c) {
+    const [nm, txt] = AUTO_POPIS[c.t] || AUTO_POPIS.car, r = roads[c.r], o = along(r, c.s), [lon, lat] = mistoZ(o.ix, o.iy);
+    const v = Math.round(carSpeed(c, r) * 3.6);
+    showCard({ title: nm, text: [txt, 'Auta na mapě jsou ilustrace hustoty provozu podle sčítání dopravy, ne skutečná vozidla.'].filter(Boolean).join(' '), lon, lat,
+      rows: [['Rychlost', c.hold ? 'stojí' : `${v} km/h`]] });
   }
   function mhdFollowText() {
     const i = MHD.follow, a = MHD.act.find((q) => q[0] === i);
@@ -3217,10 +3424,12 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
           if (dp < dc) xFront.push([o, z]); else drawXPost(o, z, sx, ox, oy, now, night);
         }
       }
+      CARS_DRAWN.length = 0;
       if (sx > 0.12) for (const c of cars) {
         if (!carActive(c) || !shown(roads[c.r].k)) continue;
         const o = along(roads[c.r], c.s); o.dirSign = c.dir; o.lane = roads[c.r].o ? 0 : 1.6;
         if (!vis(o.ix, o.iy)) continue;
+        if (sx > 0.3) CARS_DRAWN.push([Math.round(ox + o.ix * sx), Math.round(oy + o.iy * sx) - Math.round(3 * sx), c]);   // klik na auto: karta
         if (c.t !== 'semi') { drawVehicle(o, c.T.len, c.T.wid, c.col, sx, ox, oy, night, c.T.code); continue; }
         const q = trailerPos(c), nav = () => drawVehicle(q, TRAILER, 2.55, c.col2, sx, ox, oy, night, 8, 2);   // kamion: vzdálenější díl dřív
         if (q.d > o.d) nav();
