@@ -99,7 +99,11 @@ export async function spust({ panelPo, ukazKartu, jdi }) {
         L.sort((p, q) => I.toImg(p[0], p[1], 0)[1] - I.toImg(q[0], q[1], 0)[1]);
         for (const [px, py, k] of L) I.postava(v, px, py, { oi: 400 + n * 13 + k, back: I.toImg(px, py, 0)[1] > I.toImg(x, y, 0)[1], mir: px > x });
       }
-      if (v.sx < 0.12) continue;
+      // štítek jen od 3 h před začátkem do konce akce (uvedený konec, jinak 2 h po začátku); akce bez času se na mapě neukazuje.
+      // Jen zblízka: oddáleně jsou na mapě názvy čtvrtí a štítek by visel nad celým městem.
+      if (pred === null) continue;
+      const doKonce = a.konec ? (new Date(`${a.od}T${a.konec}:00`).getTime() - t) / 60000 : pred + 120;
+      if (pred > 180 || doKonce < 0 || v.sx < 0.35) continue;
       const [ix, iy] = I.toImg(x, y, I.gz(x, y) + 14); if (!v.vis(ix, iy, 120)) continue;
       const bezi = zap && pred !== null && pred <= 0 && pred > -120;
       const txt = (zap ? (SPORT[a.sport] || '🏟') + ' ' : '') + (bezi ? a.nazev + ' · hraje se' : `${a.cas ? a.cas + ' ' : ''}${a.nazev.length > 28 ? a.nazev.slice(0, 27) + '…' : a.nazev}`);
