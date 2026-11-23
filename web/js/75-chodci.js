@@ -1,8 +1,10 @@
   // ---- chodci: pixeloví lidé (postava 16 bodů po 10 cm) po pěších cestách a náměstích (overlay walk) a po chodnících podél ulic (roads).
   // Oblečení podle ročního období, počet podle hodiny (realTime), kreslí se jen zblízka; obrázek každé postavy se kreslí jednou do cache.
   const PEOPLE = [], PWK = new Map();                         // PWK: konce pěších čar -> [čára, směr]
-  const PDENS = { p: 3, f: 0.9, s: 0.5, t: 0.2, k: 0.2, c: 0, d: 0 };   // lidí na 100 m podle druhu cesty (p pěší zóna, f chodník, s schody, t cesta, k cyklostezka, c / d cyklotrasa po silnici / po cestě)
-  const BDENS = { k: 0.9, t: 0.06, c: 0.25, d: 0.25 };      // cyklistů na 100 m: cyklostezky, cyklotrasy, v lese a v parku občas
+  const PDENS = { p: 3, f: 0.9, s: 0.5, t: 0.2, k: 0.2, c: 0, d: 0, l: 0 };   // lidí na 100 m podle druhu cesty (p pěší zóna, f chodník, s schody, t cesta, k cyklostezka, c / d cyklotrasa po silnici / po cestě, l lesní a polní cesta)
+  const BDENS = { k: 0.9, t: 0.06, c: 0.25, d: 0.25, l: 0.04 };   // cyklistů na 100 m: cyklostezky, cyklotrasy, v lese a v parku občas
+  const TDENS = { l: 0.5, t: 0.08 };                         // turistů s batohem na 100 m: lesní a polní cesty, parky málo
+  const TURA_SEASON = { spring: 0.9, summer: 1, autumn: 0.8, winter: 0.45 };
   const BIKE_SEASON = { spring: 0.35, summer: 1, autumn: 0.25, winter: 0.06 };   // na jaře a na podzim jen pár, v létě víc
   const BIKE_COL = ['#c23a2a', '#2a2c31', '#2f6fd1', '#e8e4da', '#2aa36b', '#f2c230', '#7a7f88', '#e86a2a', '#5a3a7a', '#1d6f8a'];
   const PSIDE = { residential: 0.22, living_street: 0.5, tertiary: 0.35, secondary: 0.35, primary: 0.3, unclassified: 0.1 };   // chodníky podél ulic
@@ -22,6 +24,10 @@
       for (const [e, dir] of [[w[0], 1], [w[w.length - 1], -1]]) { const q = pEk(e); if (!PWK.has(q)) PWK.set(q, []); PWK.get(q).push([r, dir]); }
       const n = r.L / 100 * (PDENS[r.c] ?? 0.5), cnt = Math.floor(n) + (rnd(i + j) < n % 1 ? 1 : 0);
       for (let m = 0; m < cnt; m++) add({ m: 'l', r, s: rnd(i + m * 3) * r.L, dir: rnd(i + m) < 0.5 ? 1 : -1, side: (rnd(i + m * 5) - 0.5) * 1.4 });
+      const nt = r.L / 100 * (TDENS[r.c] || 0), ct = Math.floor(nt) + (rnd(i + j * 19 + 555) < nt % 1 ? 1 : 0);   // turisti: ve dvojici, se psem, s holemi
+      for (let m = 0; m < ct; m++) { const z = i + j * 23 + m * 47 + 3333;
+        add({ m: 'l', r, s: rnd(z) * r.L, dir: rnd(z + 1) < 0.5 ? 1 : -1, side: (rnd(z + 2) - 0.5) * 0.9, v: 0.95 + rnd(z + 3) * 0.35, tura: true,
+          kid: rnd(z + 4) < 0.12, pair: rnd(z + 5) < 0.45, dog: rnd(z + 6) < 0.15 ? ['#7a5532', '#e8e0d0', '#2b2b30', '#b08a4e', '#d9bf7a'][z % 5] : null }); }
       const nb = r.L / 100 * (BDENS[r.c] || 0), cb = Math.floor(nb) + (rnd(i + j * 13 + 777) < nb % 1 ? 1 : 0);   // cyklisti
       for (let m = 0; m < cb; m++) { const z = i + j * 17 + m * 41 + 999;
         add({ m: 'l', r, s: rnd(z) * r.L, dir: rnd(z + 1) < 0.5 ? 1 : -1, side: (rnd(z + 2) - 0.5) * 0.8, v: 4 + rnd(z + 3) * 2.6, kid: false, pair: false, dog: null,
@@ -129,6 +135,10 @@
     if (Math.random() < (p.bike ? 0.02 : 0.15)) p.wait = 1 + Math.random() * 4;   // zastaví se (výloha, telefon)
     let opts;
     if (p.m === 'l') opts = (PWK.get(pEk(endPt)) || []).filter(([q]) => q !== r && (p.bike ? q.c !== 's' : q.c !== 'c' && q.c !== 'd'));
+    if (p.m === 'l' && !p.bike && opts.length) {                 // turista se drží lesních a polních cest, městský chodec do lesa jen občas
+      const ok = opts.filter(([q]) => p.tura ? q.c === 'l' || q.c === 't' : q.c !== 'l');
+      if (ok.length && Math.random() < (p.tura ? 0.95 : 0.85)) opts = ok;
+    }
     else opts = (ends.get(ek(endPt)) || []).filter(([j]) => j !== p.ri && pWalk(roads[j]));
     if (p.bike && opts.length) {                                                // cyklista se drží cyklostezky nebo cyklotrasy
       const G = (c) => c === 'k' ? 'k' : c === 'c' || c === 'd' ? 'r' : 'o', g = G(r.c);
@@ -165,6 +175,19 @@
     if (!kid) o.bag = b < 0.22 ? { t: 'backpack', c: pick(['#2a2a2e', '#2f4a6b', '#8a2f2f', '#6b7a3a', '#d6a12a']) } : b < 0.4 ? { t: 'handbag', c: pick(['#6b4a30', '#1d1f24', '#c23a2a', '#e8e2d2']) } : b < 0.5 ? { t: 'shopper', c: pick(['#e8e4da', '#f2c230', '#2aa36b']) } : null;
     else if (b < 0.4) o.bag = { t: 'backpack', c: pick(P_ACC) };
     o.umb = ch(kid ? 0.3 : 0.8) ? pick(['#1d1f24', '#1d1f24', '#2f4a6b', '#c23a2a', '#2aa36b', '#f2c230', '#e0629a', '#6b3a6b']) : null;   // deštník, když prší
+    return (OUTF[key] = o);
+  }
+  // turista: výrazná bunda (v létě triko), pevné kalhoty nebo kraťasy, pohorky, velký batoh, někdy karimatka a hole, deštník ne
+  const T_BR = ['#d8352a', '#e8742a', '#2f6fd1', '#2aa36b', '#f2c230', '#1d6f8a', '#8a2f6b', '#4a7a2a'];
+  function turistaOf(season, i, kid) {
+    const key = 'tu' + season + (kid ? 'k' : '') + i; if (OUTF[key]) return OUTF[key];
+    const b = outfitOf(season, i, kid), R = (q) => rnd(i * 31 + q + (kid ? 7 : 0)), pick = (a, q) => a[Math.floor(R(q) * a.length)];
+    const o = { ...b, top: season === 'summer' ? pick(['tee', 'tee', 'shirt'], 1) : season === 'winter' ? 'puffer' : 'jacket', topC: pick(T_BR, 2), topC2: pick(T_BR, 3),
+      bot: season === 'summer' && R(4) < 0.5 ? 'shorts' : 'trousers', botC: pick(['#3a3d44', '#4a4a3a', '#5a4a3a', '#2a2c31', '#6b6b5a'], 5),
+      shoes: pick(['#6b4a30', '#4a3a2a', '#3a3a40'], 6), umb: null, scarf: season === 'winter' ? b.scarf : null,
+      bag: { t: 'batoh', c: pick(['#c8402a', '#2f4a6b', '#3a6b3a', '#e8a02a', '#2a2a2e', '#6b3a6b'], 7), mat: !kid && R(8) < 0.45 ? pick(['#3a8ac8', '#d8d02a', '#2aa36b', '#e8742a'], 9) : null },
+      hole: !kid && R(10) < 0.4 };
+    if (season === 'summer') o.hat = R(11) < 0.4 ? { t: 'cap', c: pick(T_BR, 12) } : null;
     return (OUTF[key] = o);
   }
   const PGW = 9, PGH = 23, PCX = 4, PBASE = 21;               // mřížka postavy (body), nohy uprostřed dole
@@ -225,7 +248,19 @@
       if (o.bag.t === 'backpack') { if (back) { rect(CX - 2, B(tTop + 1), CX + 2, B(hip - 1), c); rect(CX - 2, B(tTop + 1), CX + 2, B(tTop + 1), pShade(c, 0.75)); } else { set(CX - 2, B(tTop), pShade(c, 0.8)); set(CX + 2, B(tTop), pShade(c, 0.8)); } }
       if (o.bag.t === 'handbag') { rect(CX + 4, B(hip), CX + 4, B(hip + 1), c); set(CX + 3, B(tTop + 1), pShade(c, 0.7)); }
       if (o.bag.t === 'shopper') rect(CX - 4, B(hip + 1), CX - 3, B(hip + 3), c);
+      if (o.bag.t === 'batoh') {                                // turistický batoh: přes celá záda a nad ramena, karimatka dole
+        const ww = wide ? 1 : 0;
+        if (back) {
+          rect(CX - 2 - ww, B(tTop - 1), CX + 2 + ww, B(hip), c); rect(CX - 2 - ww, B(tTop - 1), CX + 2 + ww, B(tTop - 1), pShade(c, 0.72));
+          rect(CX - 1, B(tTop + 2), CX + 1, B(tTop + 3), pShade(c, 0.82));                     // kapsa
+          if (o.bag.mat) rect(CX - 3 - ww, B(hip + 1), CX + 3 + ww, B(hip + 1), o.bag.mat);
+        } else {
+          set(CX - 3 - ww, B(tTop - 1), c); set(CX + 3 + ww, B(tTop - 1), c);                    // batoh vykukuje nad rameny
+          set(CX - 1, B(tTop), pShade(c, 0.7)); set(CX + 1, B(tTop), pShade(c, 0.7)); set(CX - 1, B(tTop + 1), pShade(c, 0.7)); set(CX + 1, B(tTop + 1), pShade(c, 0.7));   // popruhy
+        }
+      }
     }
+    if (o.hole) for (const x of [0, PGW - 1]) { for (let y = hip + 1; y <= shoeY; y++) set(x, B(y), '#9aa0a8'); set(x, B(hip), o.gloves || o.skin); }   // trekové hole
     return g;
   }
   // obrázek postavy s obrysem (1 bod = 1 px, okraj 1 px), v noci ztmavený; cache podle oblečení, směru, kroku a tmy

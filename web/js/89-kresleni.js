@@ -150,8 +150,9 @@
         if (eco || SLOW) share *= 0.5;
         const nb = Math.min(4, Math.round(night * 5)), list = [], rain = state.weather === 'rain';
         const bikeF = (BIKE_SEASON[state.season] ?? 0.5) * (state.weather === 'rain' ? 0.3 : state.weather === 'snow' ? 0.15 : 1);
+        const vikend = [0, 6].includes(new Date().getDay()), turaF = (vikend ? 1 : 0.5) * (TURA_SEASON[state.season] ?? 1) * (state.weather === 'rain' ? 0.4 : 1);   // turisti hlavně o víkendu
         for (const p of PEOPLE) {
-          if (p.q > (p.bike ? share * bikeF : share) || !shown(p.k)) continue;
+          if (p.q > (p.bike ? share * bikeF : p.tura ? share * turaF : share) || !shown(p.k)) continue;
           const P = pPos(p), ip = toImg(P[0], P[1], P[2]);
           if (!vis(ip[0], ip[1], 30)) continue;
           stepPerson(p, dt); list.push([p, P, ip]);
@@ -183,8 +184,8 @@
           const all = [['m', [P[0], P[1], P[2], ip], p.oi], ...comp].sort((a, b) => a[1][3][1] - b[1][3][1]);
           for (const [t, q, oi] of all) {
             if (t !== 'm' && hidden(q[0], q[1], q[2], q[3])) continue;
-            const kid = t === 'k', o = outfitOf(state.season, oi, kid);
-            put(o, state.season + (kid ? 'k' : '') + oi, q, back, mir, fr);
+            const kid = t === 'k', o = p.tura ? turistaOf(state.season, oi, kid) : outfitOf(state.season, oi, kid);
+            put(o, (p.tura ? 'tu' : '') + state.season + (kid ? 'k' : '') + oi, q, back, mir, fr);
           }
           if (p.dog) { const q = near(-0.9, 0.9); if (!hidden(q[0], q[1], q[2], q[3]) && !treeShapes(q[0], q[1], q[2] + 0.3, [q[3][0] - 3, q[3][1] - 3, q[3][0] + 3, q[3][1]]).length) drawDogAt(ox + q[3][0] * sx, oy + q[3][1] * sx, u, mir, fr, p.dog); }
         }

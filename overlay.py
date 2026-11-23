@@ -69,9 +69,10 @@ AREA_TREE = shapely.STRtree([a[2] for a in AREAS]) if AREAS else None
 PL_TREE = shapely.STRtree([shapely.geometry.Point(p[0], p[1]) for p in PLACES_DB]) if PLACES_DB else None
 
 # chodci (web/js/75-chodci.js): pěší cesty z Overture po čtvercích, společné souřadnice [x, y] po 0,1 m.
-# l = čáry, c = druh (p pěší zóna, f chodník, s schody, t cesta v parku/lese, k cyklostezka, c / d cyklotrasa po silnici / po cestě), a = pěší plochy a náměstí (polygony).
+# l = čáry, c = druh (p pěší zóna, f chodník, s schody, t cesta v parku, l lesní a polní cesta mimo zástavbu, k cyklostezka, c / d cyklotrasa po silnici / po cestě), a = pěší plochy a náměstí (polygony).
 # Chodníky podél ulic, které v datech nejsou, si prohlížeč dopočítá ze silnic (roads). Vypnout: "chodci": false v mesto.json.
-WALK_K = {'pedestrian': 'p', 'footway': 'f', 'steps': 's', 'path': 't', 'cycleway': 'k', 'living_street': 'p', 'bridleway': 't'}
+WALK_K = {'pedestrian': 'p', 'footway': 'f', 'steps': 's', 'path': 't', 'cycleway': 'k', 'living_street': 'p', 'bridleway': 't', 'track': 't'}
+# cesta (t) dál než 100 m od adresního místa je mimo zástavbu (l: lesní a polní cesty), chodí po ní turisti s batohy
 _WALK, _WALK_SRC = {}, None
 def _walk_src():
     global _WALK_SRC
@@ -85,6 +86,13 @@ def _walk_src():
                 k = WALK_K.get(c)
                 if not k or any('is_tunnel' in (q.get('values') or []) and not q.get('between') for q in fl or []): continue
                 lines.append((k, tr(shapely.from_wkb(g))))
+        if os.path.exists('data_all/address.parquet'):        # lesní a polní cesty: střed cesty daleko od domů
+            _ad = [tr(shapely.from_wkb(r['geometry'])) for r in pq.read_table('data_all/address.parquet', columns=['geometry']).to_pylist()]
+            _at = shapely.STRtree(_ad)
+            for n, (k, g) in enumerate(lines):
+                if k != 't' or g.is_empty: continue
+                m = g.interpolate(0.5, normalized=True)
+                if not len(_at.query(m, predicate='dwithin', distance=100)): lines[n] = ('l', g)
         if os.path.exists('assets/cyklotrasy.json'):         # značené cyklotrasy (nastroje/cyklotrasy_osm.py): c po silnici, d po cestě, jen pro cyklisty
             for druh, pts in json.load(open('assets/cyklotrasy.json')):
                 if len(pts) > 1: lines.append((druh, shapely.geometry.LineString([to_local(lo, la) for la, lo in pts])))
@@ -246,11 +254,19 @@ for chunk in chunks:
       [shapely.LineString([(x, y) for x, y, _ in r['p']]) for r in src['roads'] if len(r['p']) > 1] + \
           [shapely.LineString([(x, y) for x, y, _ in l]) for l in src.get('trams', []) + src.get('pistes', []) if len(l) > 1]
     vtrees = []
-    if ln_ and T_:
+    if (ln_ or _wk.get('l')) and T_:
         # vysoký strom zakryje i silnici daleko za sebou (pohled shora z jihozápadu): bere se strom, který je od cesty blíž než 1,7 × výška
         _lt = shapely.STRtree(ln_); _pt = shapely.points([(t[0], t[1]) for t in T_])
         hit_ = _lt.query(_pt, predicate='dwithin', distance=45)
         _ok = sorted({int(i) for i, k in zip(*hit_) if ln_[k].distance(_pt[i]) < max(9.0, 1.7 * T_[i][3])})
+        # lesní a parkové cesty (t, l): jen stromy před cestou (k jihozápadu, ke kameře) do 1,1 × výšky, jinak by data lesa nabobtnala
+        ln2_ = [shapely.LineString([(x - OFF[0], y - OFF[1]) for x, y in w_]) for w_, c_ in zip(_wk.get('l', []), _wk.get('c', '')) if c_ in 'tl']
+        if ln2_:
+            _lt2 = shapely.STRtree(ln2_); _ok = set(_ok)
+            for i, k in zip(*_lt2.query(_pt, predicate='dwithin', distance=25)):
+                i = int(i); g_ = ln2_[k]; q_ = g_.interpolate(g_.project(_pt[i])); dx_, dy_ = T_[i][0] - q_.x, T_[i][1] - q_.y
+                if dx_ + dy_ < 0.5 and (dx_ * dx_ + dy_ * dy_) ** 0.5 < max(3.0, 1.1 * T_[i][3]): _ok.add(i)
+            _ok = sorted(_ok)
         vtrees = [[round(T_[i][0] + OFF[0], 2), round(T_[i][1] + OFF[1], 2), round(T_[i][2], 1), T_[i][3], T_[i][4], T_[i][5] if len(T_[i]) > 5 else 0] for i in _ok]   # 2 desetinná místa: prohlížeč podle nich vybere stejnou kresbu stromu jako renderer
     # svíčky na hrobech (prohlížeč je rozsvítí večer; kolem Dušiček a na Štědrý den skoro na každém hrobě): bod na desce před náhrobkem,
     # bez těch, které by na obrázku ležely v koruně stromu; [x, y obrázku, náhoda 0–1 pro podíl, barvu a mihotání]
