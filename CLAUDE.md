@@ -101,6 +101,8 @@ Automaticky z dat vyjde celé město. Ručně je potřeba:
   Ukázka je v `priklady/mista.json`.
 - **Chyby v datech:** špatná výška → zkontroluj `build/dmp_kontrola.csv`; chybějící nebo nesmyslná budova → nejlepší
   je opravit ji v OpenStreetMap (a za pár týdnů se propíše do Overture), jinak pravidlo v `prep.py`.
+  Budova zakreslená dvakrát přes sebe (např. kostel celý i po částech, věž zvlášť) zkazí vzhled dominanty: duplicity
+  skryje `assets/upresneni.json` `"skryt_budovy": ["id budovy z Overture"]`.
 - **Vlaky:** `"vlak"` v `mesto.json` vybírá model z katalogu `TRAINS` ve `web/js/80-vozidla.js`: `regiopanter`, `regioshark`, `regionova`, `vuz810`, `cityelefant`, `rychlik`. Buď text, nebo `{"vychozi": "regionova", "linky": {"číslo linky": "rychlik"}}`, když na mapě jezdí víc druhů. Bez této volby se vlaky nekreslí, potřebují tvary tras v GTFS. Výchozí model je `regionova`. Nový model je jeden řádek v katalogu.
 - **Barvy střech:** `.venv/bin/python nastroje/strechy.py` (ortofoto po 0,4 m/px, 7 km čtverec ~10 min) vyrobí `assets/strechy_orto.json`, `prep.py` je pak použije u všech budov místo náhodných. Dominanty mají přednost.
 - **Zeleň na zpevněných plochách:** po `nastroje/strechy.py` spusť `nastroje/povrchy.py` (`build/zelen_maska.png`). Zpevněné a průmyslové plochy, které jsou na ortofotu zelené, se změní na trávu a náměstí, které je z více než poloviny zelené, na park se stromy.
