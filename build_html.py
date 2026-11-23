@@ -95,6 +95,7 @@ def postav_stranku(M, html_out='site/index.html', og_cesta='og.jpg', je_obec=Fal
         'KLUZISTE': json.dumps(M.get('kluziste') or []),
         'STANKY': json.dumps(M.get('vanocni_stanky') or []),
         'NAMESTI_SEKTOR': json.dumps(M.get('namesti_sektor')),          # výseč náměstí u stromu pro dav [od, do] ve ° od východu (bez parkoviště a silnice)
+        'MHD_ZDROJ_KRATKY': json.dumps((M.get('mhd') or {}).get('zdroj', 'dopravce').split(' (')[0]),   # PID do poznámky v kartě spoje
         'AUTOBUS': json.dumps(M.get('autobus') or 'liberec'),            # nátěr autobusů: liberec (bílý se zeleným a žlutým pruhem), pid (šedo-červený PID)
         'VANOCE': json.dumps(M.get('vanoce') or None),                 # termín vánoční vrstvy {"od": "11-11", "do": "01-06"} (assets/vanoce.json)
         'OBEC': json.dumps(M.get('nazev') if je_obec else None, ensure_ascii=False),

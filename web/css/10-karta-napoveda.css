@@ -42,3 +42,28 @@ dialog.plocha { max-width: 440px; } dialog.plocha h3 { margin-top: 0; } dialog.p
 .coffee { display: block; font-size: .82rem; color: var(--muted); text-decoration: none; padding: 2px 0; }
 .coffee:hover, .coffee:focus-visible { color: var(--ink); text-decoration: underline; }
 .support-links img { width: 132px; height: 132px; image-rendering: pixelated; background: #fff; padding: 4px; }
+
+/* karta spoje (showMhd ve web/js/70-animace.js): tlačítka, stav, zastávky s časy a zpožděním */
+.card-spoj { display: grid; gap: 8px; margin-top: 8px; }
+.card-spoj[hidden] { display: none; }
+#cardTitle .linka { font-family: var(--body); font-size: .9rem; vertical-align: 2px; }
+.spoj-tlacitka { display: flex; gap: 8px; flex-wrap: wrap; }
+.spoj-tlacitka .px-btn { font-size: .84rem; }
+.spoj-tlacitka .px-btn[aria-pressed="true"] { color: #fff; }
+.spoj-stav { margin: 0; font-size: .86rem; line-height: 1.5; }
+.zp { display: inline-block; padding: 0 6px; font-weight: 700; font-size: .78rem; line-height: 1.6; border: 1px solid; white-space: nowrap; }
+.zp-vcas { color: #8fe09a; border-color: #4e9a5a; }
+.zp-male { color: #f2c66d; border-color: #b58a2f; }
+.zp-velke { color: #ff8a7a; border-color: #c0483a; }
+.zp-napred { color: #8fc8ff; border-color: #3f7fbf; }
+.zp-jr { color: var(--muted); border-color: var(--edge); font-weight: 400; }
+.spoj-nadpis { margin: 4px 0 0; }
+.spoj-zast { list-style: none; margin: 0; padding: 0; display: grid; font-size: .86rem; }
+.spoj-budouci { max-height: 240px; overflow: auto; }
+.spoj-zast li { display: grid; grid-template-columns: 3.2em 1fr auto; gap: 8px; align-items: baseline; padding: 3px 6px; border-left: 3px solid var(--edge); }
+.spoj-zast .cas { font-variant-numeric: tabular-nums; color: var(--muted); }
+.spoj-zast li.dalsi { background: var(--panel-2); border-left-color: var(--lamp); font-weight: 700; }
+.spoj-zast li.dalsi .cas { color: var(--ink); }
+.spoj-zast li.byla { color: var(--muted); border-left-style: dotted; }
+.spoj-projete > summary { cursor: pointer; font-size: .8rem; color: var(--muted); padding: 2px 0; }
+.spoj-pozn { margin: 0; font-size: .74rem; line-height: 1.4; color: var(--muted); }

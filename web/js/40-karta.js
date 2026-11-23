@@ -5,6 +5,7 @@
     if (k && !(LAYERS.find((l) => l.key === k) || {}).status?.startsWith('hotovo')) { const t = document.createElement('span'); t.className = 'wip-tag'; t.textContent = 'Rozpracováno'; $('cardTitle').append(' ', t); }
     $('cardText').hidden = !text; $('cardText').textContent = text || '';
     $('cardWiki').hidden = true; $('cardWiki').replaceChildren(); kartaId++;
+    $('cardSpoj').hidden = true; $('cardSpoj').replaceChildren();
     const dl = $('cardDl'); dl.replaceChildren();
     for (const [k, v] of rows) { if (v === undefined || v === null || v === '') continue; const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v; dl.append(dt, dd); }
     const links = $('cardLinks'); links.replaceChildren();

@@ -727,7 +727,8 @@
     return Array.from({ length: t.n }, (_, j) => ({ r, s: r.L * (j + 0.5) / t.n, dir: j % 2 ? -1 : 1, v: 8, wait: 0, stopS }));
   });
   // MHD podle jízdních řádů GTFS (site/mhd.json z mhd.py): poloha každého spoje podle skutečného času
-  const MHD = { on: false, act: [], t: -1, drawn: [], follow: null };
+  const MHD = { on: false, act: [], t: -1, drawn: [], follow: null, kartaSpoj: 0 };
+  const MHD_ZDROJ = {{MHD_ZDROJ_KRATKY}};
   // MHD v reálném čase (mesto.json mhd.realtime = GTFS-RT vehicle_positions, prostředník functions/api/mhd.js): z polohy vozidla
   // na trase se dopočítá zpoždění spoje a vozidlo jede podle jízdního řádu posunutého o to zpoždění (mezi zprávami po 15 s plynule).
   // Bez prostředníka (jiný statický hosting) první odpověď 404 vypne dotazy a jezdí se jen podle jízdního řádu.
@@ -882,14 +883,70 @@
     tractor: ['Traktor', 'Vzácný host na vedlejších silnicích, nejvýš 30 km/h.'],
   };
   const mistoZ = (ix, iy) => { const [x, y] = imgToWorld(ix, iy); return lonlat(x, y); };
+  // karta spoje: linka, odkud a kam, stav (zpoždění z polohy vozidla PID v reálném čase), tlačítka Sledovat a Trasa linky,
+  // zastávky spoje s časem podle jízdního řádu a očekávaným časem se zpožděním; projeté zastávky sbalené, karta se obnovuje po 10 s
+  const zpTxt = (zp) => (zp >= 60 ? `+${Math.round(zp / 60)} min` : zp <= -60 ? `${Math.round(zp / 60)} min` : '');
+  const zpTrida = (zp) => (zp >= 300 ? 'zp-velke' : zp >= 60 ? 'zp-male' : zp <= -60 ? 'zp-napred' : 'zp-vcas');
   function showMhd(i) {
-    const t = MHD.trips[i], a = MHD.act.find((q) => q[0] === i); if (!t || !a) return;
-    const [line, typ] = MHD.routes[t[0]], z = t[6], o = mhdPos(t, a[2] ? 0 : a[1]), [lon, lat] = mistoZ(o.ix, o.iy);
-    let next = ''; for (let k = 0; k < z.length; k += 2) if (z[k + 1] >= a[1]) { next = MHD.names[z[k]]; break; }
+    const t = MHD.trips[i], a0 = MHD.act.find((q) => q[0] === i); if (!t || !a0) return;
+    const [line, typ] = MHD.routes[t[0]], z = t[6], o = mhdPos(t, a0[2] ? 0 : a0[1]), [lon, lat] = mistoZ(o.ix, o.iy);
     const druh = typ === 0 ? 'Tramvaj' : typ === 2 ? 'Vlak' : 'Autobus', vl = typ === 2 ? VLAK_POPIS[trainOf(line)] : null;
-    const zp = rtDelay(i), rt = !RT.d.has(i) ? 'podle jízdního řádu' : zp >= 90 ? `zpoždění ${Math.round(zp / 60)} min` : zp <= -90 ? `${Math.round(-zp / 60)} min napřed` : 'jede včas';
-    showCard({ title: `${druh} ${line} → ${MHD.names[t[5]]}`, text: vl ? vl[1] : 'Jede podle jízdních řádů dopravce.', lon, lat, rows: [
-      ['Vozidlo', vl ? vl[0] : druh.toLowerCase()], ['Další zastávka', a[2] ? `stojí na konečné, odjezd za ${Math.max(1, Math.round(a[2] / 60))} min` : next], ['Stav', rt]] });
+    showCard({ title: '', text: vl ? vl[1] : '', lon, lat, rows: [['Odkud', MHD.names[z[0]]], ['Kam', MHD.names[t[5]]], ['Vozidlo', vl ? vl[0] : druh.toLowerCase()]] });
+    $('cardTitle').replaceChildren(`${druh} `, Object.assign(document.createElement('span'), { className: `linka ${typ === 2 ? 'vlak' : typ === 0 ? 'tram' : 'bus'}`, textContent: line }), ` → ${MHD.names[t[5]]}`);
+    const box = $('cardSpoj'); box.hidden = false; box.replaceChildren();
+    const tl = document.createElement('div'); tl.className = 'spoj-tlacitka';
+    const bSled = document.createElement('button'); bSled.type = 'button'; bSled.className = 'px-btn';
+    const sledTxt = () => { const on = MHD.follow === i; bSled.textContent = on ? '■ Nesledovat' : '▶ Sledovat'; bSled.setAttribute('aria-pressed', String(on)); };
+    bSled.addEventListener('click', () => {
+      if (MHD.follow === i) { MHD.follow = null; $('follow').hidden = true; } else { MHD.follow = i; $('follow').hidden = false; mhdFollowText(); }
+      sledTxt();
+    });
+    const bTrasa = document.createElement('button'); bTrasa.type = 'button'; bTrasa.className = 'px-btn'; bTrasa.textContent = 'Trasa linky';
+    bTrasa.addEventListener('click', () => { linkaVyber(line, typ); closeCard(); });
+    tl.append(bSled, bTrasa); sledTxt();
+    const stav = document.createElement('p'); stav.className = 'spoj-stav';
+    const seznam = document.createElement('div');
+    const pozn = document.createElement('p'); pozn.className = 'spoj-pozn';
+    box.append(tl, stav, seznam, pozn);
+    const id = ++MHD.kartaSpoj;
+    const obnov = () => {
+      if (id !== MHD.kartaSpoj || $('card').hidden || !box.contains(seznam)) return false;
+      const a = MHD.act.find((q) => q[0] === i), el = a ? (a[2] ? -a[2] : a[1]) : Infinity, zp = rtDelay(i), live = RT.d.has(i);
+      sledTxt();
+      const st = document.createElement('span'); st.className = 'zp ' + (live && a ? zpTrida(zp) : 'zp-jr');
+      st.textContent = !a ? 'dojel' : !live ? 'podle jízdního řádu' : zp >= 60 ? `zpoždění ${Math.round(zp / 60)} min` : zp <= -60 ? `${Math.round(-zp / 60)} min napřed` : 'jede včas';
+      let dalsi = null; for (let k = 0; k < z.length; k += 2) if (z[k + 1] >= el) { dalsi = k; break; }
+      const kde = !a ? 'Spoj dojel do cílové zastávky.' : a[2] ? `Stojí na výchozí zastávce, odjezd za ${Math.max(1, Math.round(a[2] / 60))} min.`
+        : dalsi !== null ? `Další zastávka ${MHD.names[z[dalsi]]} v ${hhmm(t[3] + z[dalsi + 1] + (live ? zp : 0))}.` : '';
+      stav.replaceChildren(st, ' ', kde);
+      const radek = (k, byla) => {                         // čas podle jízdního řádu, u budoucích zastávek očekávaný čas se zpožděním
+        const li = document.createElement('li'); if (byla) li.className = 'byla'; if (k === dalsi) li.className = 'dalsi';
+        const c = document.createElement('span'); c.className = 'cas'; c.textContent = hhmm(t[3] + z[k + 1]);
+        const n = document.createElement('span'); n.className = 'zast'; n.textContent = MHD.names[z[k]];
+        li.append(c, n);
+        if (live && !byla && Math.abs(zp) >= 60) { const q = document.createElement('span'); q.className = 'zp ' + zpTrida(zp); q.textContent = `${zpTxt(zp)} · ${hhmm(t[3] + z[k + 1] + zp)}`; li.append(q); }
+        return li;
+      };
+      const nProj = dalsi === null ? z.length / 2 : dalsi / 2;
+      const otev = seznam.querySelector('details')?.open || false, scroll = seznam.querySelector('ol.spoj-budouci')?.scrollTop || 0;
+      seznam.replaceChildren();
+      const h3 = document.createElement('p'); h3.className = 'label spoj-nadpis'; h3.textContent = 'Jízdní řád spoje'; seznam.append(h3);
+      if (nProj > 0) {
+        const d = document.createElement('details'); d.className = 'spoj-projete'; d.open = otev;
+        const sm = document.createElement('summary'); sm.textContent = `${nProj} ${nProj === 1 ? 'projetá zastávka' : nProj < 5 ? 'projeté zastávky' : 'projetých zastávek'}`;
+        const ol = document.createElement('ol'); ol.className = 'spoj-zast';
+        for (let k = 0; k < nProj * 2; k += 2) ol.append(radek(k, true));
+        d.append(sm, ol); seznam.append(d);
+      }
+      const ol = document.createElement('ol'); ol.className = 'spoj-zast spoj-budouci';
+      for (let k = nProj * 2; k < z.length; k += 2) ol.append(radek(k, false));
+      seznam.append(ol); ol.scrollTop = scroll;
+      pozn.textContent = live ? `Poloha a zpoždění podle živých dat ${MHD_ZDROJ}, časy v levém sloupci podle jízdního řádu.`
+        : `Podle jízdního řádu ${MHD_ZDROJ}. Živá poloha tohoto spoje teď není k dispozici, zpoždění se proto neukazuje.`;
+      return true;
+    };
+    obnov();
+    const tm = setInterval(() => { if (!obnov()) clearInterval(tm); }, 10000);
   }
   function showCar(c) {
     const [nm, txt] = AUTO_POPIS[c.t] || AUTO_POPIS.car, r = roads[c.r], o = along(r, c.s), [lon, lat] = mistoZ(o.ix, o.iy);

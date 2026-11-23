@@ -23,7 +23,7 @@
       if (pl) { planeFollow(pl[2]); return; }
     }
     const v = MHD.drawn.find((q) => Math.hypot(q[0] - e.position.x, q[1] - e.position.y) < 18);
-    if (v) { mhdFollow(v[2]); showMhd(v[2]); return; }
+    if (v) { showMhd(v[2]); return; }                      // karta spoje: sledování zapne tlačítko Sledovat
     const cv = CARS_DRAWN.find((q) => Math.hypot(q[0] - e.position.x, q[1] - e.position.y) < 12);
     if (cv) { showCar(cv[2]); return; }
     const [ix, iy] = vpToImg(e.position);
