@@ -908,6 +908,12 @@
     const seznam = document.createElement('div');
     const pozn = document.createElement('p'); pozn.className = 'spoj-pozn';
     box.append(tl, stav, seznam, pozn);
+    const vy = window.Izomapa?.vyluky?.(line) || [];        // platné výluky a mimořádnosti linky (web/mapa_vyluky.js)
+    if (vy.length) {
+      const w = document.createElement('div'); w.className = 'spoj-vyluky';
+      for (const v of vy.slice(0, 3)) { const b = document.createElement('button'); b.type = 'button'; b.className = 'odkaz-btn'; b.textContent = `${v.druh === 'mimoradnost' ? 'Mimořádnost' : 'Výluka'}: ${v.nazev}`; b.addEventListener('click', v.ukaz); w.append(b); }
+      box.insertBefore(w, seznam);
+    }
     const id = ++MHD.kartaSpoj;
     const obnov = () => {
       if (id !== MHD.kartaSpoj || $('card').hidden || !box.contains(seznam)) return false;

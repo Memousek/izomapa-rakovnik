@@ -238,3 +238,20 @@ input[type="range"] { width: 100%; accent-color: var(--lamp); }
 .akce-dalsi { margin: 6px 0 0; font-size: .78rem; color: var(--muted); }
 /* dlouhý nezalomitelný souhrn (sum-val) nesmí roztáhnout sloupec panelu: položky gridu smí být užší než svůj obsah */
 .panel > *, .pane > * { min-width: 0; }
+
+/* vodní stav, ovzduší, kalendář, výluky (web/mapa_hydro.js, mapa_ovzdusi.js, mapa_kalendar.js, mapa_vyluky.js) */
+.hydro-st { display: grid; gap: 4px; margin-top: 8px; }
+.hydro-hlava { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 14px 1fr auto; gap: 8px; align-items: center; padding: 4px 6px; font-size: .88rem; }
+.hydro-hlava:hover, .hydro-hlava:focus-visible { background: var(--panel-2); outline: 1px solid var(--edge); }
+.hydro-graf { display: block; background: var(--panel-2); border: 1px solid var(--edge); }
+.hydro-pozn { margin: 0; font-size: .76rem; color: var(--muted); }
+.ovzdusi { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 8px 0 0; font-size: .84rem; }
+.ovzdusi dt { color: var(--muted); }
+.ovzdusi dd { margin: 0; }
+.ovzdusi .vy-ico, .hydro-hlava .vy-ico { display: inline-block; width: 10px; height: 10px; border: 1px solid rgba(0,0,0,.4); }
+#kalendarBox .akce-list button { grid-template-columns: 4.6em 1fr; }
+#kalendarBox .akce-list small { grid-column: 2; color: var(--muted); font-size: .76rem; }
+.vyluky-list button { display: grid; grid-template-columns: 14px 1fr; column-gap: 8px; align-items: start; }
+.vyluky-list small { grid-column: 2; font-size: .76rem; color: var(--muted); }
+.spoj-vyluky { display: grid; gap: 4px; }
+.spoj-vyluky .odkaz-btn { color: #f2c66d; font-size: .82rem; text-align: left; }

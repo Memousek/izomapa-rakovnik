@@ -91,6 +91,13 @@
     buildingShapes(x, y, z, bb, out);
     return out;
   }
+  // stojí bod světa uvnitř půdorysu budovy? (doplňky: Izomapa.vBudove, aby lidé nestáli v domě)
+  function vBudove(x, y) {
+    const [ix, iy] = toImg(x, y, gz(x, y));
+    for (const b of grid.get(Math.floor(ix / CELL) + ',' + Math.floor(iy / CELL)) || [])
+      if (b.fb && shown(b.k) && ix >= b.bb[0] && ix <= b.bb[2] && iy >= b.bb[1] && iy <= b.bb[3] && b.fb.some((P) => inPoly(ix, iy, P))) return true;
+    return false;
+  }
   // je postava stojící v (x, y, z) ve výšce ~1 m schovaná za stromem, domem nebo výzdobou? (pro doplňky, Izomapa.zakryto)
   function zakrytoBod(x, y, z) {
     const dp = depth(x, y, z), ip = toImg(x, y, z + 0.9);

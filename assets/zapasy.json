@@ -1,0 +1,6 @@
+{
+ "_pozn": "Domácí zápasy pro mapu (web/mapa_kalendar.js). Vyplňuje se ručně z rozpisu klubu nebo svazu, svazy blokují automatické stahování. Formát položky: {\"den\": \"2026-11-28\", \"cas\": \"17:00\", \"sport\": \"hokej|fotbal|hazena|volejbal|basketbal\", \"domaci\": \"HC Rakovník\", \"hoste\": \"…\", \"misto\": \"Zimní stadion města Rakovníka\", \"soutez\": \"…\", \"url\": \"…\"}",
+ "zdroj": "rozpisy klubů",
+ "url": "",
+ "zapasy": []
+}

@@ -35,6 +35,7 @@
     imgToWorld: (ix, iy) => imgToWorld(ix, iy),
     gz: (x, y) => gz(x, y),
     postava: (v, x, y, opts) => postavaApi(v, x, y, opts),           // chodec jako v mapě: {oi, kid, back, mir, frame, outfit}
+    vBudove: (x, y) => vBudove(x, y),                                // bod světa leží v půdorysu budovy
     zakryto: (x, y, h) => zakrytoBod(x, y, h ?? gz(x, y)),          // postava v bodě světa je za stromem, domem nebo výzdobou
     latLonToWorld: (lat, lon) => [(lon - cam.lon0) * cam.kx, (lat - cam.lat0) * cam.ky],
     worldToLatLon: (x, y) => { const [lon, lat] = lonlat(x, y); return [lat, lon]; },
@@ -96,6 +97,12 @@
     // akce ve městě (site/akce.json, web/mapa_akce.js): sekce v záložce Dnes, bublina nad místem konání, dav pro život na mapě
     const jdi = (lat, lon) => { const x = (lon - cam.lon0) * cam.kx, y = (lat - cam.lat0) * cam.ky, ip = toImg(x, y, gz(x, y)); goTo(ip[0], ip[1], 1.4); };
     const akce = import('./mapa_akce.js').then((m) => m.spust({ panelPo: $('dnesTop'), jdi })).catch(() => null);
+    // živé zdroje (záložky Dnes a Doprava): vodní stav ČHMÚ, ovzduší a pyl, kalendář akcí a zápasy, výluky PID
+    const ukaz = (o) => showCard({ target: '_blank', ...o, lon: o.lon ?? OV.cam.lon0, lat: o.lat ?? OV.cam.lat0 });
+    if ({{HYDRO}}) import('./mapa_hydro.js').then((m) => m.spust({ panelPo: $('dnesTop'), ukazKartu: ukaz })).catch(() => {});
+    import('./mapa_ovzdusi.js').then((m) => m.spust({ lat: OV.cam.lat0, lon: OV.cam.lon0, panelPo: $('predpovedBox') })).catch(() => {});
+    if ({{KALENDAR}}) import('./mapa_kalendar.js').then((m) => m.spust({ panelPo: $('dnesTop'), ukazKartu: ukaz, jdi })).catch(() => {});
+    if ({{VYLUKY}}) import('./mapa_vyluky.js').then((m) => m.spust({ panelPred: $('puBox'), ukazKartu: ukaz })).catch(() => {});
     if (xm) {
       const [wx, wy] = imgToWorld(xm[0], xm[1]), [lo, la] = lonlat(wx, wy);
       Promise.all([import('./mapa_zivot.js'), akce]).then(([m, stav]) => m.spust({ namesti: [la, lo], radnice: rad ? [rad.lat, rad.lon] : null, akce: stav, namestiSektor: {{NAMESTI_SEKTOR}} })).catch(() => {});

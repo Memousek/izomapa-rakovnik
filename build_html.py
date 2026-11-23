@@ -96,6 +96,9 @@ def postav_stranku(M, html_out='site/index.html', og_cesta='og.jpg', je_obec=Fal
         'STANKY': json.dumps(M.get('vanocni_stanky') or []),
         'NAMESTI_SEKTOR': json.dumps(M.get('namesti_sektor')),          # výseč náměstí u stromu pro dav [od, do] ve ° od východu (bez parkoviště a silnice)
         'MHD_ZDROJ_KRATKY': json.dumps((M.get('mhd') or {}).get('zdroj', 'dopravce').split(' (')[0]),   # PID do poznámky v kartě spoje
+        'HYDRO': 'true' if (M.get('hydro') or {}).get('stanice') else 'false',          # vodní stav ČHMÚ (functions/api/hydro.js)
+        'KALENDAR': 'true' if (M.get('kalendar_web') or {}).get('url') or os.path.exists('assets/zapasy.json') else 'false',   # akce z infocentra a zápasy
+        'VYLUKY': 'true' if 'pid.cz' in json.dumps(M.get('mhd') or {}) else 'false',   # výluky PID (functions/api/vyluky.js)
         'AUTOBUS': json.dumps(M.get('autobus') or 'liberec'),            # nátěr autobusů: liberec (bílý se zeleným a žlutým pruhem), pid (šedo-červený PID)
         'VANOCE': json.dumps(M.get('vanoce') or None),                 # termín vánoční vrstvy {"od": "11-11", "do": "01-06"} (assets/vanoce.json)
         'OBEC': json.dumps(M.get('nazev') if je_obec else None, ensure_ascii=False),
@@ -159,6 +162,14 @@ for _f in os.listdir('web'):                           # moduly prohlížeče (p
     if _f.startswith('mapa_') and _f.endswith('.js'): shutil.copy(f'web/{_f}', f'site/{_f}')
 if (MESTO.get('zpravy_web') or {}).get('url'):   # adresa seznamu aktualit pro functions/api/zpravy.js (funkce jinou nestáhne)
     json.dump({k: MESTO['zpravy_web'][k] for k in ('url', 'zdroj') if MESTO['zpravy_web'].get(k)}, open('site/zpravy_zdroj.json', 'w', encoding='utf-8'), ensure_ascii=False)
+if (MESTO.get('hydro') or {}).get('stanice'):    # stanice ČHMÚ pro functions/api/hydro.js
+    json.dump({'stanice': MESTO['hydro']['stanice']}, open('site/hydro_zdroj.json', 'w', encoding='utf-8'))
+if (MESTO.get('kalendar_web') or {}).get('url'):   # adresa kalendáře akcí pro functions/api/kalendar.js
+    json.dump({k: MESTO['kalendar_web'][k] for k in ('url', 'zdroj') if MESTO['kalendar_web'].get(k)}, open('site/kalendar_zdroj.json', 'w', encoding='utf-8'), ensure_ascii=False)
+for _f in ('akce_mista.json', 'zapasy.json'):      # místa konání akcí (nastroje/akce_mista.py) a ručně vedené domácí zápasy
+    if os.path.exists(f'assets/{_f}'): shutil.copy(f'assets/{_f}', f'site/{_f}')
+if os.path.exists('site/mhd.json'):                # linky v mapě pro výluky PID (functions/api/vyluky.js)
+    json.dump({'linky': sorted({r[0] for r in json.load(open('site/mhd.json', encoding='utf-8'))['routes']})}, open('site/vyluky_zdroj.json', 'w', encoding='utf-8'))
 if os.path.exists('assets/sluzby.json'): shutil.copy('assets/sluzby.json', 'site/sluzby.json')   # pítka a WC (nastroje/sluzby.py)
 if os.path.exists('assets/akce.json'): shutil.copy('assets/akce.json', 'site/akce.json')         # akce ve městě (program z webu města), web/mapa_akce.js
 if os.path.exists('assets/hadanky.json'): shutil.copy('assets/hadanky.json', 'site/hadanky.json')   # hádanky v deníku (jen ověřené texty)   # ceny paliv z mBenzin.cz (functions/api/ceny.js) k pumpám, mapa i 3D jízda
