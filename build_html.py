@@ -135,6 +135,7 @@ ikony_a_manifest(MESTO)
 postav_stranku(MESTO)
 SITE_URL = (MESTO.get('url') or '').rstrip('/')
 if os.path.exists('assets/trasy.json'): shutil.copy('assets/trasy.json', 'site/trasy.json')   # vrstva tras v prohlížeči
+shutil.copy('web/ceny_paliv.js', 'site/ceny_paliv.js')   # ceny paliv z mBenzin.cz (functions/api/ceny.js) k pumpám, mapa i 3D jízda
 shutil.copy('web/uzavirky.js', 'site/uzavirky.js')   # uzavírky: načtení a dopočet úseků z oznámení (mapa i 3D jízda)
 shutil.copy('web/uzavirky_editor.js', 'site/uzavirky_editor.js')   # editor uzavírek pro správce (index.html?admin)
 

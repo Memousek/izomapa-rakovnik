@@ -136,6 +136,7 @@ input[type="range"] { width: 100%; accent-color: var(--lamp); }
 .pu-list .pu-ico.pumpa { background: #1f6f8b; } .pu-list .pu-ico.ev { background: #2c9a4b; } .pu-list .pu-ico.kolo { background: #2f6fd0; }
 .pu-list small { grid-column: 2; font-size: .78rem; color: var(--muted); }
 .pu-list .pu-nej small { color: #7fe0a0; }
+.pu-list .pu-zdroj { padding: 6px 8px; font-size: .78rem; }
 .about p { margin: 6px 0 0; font-size: .8rem; line-height: 1.45; color: var(--muted); }
 .about strong { color: var(--ink); }
 .about .author { color: var(--ink); }
@@ -248,6 +249,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
   padding: 6px 10px; margin-bottom: 8px; box-shadow: 2px 2px 0 rgba(0, 0, 0, .3);
   transition: transform .1s ease, background .1s ease;
 }
+.card .card-neighbor-btn { color: var(--night); }   /* tmavý text na žlutém tlačítku (.card a by ho jinak přebarvilo na světlý) */
 .card-neighbor-btn:hover, .card-neighbor-btn:focus-visible { background: #ffe08a; transform: translateY(-1px); }
 .nolabels .pin, .far .pin:not(.need):not(.neighbor) { display: none !important; }
 .loading { position: fixed; inset: 0; display: grid; place-items: center; font-family: var(--display); color: var(--muted); z-index: 1; pointer-events: none; }
@@ -447,7 +449,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     <li><b>Sdílet</b> <span class="ico-inline"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11M8 7l4-4 4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"/><path d="M8 10H5v11h14V10h-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"/></svg></span> zkopíruje odkaz přesně na to, co právě vidíte, včetně ročního období a&nbsp;denní doby.</li>
   </ul>
   <p class="muted">Vytvořeno nástrojem <a href="https://github.com/adamklatovsky/izomapa" target="_blank" rel="noopener">izomapa</a> od <a href="https://www.adamklatovsky.cz/" target="_blank" rel="noopener">Adama Klatovského</a> (původní mapa: <a href="https://izomapa.fun" target="_blank" rel="noopener">izometrický Liberec</a>).<br>
-  Mapová data © přispěvatelé <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL) a&nbsp;Overture Maps, terén Terrarium (AWS Open Data), výšky budov a&nbsp;stromů, ortofoto a&nbsp;ZABAGED{{RUIAN_ZDROJ}} © <a href="https://geoportal.cuzk.cz/" target="_blank" rel="noopener">ČÚZK</a> (CC BY 4.0){{MHD_ZDROJ}}{{VITR_ZDROJ}}{{LETADLA_ZDROJ}}{{DOPRAVA_ZDROJ}}.</p>
+  Mapová data © přispěvatelé <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL) a&nbsp;Overture Maps, terén Terrarium (AWS Open Data), výšky budov a&nbsp;stromů, ortofoto a&nbsp;ZABAGED{{RUIAN_ZDROJ}} © <a href="https://geoportal.cuzk.cz/" target="_blank" rel="noopener">ČÚZK</a> (CC BY 4.0){{MHD_ZDROJ}}{{VITR_ZDROJ}}{{LETADLA_ZDROJ}}{{DOPRAVA_ZDROJ}}<span id="puZdrojPata" hidden>, Ceny: <a href="https://www.mbenzin.cz" target="_blank" rel="noopener">mbenzin.cz</a></span>.</p>
 </dialog>
 <dialog class="help plocha" id="plochaDlg" aria-labelledby="plochaTitle">
   <button class="px-btn close" id="plochaClose" type="button" aria-label="Zavřít">×</button>
@@ -1459,8 +1461,8 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
       if (p.ceny && puStari(p) < 168) {
         for (const [k, v] of Object.entries(p.ceny)) rows.push([PALIVO[k] || k, kc(v)]);
         const zd = PU_ZDROJ.zdroj || 'ceník';
-        rows.push(['Ceny', `${puStari(p) > 48 ? 'starší údaj, ' : ''}${puPred(puStari(p))} · zdroj ${zd}`]);
-        if (p.ceny_url || PU_ZDROJ.zdroj_url) { link = p.ceny_url || PU_ZDROJ.zdroj_url; linkText = `Ceny na ${zd} ↗`; }
+        rows.push(['Aktualizace', `${puStari(p) > 48 ? 'starší údaj, ' : ''}${p.aktualizace ? p.aktualizace.toLowerCase() : puPred(puStari(p))}`]);
+        if (p.ceny_url || PU_ZDROJ.zdroj_url) { link = p.ceny_url || PU_ZDROJ.zdroj_url; linkText = PU_ZDROJ.text || `Ceny: ${zd}`; }   // mBenzin: „Ceny: mbenzin.cz“ jako odkaz
       } else rows.push(['Paliva', (p.paliva || []).map((k) => PALIVO[k] || k).join(', ') || 'neuvedeno']);
       const sluzby = [p.obchod && 'obchod', p.myci && 'myčka', p.vzduch && 'vzduch'].filter(Boolean).join(', ');
       if (sluzby) rows.push(['Služby', sluzby]);
@@ -1561,8 +1563,24 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
       index.push({ label: puNazev(p), kind: druh, k: p.k, n: norm(`${puNazev(p)} ${p.znacka || ''} ${druh} ${p.druh === 'pumpa' ? 'pumpa cerpaci stanice benzin nafta' : 'nabijecka dobijeci stanice elektro'}`),
         go: () => { goTo(p.ix, p.iy, 1.2); showPumpa(p); } });
     }
+    if (PU_ZDROJ.text && PUMPY.some((p) => puCena(p) !== null)) {   // podmínka zdroje: „Ceny: mbenzin.cz“ jako odkaz u seznamu i v patičce
+      const li = document.createElement('li'), a = document.createElement('a'); li.className = 'pu-zdroj';
+      a.href = PU_ZDROJ.zdroj_url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = PU_ZDROJ.text; li.append(a); $('puList').appendChild(li);
+      $('puZdrojPata').hidden = false;
+    }
   }
-  fetch('pumpy.json').then((r) => (r.ok ? r.json() : null)).catch(() => null).then(puNastav);
+  // stanice z pumpy.json, ceny z mBenzin.cz přes functions/api/ceny.js (bez funkce, třeba v lokálním náhledu, zůstanou bez cen)
+  fetch('pumpy.json').then((r) => (r.ok ? r.json() : null)).catch(() => null).then(async (data) => {
+    if (!data) return;
+    try {
+      const m = await import('./ceny_paliv.js'), ceny = await m.nactiCeny(data.stanice || []);
+      if (ceny.size) {
+        for (const p of data.stanice) { const c = ceny.get(p.id); if (c) Object.assign(p, { ceny: c.ceny, cas: c.cas, ceny_url: c.url, aktualizace: c.aktualizace }); }
+        data.zdroj = { zdroj: 'mbenzin.cz', zdroj_url: m.ZDROJ_URL, text: m.ZDROJ_TEXT };
+      }
+    } catch { /* bez cen */ }
+    puNastav(data);
+  });
   // vjezd na kruhový objezd: auto dá přednost autům na okruhu (25 m před vjezdem nebo právě v něm)
   function yieldZ(r, y) {
     const e = y[0] < 1 ? r.w[0] : r.w[r.w.length - 1], z = [y[0]];

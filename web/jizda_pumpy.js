@@ -17,8 +17,14 @@ export function vytvorPumpy(THREE, scene, api) {
   const kc = (v) => v.toFixed(2).replace('.', ',');
   const barva = (p) => (ZNACKA_BARVA.find(([re]) => re.test(`${p.znacka || ''} ${p.nazev || ''}`)) || [0, '#1f6f8b'])[1];
 
-  fetch('pumpy.json').then((r) => (r.ok ? r.json() : null)).catch(() => null).then((d) => {
+  // ceny z mBenzin.cz (functions/api/ceny.js, ../ceny_paliv.js) se načtou dřív, než se postaví totemy (textura se už nemění)
+  fetch('pumpy.json').then((r) => (r.ok ? r.json() : null)).catch(() => null).then(async (d) => {
     zdroj = (d && d.zdroj) || {};
+    if (d && d.stanice) try {
+      const m = await import('../ceny_paliv.js'), ceny = await m.nactiCeny(d.stanice);
+      for (const p of d.stanice) { const c = ceny.get(p.id); if (c) Object.assign(p, { ceny: c.ceny, cas: c.cas, ceny_url: c.url, aktualizace: c.aktualizace }); }
+      if (ceny.size) zdroj = { zdroj: 'mbenzin.cz', zdroj_url: m.ZDROJ_URL, text: m.ZDROJ_TEXT };
+    } catch { /* bez cen */ }
     seznam = ((d && d.stanice) || []).filter((p) => p.druh !== 'kolo').map((p) => ({ ...p, x: (p.lon - api.CAM.lon0) * api.CAM.kx, y: (p.lat - api.CAM.lat0) * api.CAM.ky, g: null }));
   });
 
@@ -130,7 +136,10 @@ export function vytvorPumpy(THREE, scene, api) {
     }
     if (p.druh === 'pumpa' && maCeny(p)) {
       const s = document.createElement('p'); s.style.cssText = 'margin:8px 0 0;font-size:.8rem;color:var(--muted)';
-      const h_ = stari(p); s.textContent = `Ceny ${h_ < 1 ? 'před chvílí' : h_ < 24 ? 'před ' + Math.round(h_) + ' h' : 'před ' + Math.round(h_ / 24) + ' d'} · zdroj ${zdroj.zdroj || 'ceník'}`;
+      const h_ = stari(p), kdy = p.aktualizace ? p.aktualizace.toLowerCase() : h_ < 1 ? 'před chvílí' : h_ < 24 ? 'před ' + Math.round(h_) + ' h' : 'před ' + Math.round(h_ / 24) + ' d';
+      const a = document.createElement('a'); a.href = p.ceny_url || zdroj.zdroj_url || '#'; a.target = '_blank'; a.rel = 'noopener';
+      a.style.cssText = 'color:var(--lamp);pointer-events:auto'; a.textContent = zdroj.text || `Ceny: ${zdroj.zdroj || 'ceník'}`;   // mBenzin: „Ceny: mbenzin.cz“ jako odkaz
+      s.append(a, ` · aktualizace ${kdy}`);
       panel.append(s);
     }
   }
