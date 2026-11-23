@@ -55,6 +55,7 @@ def zpracuj(e):
     if t.get('access') in ('private', 'no') or t.get('disused') == 'yes': return None
     c = e.get('center') or e
     p = {'id': f"{e['type']}/{e['id']}", 'lat': round(c['lat'], 6), 'lon': round(c['lon'], 6)}
+    if not re.match(r'^https?://', t.get('website', ''), re.I): t = {k: v for k, v in t.items() if k != 'website'}   # jen http(s) odkaz
     for k_osm, k in (('brand', 'znacka'), ('operator', 'provozovatel'), ('name', 'nazev'), ('opening_hours', 'oteviraci'), ('website', 'web'),
                      ('addr:street', 'ulice'), ('addr:housenumber', 'cp'), ('ref:CZ:evcs', 'evcs')):
         if t.get(k_osm): p[k] = t[k_osm]

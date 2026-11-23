@@ -11,9 +11,9 @@ const znacka = (s) => { const n = norm(s); return n.includes('benzina') ? 'orlen
 // „Dnes“, „Včera“, „5. 11. 2026“, „před 3 dny“ -> datum (Date v poledne), jinak null
 export function datumAktualizace(t, ted = new Date()) {
   const s = String(t || '').trim().toLowerCase(), d = new Date(ted.getFullYear(), ted.getMonth(), ted.getDate(), 12);
-  if (s === 'dnes') return d;
-  if (s === 'včera' || s === 'vcera') { d.setDate(d.getDate() - 1); return d; }
-  let m = s.match(/^(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})$/);
+  if (s.startsWith('dnes')) return d;                         // i „Dnes 14:30“
+  if (s.startsWith('včera') || s.startsWith('vcera')) { d.setDate(d.getDate() - 1); return d; }
+  let m = s.match(/^(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})/);
   if (m) return new Date(+m[3], +m[2] - 1, +m[1], 12);
   m = s.match(/(\d+)\s*d/);
   if (m) { d.setDate(d.getDate() - +m[1]); return d; }
@@ -40,7 +40,8 @@ export async function nactiCeny(stanice, { cesta = 'api/ceny', cekat = 5000 } = 
     pouzite.add(m.id);
     const hl = m.aktualizace?.['95'] || m.aktualizace?.nafta || Object.values(m.aktualizace || {})[0];
     const dat = datumAktualizace(hl);
-    vysledek.set(p.id, { ceny: m.ceny, cas: dat ? dat.toISOString().slice(0, 16) : null, aktualizace: hl || '', url: m.url || ZDROJ_URL, nazev: m.nazev });
+    const mistni = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}T12:00`;   // místní čas, ne UTC
+    vysledek.set(p.id, { ceny: m.ceny, cas: dat ? mistni(dat) : null, aktualizace: hl || '', url: m.url || ZDROJ_URL, nazev: m.nazev });
   }
   return vysledek;
 }

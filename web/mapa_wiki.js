@@ -13,7 +13,7 @@ const slova = (s) => norm(s).split(' ').filter((w) => w.length > 2 && !VYPLN.has
 function shoda(nazev, titulek) {
   const a = norm(nazev), b = norm(titulek);
   if (!a || !b) return 0;
-  if (a === b || b.startsWith(a) || a.startsWith(b)) return 3;
+  if (a === b || b.startsWith(a + ' ') || a.startsWith(b + ' ')) return 3;   // jen celé slovo („kostel“ nesedí na „kostelec“)
   const sa = slova(nazev), sb = new Set(slova(titulek));
   if (sa.length && !sb.has(sa[0])) return 0;                    // druh stavby musí sedět (zvonice u kostela není článek o kostele)
   const spol = sa.filter((w) => sb.has(w)).length;
@@ -38,6 +38,7 @@ export async function hledej(nazev, lat, lon) {
     return { titulek: d.title || t, text: vety(d.extract, 3), obrazek: d.thumbnail && d.thumbnail.source, url: (d.content_urls && d.content_urls.desktop && d.content_urls.desktop.page) || `${API}/wiki/${encodeURIComponent(t)}` };
   })();
   pamet.set(klic, uloha);
+  uloha.then((w) => { if (!w) pamet.delete(klic); }, () => pamet.delete(klic));   // bez výsledku (i výpadek sítě) to příště zkusit znovu
   return uloha;
 }
 

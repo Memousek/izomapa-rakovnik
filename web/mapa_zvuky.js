@@ -45,7 +45,7 @@ export function zapni(stav) {
   };
   krok(); clearInterval(casovac); casovac = setInterval(krok, 600);
   clearTimeout(ptaciT);
-  const dalsi = () => { if (vrstvy.ptaci > 0 && !document.hidden) cvrlik(); ptaciT = setTimeout(dalsi, 700 + Math.random() * 3200); };
+  const dalsi = () => { if (vrstvy.ptaci > 0 && !document.hidden && ctx.state === 'running') cvrlik(); ptaciT = setTimeout(dalsi, 700 + Math.random() * 3200); };   // pozastavený kontext: uzly by se jen hromadily
   dalsi();
 }
 

@@ -1,0 +1,80 @@
+[
+ {
+  "misto": "Mariánský sloup",
+  "lat": 50.104033,
+  "lon": 13.731105,
+  "otazka": "Proč byl roku 1749 na Husově náměstí postaven Mariánský sloup?",
+  "odpovedi": [
+   "Jako poděkování za konec moru",
+   "Pro poutníky směřující na Svatou Horu u Příbrami",
+   "Na oslavu korunovace Marie Terezie"
+  ],
+  "spravne": 1,
+  "zdroj": "https://cs.wikipedia.org/wiki/Mariánský_sloup_(Rakovník)"
+ },
+ {
+  "misto": "Pražská brána",
+  "lat": 50.103645,
+  "lon": 13.734372,
+  "otazka": "Které dvě městské brány se v Rakovníku dochovaly?",
+  "odpovedi": [
+   "Svatojilská a Lubenská",
+   "Pražská a Lubenská",
+   "Pražská a Vysoká"
+  ],
+  "spravne": 2,
+  "zdroj": "https://cs.wikipedia.org/wiki/Pražská_brána_(Rakovník)"
+ },
+ {
+  "misto": "Radnice",
+  "lat": 50.104187,
+  "lon": 13.728713,
+  "otazka": "Co se stalo s rakovnickou radnicí při velkém požáru města roku 1733?",
+  "odpovedi": [
+   "Celá shořela",
+   "Přišla jen o věž s hodinami",
+   "Zůstala nepoškozená"
+  ],
+  "spravne": 0,
+  "zdroj": "https://cs.wikipedia.org/wiki/Rakovnická_radnice"
+ },
+ {
+  "misto": "Synagoga (Rabasova galerie)",
+  "lat": 50.106013,
+  "lon": 13.730114,
+  "otazka": "Čím byla od roku 1938 výjimečná rakovnická synagoga?",
+  "odpovedi": [
+   "Sloužila zároveň jako škola",
+   "V sobotu se v ní konaly židovské a v neděli husitské bohoslužby",
+   "Byla to první synagoga v Čechách"
+  ],
+  "spravne": 1,
+  "zdroj": "https://cs.wikipedia.org/wiki/Synagoga_v_Rakovníku"
+ },
+ {
+  "misto": "Letecký hangár",
+  "lat": 50.096803,
+  "lon": 13.690206,
+  "otazka": "Kdo postavil zdi leteckého hangáru na rakovnickém letišti?",
+  "odpovedi": [
+   "Armáda",
+   "Stavební firma z Prahy",
+   "Sami členové aeroklubu brigádnicky"
+  ],
+  "spravne": 2,
+  "zdroj": "https://cs.wikipedia.org/wiki/Letecký_hangár_(Rakovník)"
+ },
+ {
+  "misto": "Muzeum T. G. Masaryka",
+  "lat": 50.103484,
+  "lon": 13.733986,
+  "otazka": "Kdy bylo rakovnické muzeum otevřeno?",
+  "odpovedi": [
+   "Roku 1898",
+   "Roku 1936",
+   "Roku 1984"
+  ],
+  "spravne": 0,
+  "zdroj": "https://cs.wikipedia.org/wiki/Muzeum_T._G._M._Rakovník"
+ }
+]

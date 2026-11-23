@@ -38,7 +38,7 @@ async function stahni(env, bb, stare) {
   const st = new Map();
   for (const [kod, pal] of Object.entries(PALIVA)) {
     const u = new URL(ZDROJ); u.searchParams.set('fuel', kod); u.searchParams.set('ccs', '0');
-    const r = await fetch(u, { headers: { 'X-Mbenzin-Klic': env.MBENZIN_KLIC, 'user-agent': UA, accept: 'application/json' } });
+    const r = await fetch(u, { headers: { 'X-Mbenzin-Klic': env.MBENZIN_KLIC, 'user-agent': UA, accept: 'application/json' }, signal: AbortSignal.timeout(20000) });
     if (r.status === 429) {
       const s = Math.min(86400, Math.max(600, parseInt(r.headers.get('retry-after') || '', 10) || 3 * 3600));
       await uloz(env, { ...(stare || {}), pockat_do: Date.now() + s * 1000 });
@@ -72,7 +72,13 @@ export async function onRequestGet({ request, env, waitUntil }) {
   const muze = !d || !d.pockat_do || Date.now() > d.pockat_do;
   const stare = !d || !d.stazeno || !stejne || Date.now() - d.stazeno > CERSTVE;
   if (stare && muze) {
-    const uloha = bezi || (bezi = stahni(env, bb, d).catch((e) => { console.log(String(e)); return null; }).finally(() => { bezi = null; }));
+    // po jakékoli chybě (5xx, odmítnutý klíč, výpadek) 45 min pauza pro všechny, ať se limit klíče nevyčerpá opakováním
+    const uloha = bezi || (bezi = stahni(env, bb, d).catch(async (e) => {
+      console.log(String(e));
+      const nyni = await nacti(env);
+      if (!nyni || !nyni.pockat_do || nyni.pockat_do < Date.now()) await uloz(env, { ...(nyni || d || {}), pockat_do: Date.now() + 45 * 60e3 });
+      return null;
+    }).finally(() => { bezi = null; }));
     if (d && d.stazeno && stejne && Date.now() - d.stazeno < MAX_STARI) waitUntil(uloha);   // starší data hned, nová na pozadí
     else d = (await uloha) || d;
   }

@@ -890,7 +890,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     casRezim = m;
     document.querySelectorAll('[data-cas]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cas === m)));
     $('realTime').checked = m === 'ted'; saveRT(m === 'ted');
-    if (m === 'ted' && {{POCASI}}) { $('realWeather').checked = true; saveRW(true); applyRealWeather(); }
+    if ({{POCASI}}) { $('realWeather').checked = m === 'ted'; if (uloz) saveRW(m === 'ted'); if (m === 'ted') applyRealWeather(); }   // skutečné počasí jen v režimu Právě teď (jinak by se měnilo neviditelně)
     $('casPauza').hidden = m !== 'samo';
     if (m === 'samo') { samoPauza = false; $('casPauza').textContent = 'Zastavit čas'; samoT0 = performance.now() / 1000 - Math.acos(1 - 2 * state.night) / (2 * Math.PI) * SAMO_S; }
     if (uloz) try { localStorage.setItem('izo-cas', m); } catch {}
@@ -911,7 +911,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
   // výchozí stav: léto, den, skutečný čas vypnutý (zapne si ho každý sám, volba se pak pamatuje)
   {                                                         // uložený režim (dřív jen zaškrtávátko „Podle skutečného času“); sdílený odkaz s nocí/soumrakem drží svůj vzhled
     let m = 'vlastni'; try { m = localStorage.getItem('izo-cas') || (localStorage.getItem('izo-realtime') === '1' ? 'ted' : 'vlastni'); } catch {}
-    if (hashTokens.includes('noc') || hashTokens.includes('soumrak')) m = 'vlastni';
+    if (hashTokens.some((t) => SEASON_TOKEN[t] || t === 'noc' || t === 'soumrak')) m = 'vlastni';   // sdílený odkaz drží svůj vzhled
     setCas(['vlastni', 'ted', 'samo'].includes(m) ? m : 'vlastni', false);
   }
   setInterval(tickReal, 60000);
@@ -1180,7 +1180,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     for (const p of placesAbc) {
       if (!shown(p.k)) continue;
       const li = document.createElement('li'); const b = document.createElement('button'); b.type = 'button'; b.textContent = p.name;
-      b.addEventListener('click', () => { goTo(p.xy[0], p.xy[1], 1.4); showCard({ title: p.name, text: p.text, lon: p.lon, lat: p.lat, k: p.k, rows: [] }); });
+      b.addEventListener('click', () => { goTo(p.xy[0], p.xy[1], 1.4); showCard({ title: p.name, text: p.text, lon: p.lon, lat: p.lat, k: p.k, rows: [] }); if (DENIK) DENIK.zapisPodleNazvu(p.name); });
       li.appendChild(b); placesUl.appendChild(li);
     }
   };
@@ -1271,7 +1271,13 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     if (state.night > 0.7) tok.push('noc'); else if (state.night > 0.25) tok.push('soumrak');
     return `${location.origin}${location.pathname}#${tok.join('-')}@${(location.hash.split('@')[1] || '')}`;
   }
-  const toast = (t) => { $('toast').textContent = t; $('toast').hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { $('toast').hidden = true; }, 2200); };
+  // hlášky po sobě (přelet, deník a odznaky jinak přepisovaly jedna druhou); nejvýš 3 ve frontě
+  const toastFronta = [];
+  const toast = (t) => {
+    if (!$('toast').hidden && toast.t) { if (toastFronta.length < 3 && !toastFronta.includes(t)) toastFronta.push(t); return; }
+    $('toast').textContent = t; $('toast').hidden = false; clearTimeout(toast.t);
+    toast.t = setTimeout(() => { toast.t = null; $('toast').hidden = true; if (toastFronta.length) toast(toastFronta.shift()); }, 2200);
+  };
   // pohlednice (web/mapa_pohlednice.js): obrázek pohledu s rozostřenými okraji, uložit, sdílet nebo zkopírovat odkaz
   async function pohlednice() {
     try {
@@ -1284,7 +1290,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
   const nactiPrelet = () => preletMod || (preletMod = import('./mapa_prelet.js'));
   async function prelet() {
     const nesleduj = () => { MHD.follow = null; if (typeof PLANES !== 'undefined') PLANES.follow = null; $('follow').hidden = true; };   // sledovaný spoj by pohled držel na místě
-    try { (await nactiPrelet()).prelet({ goView, OV, toast, popis: (on) => { if (on) { closeCard(); nesleduj(); } } }); } catch {}
+    try { (await nactiPrelet()).prelet({ goView, OV, toast, popis: (on) => { if (DENIK) DENIK.pauza(on); if (on) { closeCard(); nesleduj(); } } }); } catch {}
   }
   // deník sbírání míst a hádanky (web/mapa_denik.js), jen v tomto prohlížeči
   let DENIK = null;
@@ -1293,16 +1299,23 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
     mesto: '{{MESTO}}', toast, el: $('denikBox'), goView: (v) => { goView(v); if (isMobile()) setMenu(false); }, stav: () => ({ noc: state.night > 0.7, obdobi: state.season }),
   })).then((d) => { DENIK = d; }).catch(() => {});
   // zvuky prostředí (web/mapa_zvuky.js), výchozí vypnuto; prohlížeč pustí zvuk až po kliknutí, proto se jen pamatuje volba
-  $('l-zvuky').addEventListener('change', async (e) => {
-    try { localStorage.setItem('izo-zvuky', e.target.checked ? '1' : '0'); } catch {}
-    try {
-      const m = await import('./mapa_zvuky.js');
-      if (!e.target.checked) { m.vypni(); return; }
-      m.zapni(() => ({ noc: state.night, obdobi: state.season, pocasi: state.weather, doprava: $('l-traffic').checked,
-        km: +((location.hash.split('@')[1] || '').split(',')[2]) || 3 }));
-    } catch { e.target.checked = false; }
+  // AudioContext se musí spustit přímo v obsluze kliknutí (mobil): modul se proto načte dopředu, když je volba uložená
+  let zvukyMod = null;
+  const zvukyStav = () => ({ noc: state.night, obdobi: state.season, pocasi: state.weather, doprava: $('l-traffic').checked,
+    km: +((location.hash.split('@')[1] || '').split(',')[2]) || 3 });
+  const zvukyPouzij = (m, zap) => { zvukyMod = m; if (zap) m.zapni(zvukyStav); else m.vypni(); };
+  $('l-zvuky').addEventListener('change', (e) => {
+    const zap = e.target.checked;
+    try { localStorage.setItem('izo-zvuky', zap ? '1' : '0'); } catch {}
+    if (zvukyMod) { zvukyPouzij(zvukyMod, zap); return; }
+    import('./mapa_zvuky.js').then((m) => zvukyPouzij(m, zap)).catch(() => { e.target.checked = false; });
   });
-  try { if (localStorage.getItem('izo-zvuky') === '1') addEventListener('pointerdown', () => { if (!$('l-zvuky').checked) { $('l-zvuky').checked = true; $('l-zvuky').dispatchEvent(new Event('change')); } }, { once: true }); } catch {}
+  try {
+    if (localStorage.getItem('izo-zvuky') === '1') {
+      import('./mapa_zvuky.js').then((m) => { zvukyMod = m; }).catch(() => {});
+      addEventListener('click', () => { if (!$('l-zvuky').checked) { $('l-zvuky').checked = true; $('l-zvuky').dispatchEvent(new Event('change')); } }, { once: true });
+    }
+  } catch {}
   async function share() {
     const url = odkazPohledu();
     try {
@@ -1323,7 +1336,8 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
   // W/A/S/D, šipky, + − 0, R a F obsluhuje OpenSeadragon sám, když je mapa zaměřená; tady jen písmena, která nepoužívá
   addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented || e.isComposing) return;
-    if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]') || document.querySelector('dialog[open]')) return;
+    // jen textová pole (štítky vrstev a posuvník fokus drží, zkratky tam mají fungovat)
+    if (e.target.closest && e.target.closest('textarea, select, [contenteditable], input:not([type="checkbox"]):not([type="range"]):not([type="radio"])') || document.querySelector('dialog[open]')) return;
     const vMape = e.target.closest && e.target.closest('#osd'), k = e.key.toLowerCase(), klik = (id) => { const b = $(id); if (b && !b.hidden) b.click(); };
     const prepni = (id) => { const c = $(id); if (!c || (c.closest('[hidden]'))) return; c.checked = !c.checked; c.dispatchEvent(new Event('change')); };
     const akce = {
@@ -1336,12 +1350,13 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
       l: () => prepni('l-labels'), o: () => prepni('l-traffic'), u: () => prepni('l-zvuky'), b: () => prepni('l-pumpy'),
       '/': () => { setMenu(true); setFold(false); $('q').focus(); }, m: () => klik('menu'), '?': () => klik('help'),
       k: () => share(), e: () => (typeof pohlednice === 'function' ? pohlednice() : null), h: () => goHome(),
-      j: () => klik('jizda3d'), v: () => (typeof prelet === 'function' ? prelet() : null),
+      j: () => klik('jizda3d'), v: () => prelet(),
       '+': () => (vMape ? null : viewer.viewport.zoomBy(1.6)), '=': () => (vMape ? null : viewer.viewport.zoomBy(1.6)), '-': () => (vMape ? null : viewer.viewport.zoomBy(1 / 1.6)),
     };
-    const f = akce[e.key] || akce[k];
+    const cislo = /^Digit[1-4]$/.test(e.code) && !e.shiftKey ? e.code.slice(5) : null;   // česká klávesnice: horní řada dává + ě š č
+    const f = (cislo && akce[cislo]) || akce[e.key] || akce[k];
     if (!f) return;
-    if (e.key === ' ' && e.target.closest && e.target.closest('button, a')) return;
+    if (e.key === ' ' && (casRezim !== 'samo' || (e.target.closest && e.target.closest('button, a, summary, input')))) return;   // mezerník jen pro čas v režimu Samo
     e.preventDefault(); f();
   });
   function setMenu(open) { $('panel').classList.toggle('closed', !open); $('menu').setAttribute('aria-expanded', String(open)); $('menu').textContent = open ? 'Skrýt' : 'Menu'; }
@@ -1659,7 +1674,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
   }
   function showPumpa(p) {
     const rows = [], ot = ohOtevreno(p.oteviraci);
-    let text = '', link = p.web, linkText = 'Web provozovatele ↗';
+    let text = '', link = /^https?:\/\//i.test(p.web || '') ? p.web : null, linkText = 'Web provozovatele ↗';   // tag website z OSM může kdokoli upravit
     if (p.druh === 'pumpa') {
       if (p.ceny && puStari(p) < 168) {
         for (const [k, v] of Object.entries(p.ceny)) rows.push([PALIVO[k] || k, kc(v)]);
@@ -3427,6 +3442,7 @@ dialog.help ol.vd-list { margin: 0; padding-left: 22px; } ol.vd-list li { margin
       ctx.closePath(); ctx.stroke();
     }
     // doprava
+    if (!$('l-traffic').checked) CARS_DRAWN.length = 0;          // bez dopravy žádná klikací auta (jinak by zůstala poslední poloha)
     if ($('l-traffic').checked) {
       if (now - tShareT > 5000 || tShareCount !== cars.length || tShareSlow !== (eco || SLOW)) {
         tShareT = now; tShareCount = cars.length; tShareSlow = eco || SLOW;

@@ -24,13 +24,13 @@ export async function spust({ OV, mesto, toast, el, goView, stav }) {
   el.hidden = false;
 
   const ODZNAKY = [
-    ['Průzkumník', 'Najděte 5 míst', () => Object.keys(d.mista).length >= Math.min(5, sez.length)],
-    ['Znalec', 'Najděte polovinu míst', () => Object.keys(d.mista).length >= Math.ceil(sez.length / 2)],
+    ...(sez.length ? [['Průzkumník', 'Najděte 5 míst', () => Object.keys(d.mista).length >= Math.min(5, sez.length)],
+      ['Znalec', 'Najděte polovinu míst', () => Object.keys(d.mista).length >= Math.ceil(sez.length / 2)]] : []),
     ['Kronikář', 'Najděte všechna místa', () => sez.length && sez.every((m) => d.mista[m.id])],
     ['Noční pták', 'Najděte místo v noci', () => d.noc > 0],
     ['Celý rok', 'Hledejte ve všech čtyřech ročních obdobích', () => d.obdobi.length >= 4],
     ...(casti.length ? [['Místopisec', 'Navštivte všechny části města', () => casti.every((m) => d.mista[m.id])]] : []),
-    ...(hadanky.length ? [['Pamětník', 'Vyřešte všechny hádanky', () => hadanky.every((h, i) => d.hadanky[i] === 1)]] : []),
+    ...(hadanky.length ? [['Pamětník', 'Vyřešte všechny hádanky', () => hadanky.every((h) => d.hadanky[h.otazka] === 1)]] : []),
   ];
   const mel = new Set(ODZNAKY.filter(([, , f]) => f()).map(([n]) => n));
 
@@ -44,9 +44,10 @@ export async function spust({ OV, mesto, toast, el, goView, stav }) {
     kresli();
   }
 
-  // přiblížení: z adresy pohledu (#…@lat,lon,km), kterou mapa udržuje
+  // přiblížení: z adresy pohledu (#…@lat,lon,km), kterou mapa udržuje; během automatického přeletu se nezapisuje
+  let pauza = false;
   setInterval(() => {
-    if (document.hidden) return;
+    if (document.hidden || pauza) return;
     const at = (location.hash.split('@')[1] || '').split(',').map(Number);
     if (at.length < 3 || !at.every(Number.isFinite)) return;
     const [la, lo, km] = at;
@@ -79,18 +80,18 @@ export async function spust({ OV, mesto, toast, el, goView, stav }) {
       body.append(ul);
     }
     if (hadanky.length) {
-      const h = document.createElement('p'); h.className = 'label'; h.textContent = `Hádanky ${hadanky.filter((x, i) => d.hadanky[i] === 1).length}/${hadanky.length}`; body.append(h);
+      const h = document.createElement('p'); h.className = 'label'; h.textContent = `Hádanky ${hadanky.filter((x) => d.hadanky[x.otazka] === 1).length}/${hadanky.length}`; body.append(h);
       hadanky.forEach((x, i) => {
         const box = document.createElement('div'); box.className = 'hadanka';
         const q = document.createElement('p'); q.textContent = x.otazka; box.append(q);
-        if (d.hadanky[i] === 1) {
+        if (d.hadanky[x.otazka] === 1) {   // klíč je otázka, ne pořadí (po přeskládání souboru by se řešení přeneslo)
           const ok = document.createElement('p'); ok.className = 'muted'; ok.textContent = `✓ ${x.odpovedi[x.spravne]}${x.misto ? ' · ' + x.misto : ''}`;
           if (x.zdroj) { const a = document.createElement('a'); a.href = x.zdroj; a.target = '_blank'; a.rel = 'noopener'; a.textContent = ' (zdroj)'; ok.append(a); }
           box.append(ok);
         } else x.odpovedi.forEach((o, j) => {
           const b = document.createElement('button'); b.type = 'button'; b.className = 'px-btn'; b.textContent = o;
           b.addEventListener('click', () => {
-            if (j === x.spravne) { d.hadanky[i] = 1; uloz(); toast('Správně!'); if (x.lat && x.lon) goView([x.lat, x.lon, 0.3]); for (const [n, , f] of ODZNAKY) if (!mel.has(n) && f()) { mel.add(n); setTimeout(() => toast(`Nový odznak: ${n}`), 2400); } kresli(); }
+            if (j === x.spravne) { d.hadanky[x.otazka] = 1; uloz(); toast('Správně!'); if (x.lat && x.lon) goView([x.lat, x.lon, 0.3]); for (const [n, , f] of ODZNAKY) if (!mel.has(n) && f()) { mel.add(n); setTimeout(() => toast(`Nový odznak: ${n}`), 2400); } kresli(); }
             else { b.disabled = true; toast('Tohle to není, zkuste jinou odpověď.'); }
           });
           box.append(b);
@@ -104,5 +105,5 @@ export async function spust({ OV, mesto, toast, el, goView, stav }) {
     body.append(sm, vym);
   }
   kresli();
-  return { zapisPodleNazvu(nazev) { const m = sez.find((x) => x.nazev === nazev); if (m) zapis(m); } };
+  return { zapisPodleNazvu(nazev) { const m = sez.find((x) => x.nazev === nazev); if (m) zapis(m); }, pauza(v) { pauza = !!v; } };
 }
