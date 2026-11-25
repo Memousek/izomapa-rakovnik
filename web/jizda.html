@@ -680,6 +680,7 @@ async function nactiPocasi() {
 document.querySelectorAll('.wx button').forEach((b) => b.addEventListener('click', () => { b.blur(); $('realPocasi').checked = false; ulozPocasi(false); POC.zat = 0; nastavPocasi(b.dataset.w); }));
 $('realPocasi').addEventListener('change', (e) => { ulozPocasi(e.target.checked); ukazPocasi(); });
 nastavPocasi('clear'); nactiPocasi(); setInterval(nactiPocasi, 15 * 60 * 1000);
+const SRAZKY_UVNITR = { value: 0 };                         // poloměr kolem kamery bez srážek (kabina vozidla), m
 // srážky: částice v krabici kolem kamery, pohyb počítá shader (padání, vítr, kolébání vloček) – žádná práce pro procesor
 function srazky(n, druh) {
   const seed = new Float32Array(n * 6), konec = new Float32Array(n * 2);
@@ -688,9 +689,9 @@ function srazky(n, druh) {
   g.setAttribute('position', new THREE.Float32BufferAttribute(seed, 3)); g.setAttribute('aKonec', new THREE.Float32BufferAttribute(konec, 1));
   if (druh === 'snih') { g.setAttribute('position', new THREE.Float32BufferAttribute(seed.filter((_, i) => i % 6 < 3), 3)); g.deleteAttribute('aKonec'); }
   const m = new THREE.ShaderMaterial({
-    uniforms: { uT: { value: 0 }, uCam: { value: new THREE.Vector3() }, uVitr: { value: new THREE.Vector2() }, uI: { value: 0 }, uJas: { value: 1 } },
+    uniforms: { uT: { value: 0 }, uCam: { value: new THREE.Vector3() }, uVitr: { value: new THREE.Vector2() }, uI: { value: 0 }, uJas: { value: 1 }, uUvnitr: SRAZKY_UVNITR },
     vertexShader: /* glsl */`
-      uniform float uT, uI; uniform vec3 uCam; uniform vec2 uVitr; ${druh === 'dest' ? 'attribute float aKonec;' : ''} varying float vA;
+      uniform float uT, uI; uniform vec3 uCam; uniform vec2 uVitr; ${druh === 'dest' ? 'attribute float aKonec;' : ''} varying float vA, vD;
       void main(){
         vec3 B = vec3(${druh === 'dest' ? '70.0, 34.0, 70.0' : '60.0, 30.0, 60.0'});
         float v = ${druh === 'dest' ? '9.0 + position.x * 2.0' : '1.1 + position.z * 0.5'};    // rychlost pádu m/s
@@ -702,13 +703,13 @@ function srazky(n, druh) {
         ${druh === 'dest' ? 'p += aKonec * vec3(-uVitr.x * 0.06, 1.3, uVitr.y * 0.06);' : ''}   // kapka = čárka po směru pádu
         vA = step(position.x, uI);                                  // intenzita: jen část částic
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
-        gl_Position = projectionMatrix * mv;
+        gl_Position = projectionMatrix * mv; vD = length(mv.xyz);
         ${druh === 'snih' ? 'gl_PointSize = clamp(150.0 / -mv.z, 1.5, 9.0);' : ''}
       }`,
     fragmentShader: /* glsl */`
-      uniform float uJas; varying float vA;
+      uniform float uJas, uUvnitr; varying float vA, vD;
       void main(){
-        if (vA < 0.5) discard;
+        if (vA < 0.5 || vD < uUvnitr) discard;                       // v kabině vozidla neprší dovnitř
         ${druh === 'snih' ? 'vec2 q = gl_PointCoord - 0.5; if (dot(q, q) > 0.25) discard; gl_FragColor = vec4(vec3(0.96, 0.97, 1.0) * uJas, 0.95);' : 'gl_FragColor = vec4(vec3(0.84, 0.88, 0.95) * uJas, 0.75);'}
       }`,
     transparent: true, depthWrite: false,
@@ -2039,6 +2040,7 @@ function vykresli(dt = 0.016) {
     s.uSunScr.value.set(sp.x * 0.5 + 0.5, sp.y * 0.5 + 0.5, sp.z < 1 && k > 0 ? Math.min(1, k * 1.4) * (1 - uN) * (1 - WXI.zat * 0.8) : 0);
   }     // vzhled: telefon a nízká grafika bez záře a zrna
   renderer.setRenderTarget(null); renderer.clear(); renderer.render(slozScena, slozCam);
+  SRAZKY_UVNITR.value = (hrac.vAuto || hrac.bus !== null) && hrac.kabina ? 2.2 : 0;
   if (KOKPIT.skupina.visible) { KOKPIT.sklo.updateMatrixWorld(true); renderer.autoClear = false; renderer.render(SKLO, camera); renderer.autoClear = true; }
   if (DEST.visible || SNIH.visible) {                       // déšť a sníh až na složený obraz (s hloubkou scény), ztmavené jako noc
     const jas = (1 - 0.82 * uN) * (1 - 0.25 * WXI.zat);
