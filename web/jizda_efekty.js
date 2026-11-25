@@ -6,7 +6,8 @@ export function vytvorEfekty(THREE, scene, camera, { obdobi, jenVeDne } = {}) {
   let vHlad = 0, krok = 0, minule = null;
   const posun = new THREE.Vector3();
   // ---------- listí ----------
-  const N = obdobi === 'autumn' ? 260 : 0;
+  const N = obdobi === 'autumn' ? 90 : 0;
+  let stromy = [], stromyT = -1e9;
   let listi = null; const L = [];
   if (N) {
     const g = new THREE.PlaneGeometry(0.11, 0.08);
@@ -39,9 +40,12 @@ export function vytvorEfekty(THREE, scene, camera, { obdobi, jenVeDne } = {}) {
         const [wx, wy] = stav.vitr || [0, 0];
         for (let i = 0; i < N; i++) {
           const o = L[i];
-          if (o.z < gz(o.x, o.y) || Math.hypot(o.x - hrac.x, o.y - hrac.y) > 30) {
-            const a = Math.random() * 6.28, d = Math.random() * 25;
-            o.x = hrac.x + Math.cos(a) * d; o.y = hrac.y + Math.sin(a) * d; o.z = gz(o.x, o.y) + 3 + Math.random() * 9;
+          if (o.z < gz(o.x, o.y) || Math.hypot(o.x - hrac.x, o.y - hrac.y) > 40) {
+            // nový list jen z koruny listnatého stromu kolem hráče (bez stromů nepadá nic)
+            if (t - stromyT > 1.5 && stav.stromy) { stromy = stav.stromy(hrac.x, hrac.y, 35); stromyT = t; }
+            if (!stromy.length || Math.random() > 0.03) { o.z = -1e9; o.x = hrac.x + 1e4; continue; }   // řídce: list se neobjeví hned
+            const s = stromy[Math.floor(Math.random() * stromy.length)], a = Math.random() * 6.28, d = Math.random() * s.h * 0.3;
+            o.x = s.x + Math.cos(a) * d; o.y = s.y + Math.sin(a) * d; o.z = s.z + s.h * (0.45 + Math.random() * 0.4);
             o.vx = wx * 0.6 + (Math.random() - 0.5) * 0.4; o.vy = wy * 0.6 + (Math.random() - 0.5) * 0.4;
           }
           o.ph += dt * 2.2; o.rot += dt * 1.7;

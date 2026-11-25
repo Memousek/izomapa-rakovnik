@@ -272,6 +272,15 @@ export function vytvorStromy(THREE, scene, opts = {}) {
     for (const r of [r1, r2]) if (r > lo && r <= hi && 2 * A * r + B < 0) return r;
     return 1;
   }
+  // listnaté stromy do R m od bodu (pro padající listí, jizda/efekty.js): [{x, y, z, h}]
+  function listnate(x, y, R) {
+    const out = [], r2 = R * R;
+    for (let gx = cell(x - R); gx <= cell(x + R); gx++) for (let gy = cell(y - R); gy <= cell(y + R); gy++) {
+      const a = mrizka.get(klic(gx, gy)); if (!a) continue;
+      for (const s of a) if (s.typ === TYP_LISTNAC && (s.x - x) ** 2 + (s.y - y) ** 2 < r2) out.push(s);
+    }
+    return out;
+  }
   function prekazka(ax_, ay_, az_, bx, by, bz) {
     const dx = bx - ax_, dy = by - ay_, dz = bz - az_, pad = odstup, m = maxR + pad;
     const x0 = Math.min(ax_, bx) - m, x1 = Math.max(ax_, bx) + m, y0 = Math.min(ay_, by) - m, y1 = Math.max(ay_, by) + m;
@@ -299,7 +308,7 @@ export function vytvorStromy(THREE, scene, opts = {}) {
   }
 
   return {
-    pridejCtverec, odeberCtverec, update, telesa, uBlizko, prekazka, nastavObdobi, nastavDosah, zrus,
+    pridejCtverec, odeberCtverec, update, telesa, uBlizko, prekazka, listnate, nastavObdobi, nastavDosah, zrus,
     skupina,
     get pocetInstanci() { return kand.length; },       // kolik stromů je teď 3D
     get pocetStromu() { return pocetStromu; },

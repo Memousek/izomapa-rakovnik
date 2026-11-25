@@ -872,7 +872,29 @@ function updPrejezdy(now) {
         const lampy = [0.22, -0.22].map((zz) => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), new THREE.MeshBasicMaterial({ color: 0x3a1512 })); m.position.set(-0.08, 2.2, zz); g.add(m); return m; });
         jenVeDne.push(sloup);
         g.position.set(x, gz(x, y), -y); g.rotation.y = Math.atan2(hy, hx); scene3.add(g); q.mesh.push(lampy);
+        // závora (Rakovník): červenobílé rameno přes pravý pruh, spouští se s výstražníkem
+        const pul = { primary: 5, secondary: 4.5, tertiary: 4, residential: 3, unclassified: 3, living_street: 3, service: 1.5 }[r.c] || 3;
+        const rameno = new THREE.Group(); rameno.position.set(x, gz(x, y) + 1.0, -y); rameno.rotation.y = Math.atan2(hy, hx) + Math.PI / 2;
+        for (let k = 0; k < Math.ceil(pul / 0.5); k++) {
+          const p_ = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.09, 0.07), new THREE.MeshLambertMaterial({ color: k % 2 ? 0xffffff : 0xd21f1f }));
+          p_.position.set(0.25 + k * 0.5, 0, 0); rameno.add(p_); jenVeDne.push(p_);
+        }
+        const pata = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.0, 0.3), new THREE.MeshLambertMaterial({ color: 0xe8e6e0 })); pata.position.set(x, gz(x, y) + 0.5, -y); scene3.add(pata); jenVeDne.push(pata);
+        scene3.add(rameno); (q.ramena ||= []).push(rameno);
+        // bílá stop čára před přejezdem v pravém pruhu
+        const sc_ = along(r, clamp(q[0] - d * 9, 0, r.L)), Ls = Math.hypot(sc_.dx, sc_.dy) || 1, sx = sc_.dx / Ls * d, sy = sc_.dy / Ls * d;
+        const cara = new THREE.Mesh(new THREE.PlaneGeometry(pul * 0.95, 0.5), new THREE.MeshBasicMaterial({ color: 0xeeeeea }));
+        cara.rotation.x = -Math.PI / 2; cara.rotation.z = Math.atan2(sy, sx) + Math.PI / 2;
+        cara.position.set(sc_.x + sy * pul * 0.5, sc_.z + 0.04, -(sc_.y - sx * pul * 0.5)); scene3.add(cara); jenVeDne.push(cara);
       }
+      // pryžové panely přes koleje v celé šířce silnice
+      const o = along(r, clamp(q[0], 0, r.L)), Lo = Math.hypot(o.dx, o.dy) || 1, pul = { primary: 5, secondary: 4.5, tertiary: 4, residential: 3, unclassified: 3, living_street: 3, service: 1.5 }[r.c] || 3;
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(4.2, pul * 2 + 0.6), new THREE.MeshLambertMaterial({ color: 0x2e2c2a }));
+      panel.rotation.x = -Math.PI / 2; panel.rotation.z = Math.atan2(o.dy / Lo, o.dx / Lo);
+      panel.position.set(o.x, o.z + 0.05, -o.y); scene3.add(panel); jenVeDne.push(panel);
+    }
+    for (const ram of q.ramena || []) {                     // závora: dolů, když se blíží vlak (plynule za ~6 s), pak zase nahoru
+      const cil = q.xc.closed ? 0 : 1.35; ram.rotation.z += (cil - ram.rotation.z) * 0.035;
     }
     for (const lampy of q.mesh) lampy.forEach((m, k) => m.material.color.setHex(q.xc.closed && (k === blik) ? 0xff3b30 : 0x3a1512));   // střídavě červená
   }
@@ -2126,7 +2148,7 @@ function frame(now) {
   STROMY.update(camera.position.x, -camera.position.z, camera.position.y);
   PTACI.update(dt, now / 1000, hrac, DOBA.n, WXI.zat, WXI.dest);
   EFEKTY.update(dt, now / 1000, { veVoze: hrac.vAuto || hrac.bus !== null, pesky: !hrac.vAuto && hrac.bus === null && SLED.i === null, zOci: !!hrac.zOci,
-    vitr: Array.isArray(POC.vitr) ? POC.vitr : [0, 0] }, gz, hrac);
+    vitr: Array.isArray(POC.vitr) ? POC.vitr : [0, 0], stromy: (x, y, R) => STROMY.listnate(x, y, R) }, gz, hrac);
   if (OKRAJE) { OKRAJE.update(hrac, okrajeZmena); okrajeZmena = false; }
   EFEKTY.pred(); vykresli(); EFEKTY.po();
   fpsN++; if (now - fpsT > 1000) { fps = fpsN; fpsN = 0; fpsT = now; }

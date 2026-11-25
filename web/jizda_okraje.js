@@ -26,7 +26,7 @@ export function vytvorOkraje(THREE, scene, { roads, gz, hitBuilding, obdobi, jen
   for (const m of [obr, trava, ker]) { m.count = 0; m.frustumCulled = false; scene.add(m); if (jenVeDne) jenVeDne.push(m); }
   const BARVY_TRAVA = { spring: [0x7fb04a, 0x92c05a, 0x6fa040], summer: [0x7aa046, 0x8fae4e, 0x9aae58], autumn: [0x8fa04e, 0xa8a858, 0x7f9446], winter: [0x9aa08c, 0xa8ae9a, 0x8d947e] };
   const BARVY_KER = { spring: [0x5a8f34, 0x6a9a3e], summer: [0x4a7a30, 0x5a8636], autumn: [0x5a7a32, 0x8a7a34, 0x9a6a30], winter: [0x6a665c, 0x5e5a52] };
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3(), osa = new THREE.Vector3(0, 1, 0), col = new THREE.Color();
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3(), osa = new THREE.Vector3(0, 1, 0), osaZ = new THREE.Vector3(0, 0, 1), q2 = new THREE.Quaternion(), col = new THREE.Color();
   let bx = 1e9, by = 1e9, pocet = 0;
 
   function postav(hx, hy) {
@@ -50,7 +50,8 @@ export function vytvorOkraje(THREE, scene, { roads, gz, hitBuilding, obdobi, jen
           const ex = mx + nx * s * (pul + 0.1), ey = my + ny * s * (pul + 0.1);
           if (obrubnik && no < MAX_OBR && !hitBuilding(ex, ey, 0.3)) {        // obrubník po celé délce úseku
             const z = (a[2] + b[2]) / 2;
-            q.setFromAxisAngle(osa, h); m4.compose(v.set(ex, z + 0.05, -ey), q, sc.set(L + 0.05, 0.14, 0.22));
+            const sklon = Math.atan2(b[2] - a[2], L);                         // obrubník kopíruje sklon silnice
+            q.setFromAxisAngle(osa, h).multiply(q2.setFromAxisAngle(osaZ, sklon)); m4.compose(v.set(ex, z + 0.05, -ey), q, sc.set(L + 0.05, 0.14, 0.22));
             obr.setMatrixAt(no++, m4);
           }
           // krajnice: trsy trávy a občas keř za obrubníkem nebo přímo u kraje vozovky
