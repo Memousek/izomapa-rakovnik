@@ -73,7 +73,7 @@ export function vytvorKokpit(THREE, scene, { jenVeDne = [] } = {}) {
     const gs = new THREE.BufferGeometry().setFromPoints([p(0, 0), p(1, 0), p(1, 1), p(0, 0), p(1, 1), p(0, 1)]);
     gs.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1], 2));
     // sklo se kreslí až na složený obraz (jizda.html: KOKPIT.sklo ve vlastní scéně), jinak by kapky přes nebe a dálku přemazala obloha a mlha
-    const sklo = new THREE.Mesh(gs, new THREE.MeshBasicMaterial({ map: ktex, transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
+    const sklo = new THREE.Mesh(gs, new THREE.MeshBasicMaterial({ map: ktex, transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide }));
     sklo.userData.bezStinu = true; skloG.add(sklo);
   }
   const PIVOTY = [-0.36, 0.14];                                  // osy stěračů (z), ramena parkují směrem doprava
@@ -83,11 +83,11 @@ export function vytvorKokpit(THREE, scene, { jenVeDne = [] } = {}) {
     osa.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(V(0, 0, 1), SKU, SKN));   // pravotočivá: (0,0,1) × SKU = SKN
     g.add(osa);
     const rameno = new THREE.Group(); osa.add(rameno);
-    box(0, 0.5, -0.008, 0.008, -0.01, 0.006, TMAVA, rameno);                       // rameno
-    box(0.05, 0.55, -0.012, 0.012, -0.016, 0.0, lam(0x111113), rameno);              // lišta s gumou
+    box(0, 0.62, -0.012, 0.012, -0.016, 0.008, TMAVA, rameno);                     // rameno
+    box(0.06, 0.68, -0.022, 0.022, -0.03, -0.004, lam(0x111113), rameno);            // lišta s gumou
     return { zp, rameno, uhel: 0.04 };
   });
-  const DELKA = 0.52, MAXU = 1.95;                               // dosah ramena (m), největší výchylka (rad)
+  const DELKA = 0.66, MAXU = 1.95;                               // dosah ramena (m), největší výchylka (rad)
   const naPlatno = (z, sv) => [(z + SKW) / (2 * SKW) * KW, (1 - sv / SKL) * KH];
   function setri(st, a0, a1) {                                   // výseč stěrače mezi úhly a0 a a1 pryč z plátna
     if (!kx) return;
@@ -104,7 +104,7 @@ export function vytvorKokpit(THREE, scene, { jenVeDne = [] } = {}) {
     if (kx) {
       const n = pada * dt * (480 + Math.abs(v) * 20);                // za jízdy dopadá víc kapek
       for (let k = 0; k < n || (k === 0 && Math.random() < n); k++) {
-        const x = Math.random() * KW, y = Math.random() * KH, r = (snih > dest ? 4 : 3) + Math.random() * 5;
+        const x = Math.random() * KW, y = Math.random() * KH, r = (snih > dest ? 2.5 : 1.6) + Math.random() * 2.6;
         kx.fillStyle = snih > dest ? 'rgba(245,248,255,0.75)' : 'rgba(150,168,186,0.45)';
         kx.beginPath(); kx.arc(x, y, r, 0, Math.PI * 2); kx.fill();
         if (snih <= dest) { kx.strokeStyle = 'rgba(40,48,58,0.45)'; kx.lineWidth = 1.2; kx.stroke(); }   // okraj kapky (lom světla)

@@ -700,10 +700,13 @@ function srazky(n, druh) {
         p.x += uT * uVitr.x * ${druh === 'dest' ? '0.9' : '0.6'}; p.z -= uT * uVitr.y * ${druh === 'dest' ? '0.9' : '0.6'};   // vítr (svět x, y -> three x, -z)
         ${druh === 'snih' ? 'p.x += sin(uT * 1.3 + position.y * 40.0) * 0.6; p.z += cos(uT * 1.1 + position.x * 40.0) * 0.6;' : ''}
         p = uCam + mod(p - uCam + B * 0.5, B) - B * 0.5;            // krabice jede s kamerou, částice se nikde neobjeví naráz
+        // vzdálenost bližšího konce kapky (oba vrcholy stejně): kapka s koncem v kabině nebo za kamerou zmizí celá, jinak by z ní byla čára přes obraz
+        vec3 mvA = (modelViewMatrix * vec4(p, 1.0)).xyz, mvB = (modelViewMatrix * vec4(p + vec3(-uVitr.x * 0.06, 1.3, uVitr.y * 0.06), 1.0)).xyz;
+        vD = min(length(mvA), length(mvB)); if (mvA.z > -0.3 || mvB.z > -0.3) vD = -1.0;   // za kamerou: vždy pryč
         ${druh === 'dest' ? 'p += aKonec * vec3(-uVitr.x * 0.06, 1.3, uVitr.y * 0.06);' : ''}   // kapka = čárka po směru pádu
         vA = step(position.x, uI);                                  // intenzita: jen část částic
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
-        gl_Position = projectionMatrix * mv; vD = length(mv.xyz);
+        gl_Position = projectionMatrix * mv;
         ${druh === 'snih' ? 'gl_PointSize = clamp(150.0 / -mv.z, 1.5, 9.0);' : ''}
       }`,
     fragmentShader: /* glsl */`
@@ -1202,6 +1205,7 @@ hrac.zOci = true; try { hrac.zOci = localStorage.getItem('izo-3d-pohled2') !== '
 const mojeAuto = VOZ.mojeAuto(nactiAuto());                // vzhled z garáže (jizda/garaz.js), výchozí červený hatchback
 const KOKPIT = vytvorKokpit(THREE, scene3, { jenVeDne });   // interiér pro pohled z kabiny
 const SKLO = new THREE.Scene(); SKLO.add(KOKPIT.sklo);       // kapky na čelním skle: až na složený obraz
+const HLOUBKA_KOKPITU = new THREE.Scene(); HLOUBKA_KOKPITU.overrideMaterial = new THREE.MeshBasicMaterial({ colorWrite: false });
 jenVeDne.push(...mojeAuto.children.filter((o) => !o.userData.svetlo));
 mojeAuto.visible = false; scene3.add(mojeAuto);
 function volneMisto(x, y, r) {                             // nejbližší místo mimo budovy (spirála)
@@ -2041,7 +2045,11 @@ function vykresli(dt = 0.016) {
   }     // vzhled: telefon a nízká grafika bez záře a zrna
   renderer.setRenderTarget(null); renderer.clear(); renderer.render(slozScena, slozCam);
   SRAZKY_UVNITR.value = (hrac.vAuto || hrac.bus !== null) && hrac.kabina ? 2.2 : 0;
-  if (KOKPIT.skupina.visible) { KOKPIT.sklo.updateMatrixWorld(true); renderer.autoClear = false; renderer.render(SKLO, camera); renderer.autoClear = true; }
+  if (KOKPIT.skupina.visible) {                            // kabina: nejdřív jen hloubka kokpitu, aby kapky na skle a déšť nešly přes palubní desku a sloupky
+    renderer.autoClear = false; renderer.clearDepth();
+    const k = KOKPIT.skupina, rodic = k.parent; HLOUBKA_KOKPITU.add(k); renderer.render(HLOUBKA_KOKPITU, camera); rodic.add(k);
+    KOKPIT.sklo.updateMatrixWorld(true); renderer.render(SKLO, camera); renderer.autoClear = true;
+  }
   if (DEST.visible || SNIH.visible) {                       // déšť a sníh až na složený obraz (s hloubkou scény), ztmavené jako noc
     const jas = (1 - 0.82 * uN) * (1 - 0.25 * WXI.zat);
     DEST.material.uniforms.uJas.value = jas; SNIH.material.uniforms.uJas.value = jas;
