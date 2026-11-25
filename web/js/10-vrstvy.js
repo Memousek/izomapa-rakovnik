@@ -179,7 +179,7 @@
     };
     const sdilenyOdkaz = location.hash.includes('@');
     goToLink(true, true);
-    if (!sdilenyOdkaz) nactiPrelet().then((m) => m.pruvodce({ spustPrelet: prelet })).catch(() => {});   // průvodce jen poprvé a bez sdíleného odkazu
+    if (!sdilenyOdkaz) vitej(() => nactiPrelet().then((m) => m.pruvodce({ spustPrelet: prelet })).catch(() => {}));   // pohlednice (62-vitej.js), pak průvodce jen poprvé a bez sdíleného odkazu
     // odkaz vložený do už otevřené mapy: stránka se nenačte znovu, takže je potřeba přejít sem (replaceState níže tuto událost nespouští)
     addEventListener('hashchange', () => {
       if (Date.now() - uiBackAt < 1500) return;                  // návrat po zavření okna (Zpět) mapu nepřesouvá

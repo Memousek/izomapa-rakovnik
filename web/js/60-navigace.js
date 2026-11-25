@@ -254,7 +254,7 @@
   };
   new MutationObserver(hlidej).observe($('panel'), { subtree: true, childList: true, attributeFilter: ['hidden'] });
   try {
-    if (!isMobile()) { const s = localStorage.getItem('izo-tab') || (localStorage.getItem('izo-vzhled') === '1' ? 'vzhled' : 'objevuj'); if (s !== '-') chci = s; }
+    if (!isMobile()) { const s = localStorage.getItem('izo-tab') || (localStorage.getItem('izo-vzhled') === '1' ? 'vzhled' : '-');   // Rakovník: poprvé zavřený panel, mapa je vidět celá if (s !== '-') chci = s; }
   } catch {}
   hlidej();
   if ({{JIZDA}}) {                                       // 3D jízda (nastroje/jizda.py): otevře se na místě, kam se mapa právě dívá

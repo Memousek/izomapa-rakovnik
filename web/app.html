@@ -2,31 +2,42 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="{{POPIS}}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=DM+Mono:wght@500&family=Fraunces:ital,opsz,wght@0,9..144,700;0,9..144,800;1,9..144,600&display=swap">
 <style>
 <!-- @css -->
 </style>
 
 <div id="map" aria-label="Izometrická pixel-art mapa {{MESTO}}"><div id="osd"></div><div id="pluginLayers"></div><canvas id="fx"></canvas></div>
-<div class="loading" id="loading">Načítám mapu…</div>
+<div class="loading" id="loading" role="status" aria-live="polite">
+  <div class="ld-text">
+    <p class="ld-k">Izometrická mapa</p>
+    <p class="ld-h">{{MESTO}}</p>
+    <p class="ld-p">Skládám mapu z&nbsp;čtverců 2,3 × 2,3 km: terén, ulice, budovy a&nbsp;koleje.</p>
+  </div>
+  <svg class="ld-iso" id="ldIso" viewBox="-230 -230 460 460" aria-hidden="true"></svg>
+</div>
+<div class="stav" id="stav" hidden><span class="stav-dot" aria-hidden="true"></span><b id="stavCas"></b><span id="stavPopis"></span></div>
 
 <button class="fold" id="fold" type="button" aria-controls="panel" aria-expanded="true" aria-label="Zasunout panel" title="Zasunout panel">‹</button>
 <div class="izomapa-slot-tabs" id="pluginTabsSlot"></div>
 <aside class="panel" id="panel">
   <div class="head">
+    <button class="znak" id="znak" type="button" aria-label="Úvodní pohlednice" title="Úvod"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 21 8 12 13 3 8z" fill="currentColor"/><path d="M3 8l9 5v8l-9-5z" fill="currentColor" opacity=".55"/><path d="M21 8l-9 5v8l9-5z" fill="currentColor" opacity=".8"/></svg></button>
     <div>
-      <h1>{{H1_A}} <span>{{H1_B}}</span></h1>
+      <h1><small>{{H1_A}}</small> <span>{{H1_B}}</span></h1>
       <p class="sub" id="sub">{{PODTITUL}}</p>
     </div>
     <div class="head-btns">
+      <button class="obce-btn" id="obceBtn" type="button" aria-expanded="false" aria-controls="obceList" hidden>Obce</button>
       <button class="px-btn help-btn" id="help" type="button" aria-label="Nápověda a o projektu" title="Nápověda a o projektu">?</button>
       <button class="px-btn menu-btn" id="menu" type="button" aria-expanded="true">Menu</button>
     </div>
+    <ul class="obce-list" id="obceList" hidden></ul>
   </div>
 
   <div class="search">
     <label class="label" for="q">Hledat</label>
-    <input id="q" type="search" placeholder="Ulice, adresa nebo místo" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+    <input id="q" type="search" placeholder="Hledat ulici, adresu, památku" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
     <ul class="results" id="results"></ul>
   </div>
   <p class="zpravy-radek" id="zpravyLista" hidden><span class="label">Aktuálně</span> </p>
@@ -248,6 +259,24 @@
   <button class="px-btn" type="button" id="mTime">Den</button>
   <button class="px-btn" type="button" id="mShare" aria-label="Sdílet tento pohled"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11M8 7l4-4 4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"/><path d="M8 10H5v11h14V10h-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"/></svg></button>
 </nav>
+
+<div class="vitej" id="vitej" hidden role="dialog" aria-modal="true" aria-labelledby="vitejNadpis">
+  <div class="pohled-karta">
+    <div class="pk-l">
+      <p class="pk-pozdrav">Pozdrav z</p>
+      <h2 id="vitejNadpis">{{VITEJ_NADPIS}}</h2>
+      <p class="pk-text">{{VITEJ}}</p>
+    </div>
+    <div class="pk-r">
+      <div class="pk-znamka" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 21 8 12 13 3 8z" fill="#fff"/><path d="M3 8l9 5v8l-9-5z" fill="#fff" opacity=".55"/><path d="M21 8l-9 5v8l9-5z" fill="#fff" opacity=".8"/></svg>IZO<br>MAPA</div>
+      <p class="pk-lbl">Kam se podívat</p>
+      <nav class="pk-obce" id="vitejObce" aria-label="Obce na mapě"></nav>
+      <button class="pk-cta" id="vitejGo" type="button">Otevřít mapu <kbd>Enter</kbd></button>
+      <p class="pk-odkazy"><button type="button" id="vitejPrelet">Přelet po památkách</button><button type="button" id="vitejJizda" hidden>3D jízda</button></p>
+    </div>
+  </div>
+  <p class="pk-kredit">Vytvořeno nástrojem <a href="https://github.com/adamklatovsky/izomapa" target="_blank" rel="noopener">izomapa</a> od Adama Klatovského</p>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js" integrity="sha384-4BsIv4BUV37POdA1NZ6UcVAsFk96MQXmFLog7pWs+JP+a8k2XjilfManEVdWDxTe" crossorigin="anonymous"></script>
 <script>

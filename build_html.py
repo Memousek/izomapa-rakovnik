@@ -76,6 +76,11 @@ def postav_stranku(M, html_out='site/index.html', og_cesta='og.jpg', je_obec=Fal
     fill = {
         'TITULEK': E(M['titulek']), 'POPIS': E(M['popis']), 'MESTO': E(M['nazev']), 'H1_A': E(M['h1'][0]), 'H1_B': E(M['h1'][1]),
         'PODTITUL': E(M['podtitul']),
+        'VITEJ': E(M.get('vitej') or M['podtitul']),
+        'VITEJ_NADPIS': E(M.get('vitej_nadpis') or M['h1'][1]),   # „Pozdrav z …“ ve 2. pádě          # text úvodní pohlednice (web/js/62-vitej.js)
+        'OBCE_ODKAZY': json.dumps([{'n': MESTO['nazev'], 'u': './', 'ja': not je_obec}] + [
+            {'n': json.load(open(f'obce/{f}', encoding='utf-8'))['nazev'], 'u': f'index_{f[:-5]}.html', 'ja': je_obec and M['nazev'] == json.load(open(f'obce/{f}', encoding='utf-8'))['nazev']}
+            for f in (sorted(os.listdir('obce')) if os.path.isdir('obce') else []) if f.endswith('.json')], ensure_ascii=False).replace('</', '<\\/'),
         'HLASENI': 'true' if M.get('hlaseni') else 'false',
         'VITR': 'true' if M.get('vitr') else 'false',
         'POCASI': 'true' if M.get('pocasi') else 'false',
@@ -130,7 +135,7 @@ def postav_stranku(M, html_out='site/index.html', og_cesta='og.jpg', je_obec=Fal
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1b2333">
+<meta name="theme-color" content="#f2f2ee">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
