@@ -111,8 +111,8 @@ def svet_js():
     kod = jednou(kod, 'l = floor(l * 5.0 + hash(floor(gl_FragCoord.xy)) * 0.9) / 5.0;', 'l = l * 0.92;')
     kod = jednou(kod, '&& hash(floor(gl_FragCoord.xy)) > 0.6) col *= 0.93;', '&& hash(floor(vW.xz * 4.0)) > 0.6) col *= 0.93;')
     # počasí ve 3D na terénu: mokrý asfalt po dešti (tmavší, v ostrém úhlu odráží nebe) a postupně bílá zem při sněžení
-    kod = jednou(kod, '{ uTex: { value: tex }, uLmap: { value: lmap } }', '{ uTex: { value: tex }, uLmap: { value: lmap }, uMokro: O.uMokro || { value: 0 }, uSnih: O.uSnih || { value: 0 }, uTexO: { value: texO }, uOrto: { value: texO ? 1 : 0 }, uTA: { value: O.textury?.asfalt || null }, uTG: { value: O.textury?.trava || null }, uTP: { value: O.textury?.dlazba || null }, uTS: { value: O.textury?.sterk || null }, uSplat: { value: O.textury ? 1 : 0 } }')
-    kod = jednou(kod, 'uniform sampler2D uTex, uLmap;', 'uniform sampler2D uTex, uLmap, uTexO, uTA, uTG, uTP, uTS; uniform float uMokro, uSnih, uOrto, uSplat;')
+    kod = jednou(kod, '{ uTex: { value: tex }, uLmap: { value: lmap } }', '{ uTex: { value: tex }, uLmap: { value: lmap }, uMokro: O.uMokro || { value: 0 }, uSnih: O.uSnih || { value: 0 }, uTexO: { value: texO }, uOrto: { value: texO ? 1 : 0 }, uTA: { value: O.textury?.asfalt || null }, uTG: { value: O.textury?.trava || null }, uTP: { value: O.textury?.dlazba || null }, uTS: { value: O.textury?.sterk || null }, uSplat: { value: O.textury ? 1 : 0 }, uCasV: O.uCas || { value: 0 } }')
+    kod = jednou(kod, 'uniform sampler2D uTex, uLmap;', 'uniform sampler2D uTex, uLmap, uTexO, uTA, uTG, uTP, uTS; uniform float uMokro, uSnih, uOrto, uSplat, uCasV;')
     # ---- kvalita obrazu zblízka (mapa je kreslená pro pohled shora po 0,2 m na pixel, chodec se dívá z 1,7 m) ----
     # detailní textura (stránka: O.uDet, dlaždicový šum s mipmapami; O.uDetS = 0 vše vypne) pro všechny materiály světa
     kod = jednou(kod, 'uniform float uLights; uniform vec2 uOff;', 'uniform float uLights; uniform vec2 uOff; uniform sampler2D uDet; uniform float uDetS; uniform float uOkna;')
@@ -185,6 +185,21 @@ def svet_js():
         vec3 o = texture2D(uTexO, vUv).rgb; float lu = dot(o, vec3(0.3, 0.59, 0.11));
         o = clamp(mix(vec3(lu), o, 1.3) * 1.08, 0.0, 1.0);
         col = mix(col, o, 0.92 * smoothstep(30.0, 170.0, length(cameraPosition - vW)));   // do 30 m jen ostrá kresba
+      }
+      {                                                          // voda (Rakovník): vlnky, odraz nebe podle úhlu pohledu, odlesk slunce; v zimě zamrzlá
+        vec3 kv = texture2D(uTex, vUv).rgb;                      // třída z podkladu (před ortofotem a texturami)
+        float voda = uSeason < 2.5 ? smoothstep(0.18, 0.3, kv.b - kv.r) * step(kv.g, kv.b) * step(0.45, kv.b) : 0.0;
+        if (voda > 0.01) {
+          vec2 q1 = vW.xz * 0.35 + vec2(uCasV * 0.05, uCasV * 0.03), q2 = vW.xz * 0.21 - vec2(uCasV * 0.035, -uCasV * 0.045);
+          vec4 w1 = texture2D(uDet, q1), w2 = texture2D(uDet, q2);
+          vec3 nw = normalize(vec3((w1.g - 0.5) * 0.5 + (w2.a - 0.5) * 0.5, 1.0, (w1.a - 0.5) * 0.5 + (w2.g - 0.5) * 0.5));
+          vec3 vd = normalize(cameraPosition - vW), rf = reflect(-vd, nw);
+          float fres = 0.06 + 0.94 * pow(1.0 - max(dot(nw, vd), 0.0), 4.0);
+          vec3 nebe = mix(vec3(0.72, 0.8, 0.88), vec3(0.32, 0.5, 0.78), clamp(rf.y * 1.4, 0.0, 1.0));
+          vec3 hloubka = mix(vec3(0.07, 0.15, 0.17), col * 0.45, 0.35);
+          float lesk = pow(max(dot(rf, normalize(uSun)), 0.0), 180.0) * 2.2;
+          col = mix(col, mix(hloubka, nebe, fres) + lesk, voda);
+        }
       }
       if (uMokro > 0.01) {                                       // šedé zpevněné plochy zmoknou nejvíc, tráva a pole málo
         float sat = max(max(col.r, col.g), col.b) - min(min(col.r, col.g), col.b), lum = dot(col, vec3(0.3, 0.59, 0.11));

@@ -450,7 +450,8 @@ tickCas(); setInterval(tickCas, 30000);
 const rtDen = new THREE.WebGLRenderTarget(1, 1, { depthTexture: new THREE.DepthTexture(1, 1), samples: KVALITA > 1 ? 4 : 0 }), rtSvetla = new THREE.WebGLRenderTarget(1, 1);
 // kresba povrchů zblízka (jizda/svet.js): dlaždicový šum, R jemné zrno, G hrubší skvrny a trsy, B řídké kamínky, A druhé skvrny (rozhození hran)
 const DETAIL = { uDet: { value: null }, uDetS: { value: KVALITA > 0 ? 1 : 0 } };
-const OKNA = { value: 1 };                                   // podíl rozsvícených oken v noci (0..1), podle hodin (oknaPodleCasu)
+const OKNA = { value: 1 };
+const CAS_V = { value: 0 };                                // čas pro vlnky na vodě (shader terénu, nastroje/jizda.py)                                   // podíl rozsvícených oken v noci (0..1), podle hodin (oknaPodleCasu)
 {
   const N = 256, d = new Uint8Array(N * N * 4);
   let sd = 12345; const rnd = () => ((sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -691,7 +692,7 @@ async function nactiCtverec(i, j) {
   CH.set(key, { loading: true, cx, cy });
   $('stav').textContent = `Stavím čtverec ${i}, ${j}…`;
   await new Promise((r) => setTimeout(r, 30));             // ať se stihne vykreslit zpráva
-  const res = await postavCtverec(THREE, renderer, { dir: `jizda/${key}`, obdobi: OBD, orto: ORTO, textury: TEXTURY, cx, cy, stin: DOTYK ? 2048 : 4096, uMokro: POVRCH.uMokro, uSnih: POVRCH.uSnih, uDet: DETAIL.uDet, uDetS: DETAIL.uDetS, uOkna: OKNA });
+  const res = await postavCtverec(THREE, renderer, { dir: `jizda/${key}`, obdobi: OBD, orto: ORTO, textury: TEXTURY, uCas: CAS_V, cx, cy, stin: DOTYK ? 2048 : 4096, uMokro: POVRCH.uMokro, uSnih: POVRCH.uSnih, uDet: DETAIL.uDet, uDetS: DETAIL.uDetS, uOkna: OKNA });
   if (POVRCH.zimni) for (const m of res.allMats) if (m.uniforms?.uSeason) m.uniforms.uSeason.value = 3;
   const grp = new THREE.Group();
   while (res.world.children.length) grp.add(res.world.children[0]);
@@ -2164,6 +2165,7 @@ function frame(now) {
   if (OKRAJE) OKRAJE.update(hrac);
   ZNACENI.update(hrac);
   PRUHY.update(hrac);
+  CAS_V.value = now / 1000;
   EFEKTY.pred(); vykresli(); EFEKTY.po();
   fpsN++; if (now - fpsT > 1000) { fps = fpsN; fpsN = 0; fpsT = now; }
   OKNA.value = oknaPodleCasu(hodina());
