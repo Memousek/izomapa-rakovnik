@@ -246,6 +246,7 @@ Tahle kopie (Rakovník): projekt `izomapa-rakovnik`, https://izomapa-rakovnik.pa
   3D jízda: `web/jizda_rakovnik.css` (stejný jazyk, pauza s tmavým sloupcem menu, kulatý tachometr); `nastroje/jizda.py` ho vloží na konec `<style>`
   v `site/jizda.html` a písma do `<head>`, `web/jizda.html` zůstává jako v Liberci. Po úpravě `python nastroje/jizda.py --stranka`.
   Texty pohlednice: `"vitej"` a `"vitej_nadpis"` (2. pád) v `mesto.json` a `obce/*.json`. Logo ani znak města v mapě nepoužívat (není oficiální web města).
+- **Postavy ve 3D:** nejbližší chodci a hráč jsou postavy s kostrou (Quaternius Universal Base Characters + Universal Animation Library, CC0, verze Standard z quaternius.itch.io). Zdrojové balíky v `podklady/postavy/` (mimo git), `nastroje/postavy.py` z nich udělá `web/jizda_postavy/*.glb` (zmenšené textury, 12 animací). Oblečení kreslí shader ve `web/jizda_postavy.js` podle kostí (trup, paže, předloktí, stehno, lýtko, chodidlo), počet podle grafiky (`LOUTEK` v `web/jizda.html`).
 - **Náhled designu bez renderu:** `site/` z `build_html.py` a dlaždice ze živé mapy přes malý proxy server (chybějící soubory bere z izomapa-rakovnik.pages.dev).
 
 ## Pravidla

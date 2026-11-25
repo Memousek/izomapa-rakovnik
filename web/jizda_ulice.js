@@ -127,19 +127,30 @@ export function vytvorUlici(THREE, scene, api) {
     const g = new THREE.BoxGeometry(w, h, d); if (hore) g.translate(0, -h / 2, 0);
     const m = new THREE.Mesh(g, lam(c)); m.position.set(x, y, z); hracG.add(m); api.jenVeDne.push(m); return m;
   };
-  const pNohaA = dil(0.15, 0.84, 0.17, 0x3a3a40, 0, 0.84, 0.1, true), pNohaB = dil(0.15, 0.84, 0.17, 0x3a3a40, 0, 0.84, -0.1, true);
-  const pTorzo = dil(0.3, 0.66, 0.48, 0x5b4a36, 0, 1.13, 0);
+  // oblé díly jako u chodců (jizda/lide.js): končetiny ze dvou kapslí (stehno + lýtko, paže + předloktí) v kloubech
+  const KAP = (() => { const g = new THREE.CapsuleGeometry(0.5, 1, 3, 8); g.scale(1, 0.5, 1); g.translate(0, -0.5, 0); return g; })();
+  const telo = [];                                             // díly v barvě oblečení (pouliční režim mění barvu)
+  const kon = (t, L, c, x, y, z, rodic = hracG, oblek = false) => {
+    const g = new THREE.Group(); g.position.set(x, y, z); rodic.add(g);
+    const m = new THREE.Mesh(KAP, lam(c)); m.scale.set(t, L, t); g.add(m); api.jenVeDne.push(m); if (oblek) telo.push(m);
+    return g;
+  };
+  const pNohaA = kon(0.15, 0.43, 0x3a3a40, 0, 0.84, 0.1), pNohaB = kon(0.15, 0.43, 0x3a3a40, 0, 0.84, -0.1);
+  const pHolenA = kon(0.14, 0.43, 0x3a3a40, 0, -0.43, 0, pNohaA), pHolenB = kon(0.14, 0.43, 0x3a3a40, 0, -0.43, 0, pNohaB);
+  const trupG = (() => { const g = new THREE.CapsuleGeometry(0.5, 0.9, 3, 10); g.scale(1, 1 / 1.9, 1); return g; })();
+  const pTorzo = new THREE.Mesh(trupG, lam(0x5b4a36)); pTorzo.scale.set(0.3, 0.66, 0.48); pTorzo.position.set(0, 1.13, 0); hracG.add(pTorzo); api.jenVeDne.push(pTorzo); telo.push(pTorzo);
   const pKabat = dil(0.32, 0.3, 0.5, 0x4e3f2e, 0, 0.72, 0);          // šos kabátu
-  const pRukaA = dil(0.13, 0.62, 0.13, 0x5b4a36, 0, 1.42, -0.31, true), pRukaB = dil(0.13, 0.62, 0.13, 0x5b4a36, 0, 1.42, 0.31, true);
-  const pHlava = dil(0.24, 0.26, 0.24, 0xe2b896, 0, 1.6, 0);
-  const pKulich = dil(0.27, 0.12, 0.27, 0x8a2a2a, 0, 1.76, 0);          // kulich (v běžné mapě vlasy)
-  const pVousy = dil(0.06, 0.12, 0.2, 0x4a3a2a, 0.11, 1.5, 0);          // vousy
+  const pRukaA = kon(0.13, 0.31, 0x5b4a36, 0, 1.42, -0.31, hracG, true), pRukaB = kon(0.13, 0.31, 0x5b4a36, 0, 1.42, 0.31, hracG, true);
+  const pPredA = kon(0.12, 0.3, 0x5b4a36, 0, -0.31, 0, pRukaA, true), pPredB = kon(0.12, 0.3, 0x5b4a36, 0, -0.31, 0, pRukaB, true);
+  const pHlava = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 10), lam(0xe2b896)); pHlava.scale.set(0.24, 0.28, 0.22); pHlava.position.set(0, 1.61, 0); hracG.add(pHlava); api.jenVeDne.push(pHlava);
+  const pKulich = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 6, 0, Math.PI * 2, 0, Math.PI * 0.5), lam(0x8a2a2a)); pKulich.scale.set(0.26, 0.3, 0.24); pKulich.position.set(-0.005, 1.63, 0); hracG.add(pKulich); api.jenVeDne.push(pKulich);   // kulich (v běžné mapě vlasy)
+  const pVousy = dil(0.06, 0.12, 0.18, 0x4a3a2a, 0.1, 1.52, 0);          // vousy
   const lahevM = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.3, 8), lam(0x2f7a3a));
-  lahevM.position.set(0, -0.62, 0); pRukaA.add(lahevM);
+  lahevM.position.set(0, -0.32, 0); pPredA.add(lahevM);
   const palkaM = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.85, 8), lam(0xb08a52));
-  palkaM.position.set(0.25, -0.65, 0); palkaM.rotation.z = -1.2; pRukaA.add(palkaM);
+  palkaM.position.set(0.25, -0.35, 0); palkaM.rotation.z = -1.2; pPredA.add(palkaM);
   hracG.visible = false; scene.add(hracG);
-  let modelH = 0, krokF = 0, pxL = null, pyL = null, vzhled = null;
+  let modelH = 0, krokF = 0, pxL = null, pyL = null, vzhled = null, hracL = null;   // hracL: postava s kostrou
 
   // ---------- popelnice u chodníků (deterministicky podle polohy) ----------
   const MAXP = 70;
@@ -1109,30 +1120,55 @@ export function vytvorUlici(THREE, scene, api) {
     fwd.copy(L3).sub(camera.position).normalize();
   }
   function modelHrace(dt) {
-    const v = tretiOsoba();
-    hracG.visible = v && !schovany;
+    const v = tretiOsoba(), oci = !hrac.vAuto && hrac.bus === null && hrac.zOci;   // z očí: vlastní tělo vidět při pohledu dolů (bez hlavy)
+    hracG.visible = (v || oci) && !schovany;
     if (vzhled !== s.on) {                                   // pouliční režim: bezdomovec v kabátě a kulichu, jinak chodec v bundě
       vzhled = s.on;
-      const telo = s.on ? 0x5b4a36 : 0x2f5fa8;
-      for (const m of [pTorzo, pRukaA, pRukaB]) m.material.color.setHex(telo);
+      const barvaTela = s.on ? 0x5b4a36 : 0x2f5fa8;
+      for (const m of telo) m.material.color.setHex(barvaTela);
       pKabat.visible = s.on; pVousy.visible = s.on;
       pKulich.material.color.setHex(s.on ? 0x8a2a2a : 0x3a2616);
     }
-    if (!v) { pxL = null; snapK = true; return; }
+    pHlava.visible = pKulich.visible = !oci; if (oci) pVousy.visible = false; else pVousy.visible = s.on;
+    if (!v && !oci) { pxL = null; snapK = true; if (hracL) hracL.skryj(true); return; }
     const dx = pxL === null ? 0 : hrac.x - pxL, dy = pyL === null ? 0 : hrac.y - pyL, rych = Math.hypot(dx, dy) / Math.max(dt, 1e-3);
     pxL = hrac.x; pyL = hrac.y;
-    if (rych > 0.3) { zebra = false; modelH += uhel(Math.atan2(dy, dx) - modelH) * Math.min(1, dt * 12); }
+    if (oci) modelH = hrac.yaw;                                // z očí tělo míří tam, kam se dívám
+    else if (rych > 0.3) { zebra = false; modelH += uhel(Math.atan2(dy, dx) - modelH) * Math.min(1, dt * 12); }
+    const jde = rych > 0.3;
     krokF += rych * dt * 3.4;
-    const a = rych > 0.3 ? Math.sin(krokF) * Math.min(0.7, 0.3 + rych * 0.06) : 0;
-    pNohaA.rotation.z = a; pNohaB.rotation.z = -a;
-    pRukaB.rotation.z = a * 0.8;
-    pRukaA.rotation.z = uderAnim > 0 ? 1.5 * Math.sin(Math.PI * uderAnim / 0.3) : -a * 0.8;
+    // chůze a běh: stehna kývají, koleno se ohne při zvedání nohy, paže proti nohám s loktem ohnutým víc při běhu
+    const amp = jde ? Math.min(0.75, 0.3 + rych * 0.07) : 0, a = Math.sin(krokF) * amp;
+    const kA = jde ? Math.max(0, Math.sin(krokF + 1.1)) * (0.6 + amp) : 0.03, kB = jde ? Math.max(0, Math.sin(krokF + 1.1 + Math.PI)) * (0.6 + amp) : 0.03;
+    pNohaA.rotation.z = a; pNohaB.rotation.z = -a; pHolenA.rotation.z = -kA; pHolenB.rotation.z = -kB;
+    const loket = 0.25 + (jde ? Math.min(1.1, rych * 0.12) : 0);
+    pRukaB.rotation.z = a * 0.8; pPredB.rotation.z = loket + Math.max(0, a) * 0.5;
+    if (uderAnim > 0) { pRukaA.rotation.z = 1.5 * Math.sin(Math.PI * uderAnim / 0.3); pPredA.rotation.z = 0.1; }
+    else { pRukaA.rotation.z = -a * 0.8; pPredA.rotation.z = loket + Math.max(0, -a) * 0.5; }
     lahevM.visible = s.zbran === 'lahev'; palkaM.visible = s.zbran === 'palka';
-    if (zebra) { hracG.scale.set(1, 0.62, 1); pNohaA.rotation.z = pNohaB.rotation.z = 1.4; } else hracG.scale.set(1, 1, 1);
-    const bob = rych > 0.3 ? Math.abs(Math.sin(krokF)) * 0.04 : 0;
-    if (skokV !== 0) { pNohaA.rotation.z = 0.7; pNohaB.rotation.z = -0.2; pRukaB.rotation.z = -1.2; if (uderAnim <= 0) pRukaA.rotation.z = -1.2; }   // ve vzduchu
-    hracG.position.set(hrac.x, hrac.z + skokZ + bob, -hrac.y);
+    if (zebra) { hracG.scale.set(1, 0.62, 1); pNohaA.rotation.z = pNohaB.rotation.z = 1.4; pHolenA.rotation.z = pHolenB.rotation.z = -1.2; } else hracG.scale.set(1, 1, 1);
+    const bob = jde ? (Math.abs(Math.cos(krokF)) - 0.6) * 0.05 : Math.sin(t * 1.6) * 0.004;   // krok / dech
+    pTorzo.rotation.y = jde ? a * 0.12 : 0;                  // trup se stáčí s pažemi
+    if (skokV !== 0) { pNohaA.rotation.z = 0.7; pHolenA.rotation.z = -1.1; pNohaB.rotation.z = -0.2; pHolenB.rotation.z = -0.4; pRukaB.rotation.z = -1.2; if (uderAnim <= 0) pRukaA.rotation.z = -1.2; }   // ve vzduchu
+    // z očí je tělo kousek za kamerou (oči jsou vpředu hlavy), aby při pohledu dolů byla vidět hruď a nohy, ne vnitřek těla
+    const zpet = oci ? 0.16 : 0;
+    hracG.position.set(hrac.x - Math.cos(modelH) * zpet, hrac.z + skokZ + bob, -(hrac.y - Math.sin(modelH) * zpet));
     hracG.rotation.y = modelH;
+    // postava s kostrou (jizda/postavy.js): jakmile je načtená, nahradí jednoduchý model; pohyb podle rychlosti a stavu
+    const P = api.postavy;
+    if (P && !hracL && P.pripraveno) hracL = P.nova({ zena: false, koze: 0xe2b896, triko: s.on ? 0x5b4a36 : 0x2f5fa8, kalh: 0x2a2f3a, vlasy: 0x3a2616,
+      boty: 0x24242a, strih: [2, 1, 1], uces: 'simpleparted' });
+    else if (P) P.nacti();
+    if (hracL) {
+      for (const o of hracG.children) o.visible = false;
+      hracL.u.uTriko.value.setHex(s.on ? 0x5b4a36 : 0x2f5fa8);
+      hracL.skryj(!hracG.visible);
+      // z očí tělo dál za kamerou: oči modelu jsou ~12 cm před osou hlavy
+      const zp = oci ? 0.24 : 0;
+      hracL.poloha(hrac.x - Math.cos(modelH) * zp, hrac.y - Math.sin(modelH) * zp, hrac.z + skokZ, modelH);
+      const pohyb = skokV !== 0 ? 'skok' : uderAnim > 0 ? 'uder' : zebra ? 'sedi' : !jde ? 'stoji' : rych > 4.5 ? 'bezi' : rych > 2.2 ? 'klus' : 'jde';
+      hracL.nastav(pohyb, rych, dt);
+    }
   }
 
   // ---------- průběžně ----------

@@ -26,16 +26,28 @@ export function vytvorLidi(THREE, scene, api) {
   // ---------- instancované části těla ----------
   const telesa = [];
   const box = (hore) => { const g = new THREE.BoxGeometry(1, 1, 1); if (hore) g.translate(0, -0.5, 0); return g; };
-  function cast(hore) {
-    const m = new THREE.InstancedMesh(box(hore), new THREE.MeshLambertMaterial({ color: 0xffffff }), MAX);
+  // oblé tvary (jednotková velikost, dej() je natáhne): končetina = kapsle s kulatými konci, trup = kapsle zúžená k pasu,
+  // hlava = koule, vlasy = čepička z horní části koule (sedí na hlavě, ne krabička nad ní)
+  const OBLE = (() => {
+    const konc = new THREE.CapsuleGeometry(0.5, 1, 3, 8); konc.scale(1, 0.5, 1); konc.translate(0, -0.5, 0);
+    const trup = new THREE.CapsuleGeometry(0.5, 0.9, 3, 10); trup.scale(1, 1 / 1.9, 1);
+    const p = trup.attributes.position;                      // pas užší než ramena
+    for (let k = 0; k < p.count; k++) { const y = p.getY(k), f = 0.82 + 0.18 * Math.min(1, Math.max(0, (y + 0.5) / 0.8)); p.setX(k, p.getX(k) * f); p.setZ(k, p.getZ(k) * f); }
+    trup.computeVertexNormals();
+    const hlava = new THREE.SphereGeometry(0.5, 12, 9); hlava.scale(1, 1.12, 0.92);
+    const vlasy = new THREE.SphereGeometry(0.5, 12, 6, 0, Math.PI * 2, 0, Math.PI * 0.52);
+    return { konc, trup, hlava, vlasy };
+  })();
+  function cast(hore, tvar) {
+    const m = new THREE.InstancedMesh(tvar || box(hore), new THREE.MeshLambertMaterial({ color: 0xffffff }), MAX);
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     m.setColorAt(0, new THREE.Color(0xffffff));            // vytvoří instanceColor ještě před prvním vykreslením
     m.count = 0; m.frustumCulled = false; m.castShadow = false;
     scene.add(m); telesa.push(m); return m;
   }
-  const mNohaA = cast(true), mNohaB = cast(true), mRukaA = cast(true), mRukaB = cast(true),
-    mHolenA = cast(true), mHolenB = cast(true), mPredA = cast(true), mPredB = cast(true),   // lýtka a předloktí: kolena a lokty
-    mTorzo = cast(false), mHlava = cast(false), mVlasy = cast(false), mTel = cast(false);   // mTel: mobil v ruce (kdo nekouká do mobilu, má ho nulové velikosti)
+  const K = OBLE.konc, mNohaA = cast(true, K), mNohaB = cast(true, K), mRukaA = cast(true, K), mRukaB = cast(true, K),
+    mHolenA = cast(true, K), mHolenB = cast(true, K), mPredA = cast(true, K), mPredB = cast(true, K),   // lýtka a předloktí: kolena a lokty
+    mTorzo = cast(false, OBLE.trup), mHlava = cast(false, OBLE.hlava), mVlasy = cast(false, OBLE.vlasy), mTel = cast(false);   // mTel: mobil v ruce (kdo nekouká do mobilu, má ho nulové velikosti)
   // deštníky (za deště), psi na vodítku: vlastní instance s vlastním počtem
   const ostatni = [];
   function inst(geo, mat, n) {
@@ -80,7 +92,23 @@ export function vytvorLidi(THREE, scene, api) {
     dej(m1, i, X, Y, Z, c, s, cu, su, t1, L1, t2);
     dej(m2, i, X + c * su * L1, Y - cu * L1, Z - s * su * L1, c, s, Math.cos(u2), Math.sin(u2), t1 * 0.92, L2, t2 * 0.92);
   }
-  const ohyb = (f) => Math.max(0, Math.sin(f));             // koleno se ohne, když noha jde dozadu a zvedá se
+  const ohyb = (f) => Math.max(0, Math.sin(f));
+  // vzhled postavy s kostrou z barev chodce: pohlaví a střih podle semínka, v chladnu dlouhé rukávy a bunda
+  function vzhledOf(p) {
+    const r = (k) => hsh(p.faze * 7.31 + k * 1.7), zena = r(1) < 0.5, ob = api.obdobi || 'autumn', zima = ob === 'winter' || ob === 'autumn';
+    const rukav = zima ? 2 : r(2) < 0.55 ? 1 : 2, noh = zima ? 1 : zena && r(3) < 0.35 ? 2 : r(3) < 0.25 ? 0 : 1;
+    return { zena, sc: p.sc, koze: p.cKoze, triko: p.cTrika, kalh: p.cKalh, vlasy: p.cVlasy, boty: r(4) < 0.5 ? 0x24242a : 0x5a4030,
+      strih: [rukav, noh, zima ? 1 : 0], n: r(5) };
+  }
+  // kam se dívá hlava: většinu času rovně, občas se člověk na pár sekund podívá stranou (výběr podle semínka a času,
+  // přechod plynulý); jdoucí se dívá stranou méně často a méně
+  const hsh = (a) => { const v = Math.sin(a * 127.1) * 43758.5453; return v - Math.floor(v); };
+  function pohled(p, chodi) {
+    const T = chodi ? 6.5 : 4.5, u = cas / T + p.faze * 0.37, k = Math.floor(u), f = u - k;
+    const cil = (n) => { const r = hsh(n * 3.7 + p.faze); return r < (chodi ? 0.75 : 0.45) ? 0 : (hsh(n * 9.1 + p.faze * 2) - 0.5) * (chodi ? 0.9 : 1.4); };
+    const a = cil(k - 1), b = cil(k), t = Math.min(1, f / 0.12);
+    return a + (b - a) * t * t * (3 - 2 * t);
+  }             // koleno se ohne, když noha jde dozadu a zvedá se
 
   // ---------- trasy (chodníky z OSM + silnice s bočním odstupem) ----------
   const stezky = new Map();                                // key → [trasa]
@@ -459,6 +487,7 @@ export function vytvorLidi(THREE, scene, api) {
       const p = lide[i], last = lide.pop();
       if (p.stop >= 0) idleNaZast.set(p.stop, Math.max(0, (idleNaZast.get(p.stop) || 1) - 1));
       if (p.lav) { p.lav.n = Math.max(0, p.lav.n - 1); p.lav = null; }
+      if (p.lt) { p.lt.zrus(); p.lt = null; }
       volni.push(p);
       if (last !== p) { lide[i] = last; barvy(i, last); }
     }
@@ -482,7 +511,7 @@ export function vytvorLidi(THREE, scene, api) {
         q(mTorzo, 1.13 * sc, 0, 0.24 * sc, 0.58 * sc, 0.42 * sc);
         const hs = 0.22 * sc * p.hl;
         q(mHlava, 1.42 * sc + hs * 0.55, 0, hs, hs, hs);
-        q(mVlasy, 1.42 * sc + hs * 1.0, 0, hs * 1.12, hs * 0.4, hs * 1.12);
+        q(mVlasy, 1.42 * sc + hs * 0.6, 0, hs * 1.06, hs * 1.2, hs * 1.0);
         continue;
       }
       if (p.sedi) {                                          // sedí na lavičce: kyčle 0,46 m nad zemí, nohy dopředu, ruce v klíně
@@ -490,13 +519,13 @@ export function vytvorLidi(THREE, scene, api) {
         // stehna vodorovně dopředu, lýtka svisle dolů (sed), paže podél těla a předloktí v klíně
         koncetina(mNohaA, mHolenA, i, X + s * zn, Y0 + 0.84 * sc, Z + c * zn, c, s, 1.5, 0.05, 0.45 * sc, 0.43 * sc, 0.13 * sc, 0.15 * sc);
         koncetina(mNohaB, mHolenB, i, X - s * zn, Y0 + 0.84 * sc, Z - c * zn, c, s, 1.5, 0.05, 0.45 * sc, 0.43 * sc, 0.13 * sc, 0.15 * sc);
-        koncetina(mRukaA, mPredA, i, X + s * zr, Y0 + 1.40 * sc, Z + c * zr, c, s, 0.15, 1.35, 0.31 * sc, 0.29 * sc, 0.11 * sc, 0.11 * sc);
-        koncetina(mRukaB, mPredB, i, X - s * zr, Y0 + 1.40 * sc, Z - c * zr, c, s, 0.15, 1.35, 0.31 * sc, 0.29 * sc, 0.11 * sc, 0.11 * sc);
+        koncetina(mRukaA, mPredA, i, X + s * zr, Y0 + 1.40 * sc, Z + c * zr, c, s, 0.15, 1.35, 0.31 * sc, 0.29 * sc, 0.125 * sc, 0.125 * sc);
+        koncetina(mRukaB, mPredB, i, X - s * zr, Y0 + 1.40 * sc, Z - c * zr, c, s, 0.15, 1.35, 0.31 * sc, 0.29 * sc, 0.125 * sc, 0.125 * sc);
         void la; void lb; void ra; void rb;
         dej(mTorzo, i, X, Y0 + 1.13 * sc, Z, c, s, 1, 0, 0.24 * sc, 0.58 * sc, 0.42 * sc);
         const hs = 0.22 * sc * p.hl;
         dej(mHlava, i, X, Y0 + 1.42 * sc + hs * 0.55, Z, c, s, 1, 0, hs, hs, hs);
-        dej(mVlasy, i, X - c * 0.01 * sc, Y0 + 1.42 * sc + hs * 1.0, Z + s * 0.01 * sc, c, s, 1, 0, hs * 1.12, hs * 0.4, hs * 1.12);
+        dej(mVlasy, i, X - c * 0.02 * sc, Y0 + 1.42 * sc + hs * 0.6, Z + s * 0.02 * sc, c, s, 1, 0, hs * 1.06, hs * 1.2, hs * 1.0);
         continue;
       }
       // chůze: stehna kývají ±0,5 rad, koleno se ohýbá při zvedání nohy (ohyb), paže proti nohám s ohnutým loktem,
@@ -508,29 +537,54 @@ export function vytvorLidi(THREE, scene, api) {
       const zn = 0.1 * sc, zr = 0.265 * sc, kA = chodi ? ohyb(ph + 1.1) * 0.95 : 0.04, kB = chodi ? ohyb(ph + 1.1 + Math.PI) * 0.95 : 0.04;
       const tw = chodi ? a * 0.12 : 0, ct = Math.cos(p.h + tw), st = Math.sin(p.h + tw);   // natočení trupu s kroky
       // nohy (pivot v kyčli), lýtko pod kolenem
-      koncetina(mNohaA, mHolenA, i, X + s * zn, Y0 + 0.84 * sc, Z + c * zn, c, s, a, a - kA, 0.43 * sc, 0.43 * sc, 0.13 * sc, 0.15 * sc);
-      koncetina(mNohaB, mHolenB, i, X - s * zn, Y0 + 0.84 * sc, Z - c * zn, c, s, -a, -a - kB, 0.43 * sc, 0.43 * sc, 0.13 * sc, 0.15 * sc);
+      koncetina(mNohaA, mHolenA, i, X + s * zn, Y0 + 0.84 * sc, Z + c * zn, c, s, a, a - kA, 0.43 * sc, 0.43 * sc, 0.16 * sc, 0.18 * sc);
+      koncetina(mNohaB, mHolenB, i, X - s * zn, Y0 + 0.84 * sc, Z - c * zn, c, s, -a, -a - kB, 0.43 * sc, 0.43 * sc, 0.16 * sc, 0.18 * sc);
       // ruce (pivot v rameni, proti nohám), loket ohnutý víc, když paže jde dopředu
       const lA = 0.25 + Math.max(0, -ar) * 0.6, lB = 0.25 + Math.max(0, ar) * 0.6;
       if (p.uder > 0) {                                      // úder: pravá ruka natažená dopředu
         const u = 1.45 * Math.sin(Math.PI * p.uder / 0.3);
-        koncetina(mRukaA, mPredA, i, X + s * zr, Y0 + 1.40 * sc, Z + c * zr, ct, st, u, u, 0.31 * sc, 0.29 * sc, 0.11 * sc, 0.11 * sc);
+        koncetina(mRukaA, mPredA, i, X + s * zr, Y0 + 1.40 * sc, Z + c * zr, ct, st, u, u, 0.31 * sc, 0.29 * sc, 0.125 * sc, 0.125 * sc);
       } else if (p.tel && !p.stav) {                         // kouká do mobilu: paže u těla, předloktí vodorovně před hrudí, v dlani telefon
         const rx = X + s * zr * 0.85, rz = Z + c * zr * 0.85, ry = Y0 + 1.40 * sc, u = 0.2, u2 = 1.45;
-        koncetina(mRukaA, mPredA, i, rx, ry, rz, c, s, u, u2, 0.31 * sc, 0.29 * sc, 0.11 * sc, 0.11 * sc);
+        koncetina(mRukaA, mPredA, i, rx, ry, rz, c, s, u, u2, 0.31 * sc, 0.29 * sc, 0.125 * sc, 0.125 * sc);
         const ex = rx + c * Math.sin(u) * 0.31 * sc, ey = ry - Math.cos(u) * 0.31 * sc, ez = rz - s * Math.sin(u) * 0.31 * sc;
         const hx = ex + c * Math.sin(u2) * 0.29 * sc - s * 0.1 * sc, hy = ey - Math.cos(u2) * 0.29 * sc, hz = ez - s * Math.sin(u2) * 0.29 * sc - c * 0.1 * sc;
         dej(mTel, i, hx, hy + 0.03 * sc, hz, c, s, Math.cos(1.1), Math.sin(1.1), 0.075 * sc, 0.14 * sc, 0.02 * sc);
-      } else koncetina(mRukaA, mPredA, i, X + st * zr, Y0 + 1.40 * sc, Z + ct * zr, ct, st, -ar, -ar + lA, 0.31 * sc, 0.29 * sc, 0.11 * sc, 0.11 * sc);
+      } else koncetina(mRukaA, mPredA, i, X + st * zr, Y0 + 1.40 * sc, Z + ct * zr, ct, st, -ar, -ar + lA, 0.31 * sc, 0.29 * sc, 0.125 * sc, 0.125 * sc);
       if (!(p.tel && !p.stav) || p.uder > 0) dej(mTel, i, X, Y0, Z, c, s, 1, 0, 0, 0, 0);
-      koncetina(mRukaB, mPredB, i, X - st * zr, Y0 + 1.40 * sc, Z - ct * zr, ct, st, ar, ar + lB, 0.31 * sc, 0.29 * sc, 0.11 * sc, 0.11 * sc);
+      koncetina(mRukaB, mPredB, i, X - st * zr, Y0 + 1.40 * sc, Z - ct * zr, ct, st, ar, ar + lB, 0.31 * sc, 0.29 * sc, 0.125 * sc, 0.125 * sc);
       dej(mTorzo, i, X, Y0 + 1.13 * sc, Z, ct, st, 1, 0, 0.24 * sc, 0.58 * sc, 0.42 * sc);
       const hs = 0.22 * sc * p.hl;
-      const rozhl = p.tel && !p.stav ? 0 : chodi ? Math.sin(cas * 0.37 + p.faze * 3.1) ** 9 * 0.7 : Math.sin(cas * 0.45 + p.faze * 2.3) * 0.75;   // jdoucí jen občas otočí hlavu
+      const rozhl = p.tel && !p.stav ? 0 : pohled(p, chodi);
       const pk = p.tel && !p.stav ? 0.35 : 0;                // do mobilu se kouká dolů
       const ch = Math.cos(p.h + rozhl), sh = Math.sin(p.h + rozhl);
       dej(mHlava, i, X, Y0 + 1.42 * sc + hs * 0.55, Z, ch, sh, Math.cos(-pk), Math.sin(-pk), hs, hs, hs);
-      dej(mVlasy, i, X - ch * 0.01 * sc, Y0 + 1.42 * sc + hs * 1.0, Z + sh * 0.01 * sc, ch, sh, Math.cos(-pk), Math.sin(-pk), hs * 1.12, hs * 0.4, hs * 1.12);
+      dej(mVlasy, i, X - ch * 0.02 * sc, Y0 + 1.42 * sc + hs * 0.6, Z + sh * 0.02 * sc, ch, sh, Math.cos(-pk), Math.sin(-pk), hs * 1.06, hs * 1.2, hs * 1.0);
+    }
+    // 5) postavy s kostrou (api.postavy, jizda/postavy.js) pro nejbližší lidi: jednoduché díly se jim schovají
+    const P = api.postavy, K = api.loutek ? api.loutek() : 0;
+    if (P && K > 0) {
+      P.nacti();
+      const kam = api.kamera ? api.kamera() : hr, vyber = [];
+      for (let i = 0; i < n; i++) {
+        const p = lide[i], d2 = (p.x - kam.x) ** 2 + (p.y - kam.y) ** 2;
+        const dx = p.x - (p.lx ?? p.x), dy = p.y - (p.ly ?? p.y); p.lx = p.x; p.ly = p.y;
+        p.rychl = (p.rychl || 0) + ((dt > 0 ? Math.hypot(dx, dy) / dt : 0) - (p.rychl || 0)) * Math.min(1, dt * 6);
+        if (d2 < 45 * 45 && !p.mrtvy) vyber.push([d2, i]);
+      }
+      vyber.sort((a, b) => a[0] - b[0]);
+      const ma = new Set(vyber.slice(0, K).map((v) => lide[v[1]]));
+      for (const p of lide) if (p.lt && !ma.has(p)) { p.lt.zrus(); p.lt = null; }
+      let novych = 0;
+      for (const [, i] of vyber.slice(0, K)) {
+        const p = lide[i];
+        if (!p.lt) { if (!P.pripraveno || novych >= 2) continue; p.lt = P.nova(vzhledOf(p)); novych++; if (!p.lt) continue; }
+        const pohyb = p.stav === 'lezi' ? 'lezi' : p.sedi ? 'sedi' : p.uder > 0 ? 'uder' : p.stav === 'utika' ? 'bezi'
+          : p.krok === 1 ? (p.rychl > 2.4 ? 'klus' : 'jde') : (p.stop >= 0 && hsh(p.faze * 5.1) < 0.45 ? 'mluvi' : 'stoji');
+        p.lt.poloha(p.x + (p.ex || 0), p.y + (p.ey || 0), p.z, p.h);
+        p.lt.nastav(pohyb, p.rychl || 0, dt);
+        for (const m of telesa) dej(m, i, 0, -9999, 0, 1, 0, 1, 0, 0, 0, 0);   // jednoduché díly pryč
+      }
     }
     for (const m of telesa) { m.count = n; m.instanceMatrix.needsUpdate = true; }
     // deštníky a psi

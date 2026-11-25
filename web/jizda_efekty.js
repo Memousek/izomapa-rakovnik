@@ -3,7 +3,8 @@
 // Kamera se posune jen na dobu kreslení snímku (pred / po), aby to neovlivnilo plynulé dotahování kamery.
 export function vytvorEfekty(THREE, scene, camera, { obdobi, jenVeDne } = {}) {
   const FOV0 = camera.fov;
-  let vHlad = 0, krok = 0, minule = null;
+  let vHlad = 0, krok = 0, minule = null, naklon = 0;
+  const pravo = new THREE.Vector3();
   const posun = new THREE.Vector3();
   // ---------- listí ----------
   const N = obdobi === 'autumn' ? 90 : 0;
@@ -32,9 +33,18 @@ export function vytvorEfekty(THREE, scene, camera, { obdobi, jenVeDne } = {}) {
       const cil = stav.veVoze ? FOV0 + Math.max(0, Math.min(1, (kmh - 40) / 120)) * 14 : FOV0;
       if (Math.abs(camera.fov - cil) > 0.05) { camera.fov += (cil - camera.fov) * Math.min(1, dt * 2.5); camera.updateProjectionMatrix(); }
       // chvění ve voze od 60 km/h, pohupování kroku pěšky z očí
-      posun.set(0, 0, 0);
+      posun.set(0, 0, 0); naklon = 0;
       if (stav.veVoze && kmh > 60) { const s = Math.min(1, (kmh - 60) / 100) * 0.03; posun.set(Math.sin(t * 37) * s, Math.sin(t * 53 + 1) * s, Math.sin(t * 29 + 2) * s); }
-      else if (stav.pesky && stav.zOci && vHlad > 0.6) { krok += dt * vHlad * 1.9; posun.set(0, Math.abs(Math.sin(krok)) * 0.045 - 0.02, 0); }
+      else if (stav.pesky && stav.zOci) {
+        // z očí: krok zhoupne hlavu nahoru a dolů (dvakrát za dvojkrok) a do strany na stojnou nohu, hlava se lehce naklání;
+        // při běhu víc. Ve stoje jen dech. Boční posun podél pravé osy kamery.
+        const bez = Math.min(1, Math.max(0, (vHlad - 0.6) / 4)), sila = 0.6 + Math.min(1.4, vHlad / 3);
+        if (vHlad > 0.6) krok += dt * (4.2 + vHlad * 1.1);
+        const vy = (Math.abs(Math.cos(krok)) - 0.55) * 0.07 * sila * bez + Math.sin(t * 1.7) * 0.006, bok = Math.sin(krok) * 0.028 * sila * bez;
+        pravo.setFromMatrixColumn(camera.matrixWorld, 0);
+        posun.set(pravo.x * bok, vy, pravo.z * bok);
+        naklon = Math.sin(krok) * 0.011 * sila * bez;
+      }
       // listí: vznikne nad hráčem do 25 m, padá s kýváním a větrem, na zemi se zase objeví nahoře
       if (listi) {
         const [wx, wy] = stav.vitr || [0, 0];
@@ -56,7 +66,7 @@ export function vytvorEfekty(THREE, scene, camera, { obdobi, jenVeDne } = {}) {
         listi.instanceMatrix.needsUpdate = true;
       }
     },
-    pred() { camera.position.add(posun); camera.updateMatrixWorld(); },
-    po() { camera.position.sub(posun); },
+    pred() { camera.position.add(posun); if (naklon) camera.rotateZ(naklon); camera.updateMatrixWorld(); },
+    po() { camera.position.sub(posun); if (naklon) camera.rotateZ(-naklon); },
   };
 }

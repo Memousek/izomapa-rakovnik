@@ -228,11 +228,18 @@ function traktor() {                                       // 4,3 × 2,3 × 2,8;
   return m;
 }
 
-function autobus() {                                       // 12 × 2,55 × 3,1; obecný nízkopodlažní linkový vůz, vlastní nátěr
+// pid: nátěr PID (Manuál jednotného vzhledu vozidel PID 09/2023, jako mapa BUS_LIV): šedá RAL 7038, červená RAL 3020
+// nad koly a nad okny, černý pás oken
+function autobus(pid = false) {                            // 12 × 2,55 × 3,1; obecný nízkopodlažní linkový vůz, vlastní nátěr
   const m = novy(), B = 1.26, D = m.D;
-  hranol(D, [[-6, 0.32], [5.92, 0.32], [6.0, 1.0], [5.9, 2.95], [5.7, 3.02], [-5.9, 3.02], [-6, 2.9]], B, '#ecebe4');
+  hranol(D, [[-6, 0.32], [5.92, 0.32], [6.0, 1.0], [5.9, 2.95], [5.7, 3.02], [-5.9, 3.02], [-6, 2.9]], B, pid ? '#b5b8b1' : '#ecebe4');
+  if (pid) {
+    kvadr2(D, -5.85, 5.85, 1.32, 2.6, B - 0.02, B + 0.008, '#1a1b1d');                                    // černý pás oken
+    kvadr2(D, -5.9, 5.75, 2.6, 2.95, B - 0.02, B + 0.01, '#cc0605');                                       // červená nad okny
+    for (const x of [3.3, -3.4]) kvadr2(D, x - 0.9, x + 0.9, 0.32, 1.32, B - 0.02, B + 0.01, '#cc0605');    // červená nad koly
+  }
   kvadr2(D, -5.75, 5.8, 1.4, 2.5, B - 0.02, B + 0.012, SKLO);                                              // pás oken
-  kvadr2(D, -5.97, 5.95, 1.05, 1.3, B - 0.02, B + 0.01, '#2b74b8');                                        // barevný pruh
+  if (!pid) kvadr2(D, -5.97, 5.95, 1.05, 1.3, B - 0.02, B + 0.01, '#2b74b8');                              // barevný pruh
   kvadr2(D, -5.97, 5.9, 0.32, 0.62, B - 0.02, B + 0.008, '#c3c5c8');
   for (const [x0, x1] of [[4.2, 5.5], [-0.7, 0.7]]) {                                                      // dveře (vpravo)
     kvadr(D, x0, x1, 0.45, 2.5, PRAVA * (B - 0.01), PRAVA * (B + 0.02), '#1c2530');
@@ -292,6 +299,42 @@ function vlakKab() {                                       // 21,6 × 2,95 × 3,
   kvadr(D, -6.0, -1.0, 3.7, 3.9, -0.9, 0.9, '#6a7178');                                                    // střešní agregát
   kvadr(D, -4.5, 4.5, 0.25, 0.5, -1.2, 1.2, '#1d1f22');
   podvozek(D, 7.3); podvozek(D, -7.3);
+  return m;
+}
+
+// motorová / elektrická jednotka: vůz délky L s kabinou na +x (cab2: i na −x), výška h, nátěr lv podle mapy (TRAINS):
+// low sokl, body skříň, band světlý pás oken, upper pás nad okny, roof střecha, win sklo, endLow spodek čela
+const hexRgb = (a) => '#' + a.map((q) => q.toString(16).padStart(2, '0')).join('');
+const LV = {
+  cd: { low: CD_LOW, body: CD_BODY, band: CD_BAND, upper: CD_BODY, roof: CD_ROOF, win: SKLO, endLow: CD_BODY },
+  cdw: { low: '#1f5fa8', body: '#ecf0f2', band: '#1f5fa8', upper: '#ecf0f2', roof: '#969ca2', win: SKLO, endLow: '#1f5fa8' },
+  arriva: { low: hexRgb([36, 146, 198]), body: hexRgb([36, 146, 198]), band: hexRgb([36, 146, 198]), upper: hexRgb([36, 146, 198]), roof: hexRgb([112, 160, 190]), win: hexRgb([52, 58, 68]), endLow: hexRgb([232, 214, 60]) },
+  dlb: { low: hexRgb([118, 188, 64]), body: hexRgb([118, 188, 64]), band: hexRgb([238, 160, 42]), upper: hexRgb([44, 62, 150]), roof: hexRgb([138, 146, 158]), win: SKLO, endLow: hexRgb([118, 188, 64]) },
+};
+function jednotka(L, lv, h = 3.9, cab2 = false) {
+  const m = novy(), D = m.D, hw = 1.475, x1 = L / 2, xf = x1 - 2.2, xb = cab2 ? -xf : -x1 + 0.15, k = h / 3.9;
+  const yr = 3.35 * k, yt = 3.7 * k;
+  kvadr(D, xb, xf, 0.5, 1.2, -hw, hw, lv.low);
+  kvadr(D, xb, xf, 1.2, 1.9, -hw, hw, lv.body);
+  kvadr(D, xb, xf, 1.9, 3.05 * k, -hw, hw, lv.band);
+  kvadr(D, xb, xf, 3.05 * k, yr, -hw, hw, lv.upper);
+  hranol(D, [[xb, yr], [xf, yr], [xf, yt, 0.35], [xb, yt, 0.35]], hw, lv.roof);
+  const cel = (g) => {                                     // čelo kabiny na straně g (+1 vpředu, −1 vzadu)
+    const X = (q) => q.map(([x, y, z = 0]) => [g * x, y, z]);
+    hranol(D, X([[xf, 0.5, 0], [x1 - 0.6, 0.5, 0.3], [x1, 1.0, 0.45], [x1, 1.6, 0.45], [x1 - 1.2, 3.2 * k, 0.3], [xf, yt, 0.35]]), hw, lv.body);
+    hranol(D, X([[xf - 0.01, 0.49], [x1 - 0.6, 0.49], [x1 + 0.012, 1.02], [xf - 0.01, 1.02]]), hw + 0.008, lv.endLow);   // spodek čela
+    deska(D, g * x1, 1.6, g * (x1 - 1.2), 3.2 * k, 0.08, 0.76, 0.95, SKLO);                                 // čelní sklo
+    kvadr(D, g > 0 ? x1 - 1.2 : -(x1 - 0.92), g > 0 ? x1 - 0.92 : -(x1 - 1.2), 2.88 * k, 3.24 * k, -0.75, 0.75, '#14161a');   // číslo linky
+    kvadr(D, g > 0 ? x1 - 0.25 : -x1, g > 0 ? x1 : -(x1 - 0.25), 0.62, 0.95, -0.2, 0.2, TMAVA);             // spřáhlo
+    celo(m, g * x1, g, 1.15, 3.36 * k, g * (x1 - 1.52));
+  };
+  cel(1); if (cab2) cel(-1); else kvadr(D, -x1, -x1 + 0.15, 0.8, 3.0 * k, -0.65, 0.65, '#1a1c1f');   // přechod (rovný konec)
+  kvadr2(D, xb + 0.45, xf - 0.3, 2.05, 2.9 * k, hw - 0.02, hw + 0.012, lv.win);                          // pás oken
+  const dv = L > 18 ? [-L * 0.28, L * 0.19] : [-L * 0.1];
+  for (const x of dv) dvere(D, x - 0.7, x + 0.7, hw, 0.6);
+  kvadr(D, -L * 0.25, -L * 0.05, yt, yt + 0.2, -0.9, 0.9, '#6a7178');                                       // střešní agregát
+  kvadr(D, -L * 0.2, L * 0.2, 0.25, 0.5, -1.2, 1.2, '#1d1f22');
+  podvozek(D, x1 - 3.5); podvozek(D, -(x1 - 3.5));
   return m;
 }
 
@@ -492,9 +535,14 @@ function univerzal(a) {
   return { m, kola: { x: B.kola, z: hw - 0.095, r, w: B.w || 0.11, disk: a.kola === 'barva' ? c2 : DISKY[a.kola] || DISK } };
 }
 
-const MODELY = { car: () => osobni(false), van: dodavka, truck: nakladni, semi: tahac, trailer: naves, garbage: popelar, tractor: traktor, bus: autobus, vlak_kab: vlakKab, lokomotiva, vuz };
+const MODELY = { car: () => osobni(false), van: dodavka, truck: nakladni, semi: tahac, trailer: naves, garbage: popelar, tractor: traktor, bus: () => autobus(false),
+  bus_pid: () => autobus(true), vlak_kab: vlakKab, lokomotiva, vuz,
+  j_shark: () => jednotka(21.6, LV.cd, 3.9), j_panter: () => jednotka(26.2, LV.cd, 4.2), j_nova: () => jednotka(14, LV.cd, 3.8),
+  j_810: () => jednotka(13.97, LV.cdw, 3.7, true), j_arriva: () => jednotka(23.2, LV.arriva, 3.85), j_dlb: () => jednotka(24.8, LV.dlb, 3.55, true) };
 // kde je na voze cedule s linkou: [x, y středu, fronta (0 autobusy, 1 vlaky)]
-const CEDULE = { bus: [5.965, 2.715, 0], vlak_kab: [9.89, 3.06, 1], lokomotiva: [8.5, 3.2, 1] };
+const CEDULE = { bus: [5.965, 2.715, 0], bus_pid: [5.965, 2.715, 0], vlak_kab: [9.89, 3.06, 1], lokomotiva: [8.5, 3.2, 1],
+  j_shark: [21.6 / 2 - 0.91, 3.06, 1], j_panter: [26.2 / 2 - 0.91, 3.06 * 4.2 / 3.9, 1], j_nova: [7 - 0.91, 3.06 * 3.8 / 3.9, 1],
+  j_810: [13.97 / 2 - 0.91, 3.06 * 3.7 / 3.9, 1], j_arriva: [11.6 - 0.91, 3.06 * 3.85 / 3.9, 1], j_dlb: [12.4 - 0.91, 3.06 * 3.55 / 3.9, 1] };
 
 export function vytvorVozidla(THREE, scene, max = 1400) {
   const geom = (s, sBarvou) => {

@@ -350,6 +350,7 @@ button { font: inherit; color: inherit; }
 import * as THREE from 'three';
 import { postavCtverec } from './jizda/svet.js';
 import { vytvorNavigaci } from './jizda/navigace.js';
+import { vytvorPostavy } from './jizda/postavy.js';
 import { vytvorLidi } from './jizda/lide.js';
 import { vytvorVozidla } from './jizda/vozidla.js';
 import { vytvorHru } from './jizda/hra.js';
@@ -369,7 +370,7 @@ import { vytvorZnaceni, vytvorPruhy } from './jizda/znaceni.js';
 THREE.ColorManagement.enabled = false;
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const OBDOBI = {{OBDOBI}}, MHD_RT = {{MHD_RT}}, VLAK = {{VLAK}};   // z nastroje/jizda.py (mesto.json)
+const OBDOBI = {{OBDOBI}}, MHD_RT = {{MHD_RT}}, VLAK = {{VLAK}}, AUTOBUS = {{AUTOBUS}};   // z nastroje/jizda.py (mesto.json)
 // multiplayer: mesto.json "multiplayer" = adresa místnosti (wss://…/mistnost/<město>, server multiplayer/worker.js);
 // na tomto počítači jde zkusit i bez ní: jizda.html?mp=ws://127.0.0.1:8787/mistnost/test
 const MP_URL = (() => { const q = new URLSearchParams(location.search).get('mp'); return q && /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /^wss?:\/\//.test(q) ? q : {{MULTIPLAYER}}; })();
@@ -1242,9 +1243,11 @@ function tabule(now) {
 }
 // ---------- vlaky: soupravy po trati (druh vozu z mesto.json "vlak", stejný katalog jako mapa) ----------
 // [druh vozu v jizda/vozidla.js, délka m, 1 = vůz otočený kabinou dozadu]
+// jednotky (j_…) mají délku, výšku a nátěr podle katalogu TRAINS mapy (web/js/80-vozidla.js), jizda/vozidla.js jednotka()
 const SOUPRAVY = {
-  regioshark: [['vlak_kab', 21.6, 0], ['vlak_kab', 21.6, 1]], regiopanter: [['vlak_kab', 21.6, 0], ['vlak_kab', 21.6, 1]],
-  regionova: [['vlak_kab', 21.6, 0], ['vlak_kab', 21.6, 1]], vuz810: [['vlak_kab', 21.6, 0]],
+  regioshark: [['j_shark', 21.6, 0], ['j_shark', 21.6, 1]], regiopanter: [['j_panter', 26.2, 0], ['j_panter', 26.2, 1]],
+  regionova: [['j_nova', 14, 0], ['j_nova', 14, 1]], vuz810: [['j_810', 13.97, 0]],
+  arriva628: [['j_arriva', 23.2, 0], ['j_arriva', 23.2, 1]], dlb654: [['j_dlb', 24.8, 0]],
   cityelefant: [['vlak_kab', 21.6, 0], ['vuz', 26.4, 0], ['vlak_kab', 21.6, 1]], rychlik: [['lokomotiva', 18, 0], ['vuz', 26.4, 0], ['vuz', 26.4, 0], ['vuz', 26.4, 0]],
 };
 const soupravaOf = (linka) => SOUPRAVY[(VLAK && VLAK.linky && VLAK.linky[linka]) || (VLAK && VLAK.vychozi)] || SOUPRAVY.regioshark;
@@ -2093,7 +2096,10 @@ function hustota() {
   }
   HUS = { t: now, n: seen.size }; return HUS.n;
 }
-const LIDE_API = { gz, hitBuilding, roads, along, hrac, nah, doba: () => DOBA.n, zastavky: ZAST, hustota, boj: null, dest: () => WXI.dest, hodina: () => hodina(), vikend: () => vikend(),
+// postavy s kostrou (jizda/postavy.js, CC0 Quaternius): nejbližší chodci a hráč; počet podle grafiky (Nízká = žádné)
+const POSTAVY = vytvorPostavy(THREE, scene3, { jenVeDne });
+const LOUTEK = { nizka: 0, stredni: 10, vysoka: 20, ultra: 32 }[GRAF] || 0;
+const LIDE_API = { postavy: LOUTEK ? POSTAVY : null, loutek: () => LOUTEK, obdobi: OBD, kamera: () => ({ x: camera.position.x, y: -camera.position.z }), gz, hitBuilding, roads, along, hrac, nah, doba: () => DOBA.n, zastavky: ZAST, hustota, boj: null, dest: () => WXI.dest, hodina: () => hodina(), vikend: () => vikend(),
   prechody: { na: (r) => ZNACKY.prechodyNa(r), blizko: (x, y, R) => ZNACKY.prechodBlizko(x, y, R) } };   // chodci přecházejí na přechodech (jizda/znacky.js)
 const LIDE = vytvorLidi(THREE, scene3, LIDE_API);
 jenVeDne.push(...LIDE.telesa);
@@ -2146,7 +2152,7 @@ $('zvukbox').appendChild(ZVUK.tlacitko);
 const HRA = vytvorHru(THREE, scene3, { hrac, limit, cervenaNaTrase, adresy: () => NAV.adresy(), trasa: (a, b, c, d, e) => NAV.trasa(a, b, c, d, e),
   navigace: { zvol: (e) => NAV.zvol(e), konec: () => NAV.konec() }, panel: $('hrapanel'), tacho: $('tacho'), toast, zvuk: (n) => ZVUK.hraj(n), gz, ulice: ULICE_STAV });
 const ULICE_START = { x: hrac.x, y: hrac.y };
-const ULICE = vytvorUlici(THREE, scene3, { hrac, cars, roads, carPose, along, LIDE, lideBoj: LIDE_API, hra: HRA, zvuk: ZVUK, toast, gz, vyska, hitBuilding, ramenoVolne, inMap, volneMisto,
+const ULICE = vytvorUlici(THREE, scene3, { hrac, cars, roads, carPose, along, LIDE, lideBoj: LIDE_API, hra: HRA, zvuk: ZVUK, toast, gz, vyska, hitBuilding, ramenoVolne, postavy: POSTAVY, inMap, volneMisto,
   doba: () => DOBA.n, pocasi: () => WXI, obdobi: OBD, mojeAuto, jenVeDne, panel: $('hrapanel'), canvas: renderer.domElement, camera, stav: ULICE_STAV, nastoupit,
   mesto: document.querySelector('#hud h1')?.firstChild?.textContent.trim() || 'Město', dotyk: DOTYK, start: ULICE_START, parkovana, skryjParkovane,
   navigace: { zvol: (e) => NAV.zvol(e), adresy: () => NAV.adresy(), trasa: (a, b, c, d, e) => NAV.trasa(a, b, c, d, e) } });
@@ -2245,7 +2251,7 @@ function frame(now) {
       MHD.poz.set(i, { x: x + ox, y: y + oy, z, h, e, s, typ, v: s - sAt(trip, e - 1) });   // v: m/s podle jízdního řádu (0 = stojí v zastávce)
       if (Math.abs(x - hrac.x) > 900 || Math.abs(y - hrac.y) > 900) continue;
       if (i === hrac.bus && hrac.kabina) continue;            // sedím vpředu v autobuse: vlastní autobus nekreslit
-      VOZ.pridej('bus', x + ox, y + oy, z, h, null, busLinka(i));
+      VOZ.pridej(AUTOBUS === 'pid' ? 'bus_pid' : 'bus', x + ox, y + oy, z, h, null, busLinka(i));
     }
     updPrejezdy(now);
   }

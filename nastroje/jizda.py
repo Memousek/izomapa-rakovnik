@@ -345,7 +345,8 @@ def main():
     # hotové modely aut do garáže (glTF, jizda/vozidla.js HOTOVE) a jejich načítání (GLTFLoader z three, cesty jako v examples/jsm)
     shutil.copytree('web/jizda_modely', f'{OUT}/modely', dirs_exist_ok=True)
     if os.path.isdir('web/jizda_textury'): shutil.copytree('web/jizda_textury', f'{OUT}/textury', dirs_exist_ok=True)   # textury povrchů (CC0, ambientCG)
-    for f in ('loaders/GLTFLoader.js', 'utils/BufferGeometryUtils.js'):
+    if os.path.isdir('web/jizda_postavy'): shutil.copytree('web/jizda_postavy', f'{OUT}/postavy', dirs_exist_ok=True)   # postavy a animace (CC0, Quaternius; nastroje/postavy.py)
+    for f in ('loaders/GLTFLoader.js', 'utils/BufferGeometryUtils.js', 'utils/SkeletonUtils.js'):
         os.makedirs(os.path.dirname(f'{OUT}/three/{f}'), exist_ok=True)
         shutil.copy(f'node_modules/three/examples/jsm/{f}', f'{OUT}/three/{f}')
     if os.path.exists('assets/custom_models.js'): shutil.copy('assets/custom_models.js', f'{OUT}/custom_models.js')
@@ -395,6 +396,7 @@ def main():
     t = (t.replace('{{TITULEK}}', html.escape(M['titulek'])).replace('{{MESTO}}', html.escape(M['nazev'])).replace('{{OBDOBI}}', json.dumps(OBDOBI))
           .replace('{{MHD_RT}}', json.dumps(mhd.get('realtime') if mhd.get('gtfs') else None))
           .replace('{{MULTIPLAYER}}', json.dumps(M.get('multiplayer') or None))   # adresa místnosti multiplayeru (multiplayer/worker.js)
+          .replace('{{AUTOBUS}}', json.dumps(M.get('autobus', 'liberec')))
           .replace('{{VLAK}}', json.dumps(M['vlak'] if isinstance(M.get('vlak'), dict) else {'vychozi': M['vlak'], 'linky': {}} if M.get('vlak') else None))
           .replace('{{MHD_ZDROJ}}', f', jízdní řády{" a polohy vozidel" if mhd.get("realtime") else ""} © <a href="{html.escape(mhd["zdroj_url"] or "")}" target="_blank" rel="noopener">{html.escape(mhd["zdroj"])}</a>'
                    if mhd.get('gtfs') and mhd.get('zdroj') else ''))
