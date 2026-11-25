@@ -32,9 +32,9 @@ export function vytvorEfekty(THREE, scene, camera, { obdobi, jenVeDne } = {}) {
       // zorné pole: od 40 km/h se rozšiřuje, při 160 km/h o 14°
       const cil = stav.veVoze ? FOV0 + Math.max(0, Math.min(1, (kmh - 40) / 120)) * 14 : FOV0;
       if (Math.abs(camera.fov - cil) > 0.05) { camera.fov += (cil - camera.fov) * Math.min(1, dt * 2.5); camera.updateProjectionMatrix(); }
-      // chvění ve voze od 60 km/h, pohupování kroku pěšky z očí
+      // chvění ve voze od 120 km/h, pohupování kroku pěšky z očí
       posun.set(0, 0, 0); naklon = 0;
-      if (stav.veVoze && kmh > 60) { const s = Math.min(1, (kmh - 60) / 100) * 0.03; posun.set(Math.sin(t * 37) * s, Math.sin(t * 53 + 1) * s, Math.sin(t * 29 + 2) * s); }
+      if (stav.veVoze && kmh > 120) { const s = Math.min(1, (kmh - 120) / 80) * 0.03; posun.set(Math.sin(t * 37) * s, Math.sin(t * 53 + 1) * s, Math.sin(t * 29 + 2) * s); }   // chvění až od 120 km/h, plné od 200
       else if (stav.pesky && stav.zOci) {
         // z očí: krok zhoupne hlavu nahoru a dolů (dvakrát za dvojkrok) a do strany na stojnou nohu, hlava se lehce naklání;
         // při běhu víc. Ve stoje jen dech. Boční posun podél pravé osy kamery.
