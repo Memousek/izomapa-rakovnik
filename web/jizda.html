@@ -1891,7 +1891,7 @@ const OKRAJE = GRAF === 'nizka' ? null : vytvorOkraje(THREE, scene3, { gz, hitBu
 // zorné pole podle rychlosti, chvění kamery, krok pěšky, padající listí na podzim (jizda/efekty.js)
 const EFEKTY = vytvorEfekty(THREE, scene3, camera, { obdobi: OBD, jenVeDne });
 // vodorovné značení ostře z dat silnic (jizda/znaceni.js); podklad terénu je ho zbavený
-const ZNACENI = vytvorZnaceni(THREE, scene3, { roads, gz, hitBuilding, jenVeDne });
+const ZNACENI = vytvorZnaceni(THREE, scene3, { roads, ends, ek, gz, hitBuilding, jenVeDne });
 const PTACI = vytvorPtaky(THREE, scene3, { jenVeDne });   // hejna nad městem ve dne (jizda/ptaci.js)
 const ZNACKY = vytvorZnacky(THREE, scene3, { roads, ends, ek, along, jenVeDne, hitBuilding, gz, mesto: document.querySelector('#hud h1')?.firstChild?.textContent.trim() });
 

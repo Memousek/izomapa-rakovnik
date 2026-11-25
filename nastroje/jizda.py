@@ -27,6 +27,26 @@ OUT = 'site/jizda'
 ORTO_M = 0.4               # build/orto04: dlaždice ortofota ČÚZK po 0,4 m/px z nastroje/strechy.py (CC BY 4.0)
 
 
+# vodorovné značení z podkladu pryč (ve 3D se kreslí ostře z dat silnic, web/jizda_znaceni.js): pixely barvy „marking“
+# u asfaltu přebarvit asfaltem v plném rozlišení, před zmenšením (v shaderu by po něm zůstala šmouha). Barvy jsou
+# z palety prep.py (SEASON_PAL): značení a silnice, v zimě jiné. Lajny hřišť dál od silnice zůstanou.
+ZNACENI_BARVA = {'winter': ((190, 192, 196), (104, 106, 114))}
+ZNACENI_BARVA_LETO = ((236, 232, 214), (92, 92, 98))
+
+
+def bez_znaceni(img, obdobi):
+    import numpy as np
+    from scipy import ndimage
+    mk_c, rd_c = ZNACENI_BARVA.get(obdobi, ZNACENI_BARVA_LETO)
+    a = np.asarray(img).copy()
+    mk = np.all(a == mk_c, axis=2)
+    if not mk.any(): return img
+    rd = np.all(np.abs(a.astype(np.int16) - rd_c) <= 8, axis=2)          # asfalt (i s drobným zrnem +8)
+    mk &= ndimage.binary_dilation(rd, iterations=16)   # i široké zebry přechodů (kreslí je jizda/znacky.js z OSM)
+    a[mk] = rd_c
+    return Image.fromarray(a)
+
+
 def orto_ctverec(c, dst):
     """letecký snímek pro čtverec c: stejný rozsah jako podklad terénu (sever nahoře), GROUND_PX; bez dlaždic nic"""
     o = f'{dst}/orto.webp'
@@ -134,17 +154,6 @@ def svet_js():
             float q = clamp(dot(col - lo, dh) / dd, 0.0, 1.0), sw = mix(0.5, 0.1, bl);
             col = mix(col, mix(lo, hi, smoothstep(0.5 - sw, 0.5 + sw, q)), bl);
           }
-        }
-        {                                                          // vodorovné značení z podkladu pryč: ve 3D se kreslí ostře z dat (jizda/znaceni.js)
-          vec2 e2 = 2.5 / tn; vec3 W3 = vec3(0.3, 0.59, 0.11);
-          vec3 n1 = textureGrad(uTex, uv + vec2(e2.x, 0.0), gx, gy).rgb, n2 = textureGrad(uTex, uv - vec2(e2.x, 0.0), gx, gy).rgb;
-          vec3 n3 = textureGrad(uTex, uv + vec2(0.0, e2.y), gx, gy).rgb, n4 = textureGrad(uTex, uv - vec2(0.0, e2.y), gx, gy).rgb;
-          // jen tenká světlá čára: tmavší z obou protilehlých stran (okraj velké světlé plochy zůstane)
-          float lc = dot(col, W3), sc_ = max(max(col.r, col.g), col.b) - min(min(col.r, col.g), col.b);
-          bool vod = dot(n1, W3) < lc - 0.12 && dot(n2, W3) < lc - 0.12, svi = dot(n3, W3) < lc - 0.12 && dot(n4, W3) < lc - 0.12;
-          vec3 dk = vod ? (n1 + n2) * 0.5 : (n3 + n4) * 0.5;
-          float sd_ = max(max(dk.r, dk.g), dk.b) - min(min(dk.r, dk.g), dk.b);
-          if ((vod || svi) && sc_ < 0.12 && sd_ < 0.1 && dot(dk, W3) < 0.55) col = dk;
         }
         float mx = max(max(col.r, col.g), col.b), sat = mx - min(min(col.r, col.g), col.b);
         float zel = step(col.r, col.g) * step(col.b, col.g) * smoothstep(0.05, 0.14, sat);   // tráva, louka, pole
@@ -267,7 +276,7 @@ def main():
         for s in OBDOBI:
             f, o = f'{src}/ground_{s}.png', f'{dst}/ground_{s}.webp'
             if os.path.exists(f) and (not os.path.exists(o) or os.path.getmtime(o) < os.path.getmtime(f)):
-                Image.open(f).convert('RGB').resize((GROUND_PX, GROUND_PX), Image.LANCZOS).save(o, quality=88, method=4)
+                bez_znaceni(Image.open(f).convert('RGB'), s).resize((GROUND_PX, GROUND_PX), Image.LANCZOS).save(o, quality=88, method=4)
         if os.path.exists(f'{src}/lightmap.png'): Image.open(f'{src}/lightmap.png').convert('RGB').save(f'{dst}/lightmap.webp', quality=80)
         orto_ctverec(c, dst)                                  # letecký snímek na terén (stránka: Grafika → Letecký snímek)
         # chodníky a stezky (prep.py walks: footway, path, pedestrian, cycleway) ve světových souřadnicích pro chodce
