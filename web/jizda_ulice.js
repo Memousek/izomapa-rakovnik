@@ -1336,7 +1336,7 @@ export function vytvorUlici(THREE, scene, api) {
     for (const a of zachranky) VOZ.pridej(a.druh === 'pol' ? 'car' : 'van', a.x, a.y, a.z, a.h, a.druh === 'pol' ? '#e9ecef' : '#f2cf1d', undefined, a.stav === 'na_miste' || a.stav === 'naklada' ? 6 : 0);
   }
   return {
-    get on() { return s.on; }, update, vozidla, prekazka, samostatna, prekryv, kamera, tretiOsoba, ukradni, kolizeAuta, naraz, blokuje,
+    get on() { return s.on; }, get skokZ() { return skokZ; }, update, vozidla, prekazka, samostatna, prekryv, kamera, tretiOsoba, ukradni, kolizeAuta, naraz, blokuje,
     get hvezdy() { return hvezdy; }, set hvezdy(v) { hvezdy = mez(v, 0, 5); }, _s: s, _policie: policie, _zachranky: zachranky, _ranenych: ranenych, _nehoda: () => nehoda, _nehodaHned: () => { nehodaT = 0; }, zraneny, _mista: () => ({ popelnice: popBlizko, obchody, vrak }),
   };
 }
