@@ -243,6 +243,8 @@ Tahle kopie (Rakovník): projekt `izomapa-rakovnik`, https://izomapa-rakovnik.pa
   DM Sans, nadpisy Fraunces; `#panel` je jen obal s `display: contents`, jeho části stojí samostatně: štítek vlevo nahoře, hledání nahoře, záložky jako
   dok dole, podokno nad ním; `body.noc` tmavé panely), `web/js/01-nacitani.js` (načítání skládá čtverce z `tiles.json`), `web/js/62-rakovnik-hud.js`
   (výběr obcí, čas na mapě vpravo nahoře, Escape zavře podokno, přepínač Podle skutečnosti = počasí i dnešní roční období, úvodní pohlednice `vitej()`).
+  3D jízda: `web/jizda_rakovnik.css` (stejný jazyk, pauza s tmavým sloupcem menu, kulatý tachometr); `nastroje/jizda.py` ho vloží na konec `<style>`
+  v `site/jizda.html` a písma do `<head>`, `web/jizda.html` zůstává jako v Liberci. Po úpravě `python nastroje/jizda.py --stranka`.
   Texty pohlednice: `"vitej"` a `"vitej_nadpis"` (2. pád) v `mesto.json` a `obce/*.json`. Logo ani znak města v mapě nepoužívat (není oficiální web města).
 - **Náhled designu bez renderu:** `site/` z `build_html.py` a dlaždice ze živé mapy přes malý proxy server (chybějící soubory bere z izomapa-rakovnik.pages.dev).
 

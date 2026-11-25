@@ -210,6 +210,9 @@ def main():
           .replace('{{VLAK}}', json.dumps(M['vlak'] if isinstance(M.get('vlak'), dict) else {'vychozi': M['vlak'], 'linky': {}} if M.get('vlak') else None))
           .replace('{{MHD_ZDROJ}}', f', jízdní řády{" a polohy vozidel" if mhd.get("realtime") else ""} © <a href="{html.escape(mhd["zdroj_url"] or "")}" target="_blank" rel="noopener">{html.escape(mhd["zdroj"])}</a>'
                    if mhd.get('gtfs') and mhd.get('zdroj') else ''))
+    if os.path.exists('web/jizda_rakovnik.css'):          # vlastní vzhled kopie (Rakovník): styly na konec <style>, písma do <head>
+        t = t.replace('</style>', open('web/jizda_rakovnik.css', encoding='utf-8').read() + '</style>', 1).replace('</head>',
+            '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=DM+Mono:wght@500&family=Fraunces:opsz,wght@9..144,700;9..144,800&display=swap">\n</head>', 1)
     open('site/jizda.html', 'w', encoding='utf-8').write(t)
     print('hotovo: site/jizda.html')
 
