@@ -158,12 +158,7 @@ button { font: inherit; color: inherit; }
 #pult { position: fixed; z-index: 1; left: 0; right: 0; bottom: 0; height: 13vh; pointer-events: none; background: linear-gradient(#2b3242, #151a24); clip-path: polygon(0 42%, 14% 0, 86% 0, 100% 42%, 100% 100%, 0 100%); }   /* palubní deska v kabině vlaku a autobusu */
 #pohledBtn:hover, #pohledBtn:focus-visible { border-color: #e27a5c; }
 .mobil #pohledBtn { display: none; }                          /* na telefonu je tlačítko Pohled u joysticku */
-#steraky { position: fixed; z-index: 1; inset: 0; pointer-events: none; overflow: hidden; }
-#steraky i { position: absolute; bottom: -2vh; width: 5px; height: 62vh; background: linear-gradient(#1a1a1a, #0b0b0b); border-radius: 3px; transform-origin: 50% 100%; animation: sterac 1.25s ease-in-out infinite alternate; box-shadow: 1px 0 2px rgba(0, 0, 0, .4); }
-#steraky i:first-child { left: 26%; } #steraky i:last-child { left: 58%; animation-delay: .06s; }
-@keyframes sterac { from { transform: rotate(72deg); } to { transform: rotate(-58deg); } }
 #fpsBox { position: fixed; z-index: 3; left: 50%; bottom: 8px; transform: translateX(-50%); padding: 2px 8px; background: rgba(16, 21, 31, .8); color: #8fe3a3; font: 600 12px ui-monospace, Consolas, monospace; pointer-events: none; }
-@media (prefers-reduced-motion: reduce) { #steraky i { animation-duration: 3s; } }
 #zamer { position: fixed; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(255,255,255,.8); box-shadow: 0 0 0 1px rgba(0,0,0,.5); pointer-events: none; }
 #klik { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 #klik span { max-width: calc(100vw - 48px); box-sizing: border-box; text-align: center; padding: 10px 18px; background: var(--panel); border: 2px solid var(--edge); box-shadow: var(--stin); font: 500 1.05rem var(--display); }
@@ -342,7 +337,6 @@ button { font: inherit; color: inherit; }
 <div id="toast" role="status" hidden></div>
 <section id="tabule" hidden aria-live="polite"><h2 id="tabNazev"></h2><table><tbody id="tabRadky"></tbody></table></section>
 <div id="zamer"></div>
-<div id="steraky" hidden aria-hidden="true"><i></i><i></i></div>
 <div id="fpsBox" hidden></div>
 <div id="klik" hidden><span>Klikni do obrazu a rozhlížej se myší</span></div>
 
@@ -535,17 +529,17 @@ const slozeni = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMa
     }
     // odraz na mokré vodorovné ploše: paprsek odražený od země krokuje světem, zásah = barva (a v noci světla) z obrazu
     vec4 odraz(vec3 w, vec3 n, vec3 r){
-      vec3 R = reflect(r, n), p = w + n * 0.05; float t = 0.35;
-      for (int i = 0; i < 16; i++) {
+      vec3 R = reflect(r, n), p = w + n * 0.05; float t = 0.5;
+      for (int i = 0; i < 9; i++) {                             // 9 kroků s rostoucí délkou (dřív 16: déšť sekal hru)
         vec3 q = p + R * t; vec4 s = uVP * vec4(q, 1.0); s.xyz /= s.w; vec2 uv = s.xy * 0.5 + 0.5;
         if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || s.z > 1.0) break;
         float zs = texture2D(tZ, uv).r;
         if (zs < 0.99999) { float ds = hloubka(zs), dq = hloubka(s.z * 0.5 + 0.5);
           if (dq > ds + 0.03 && dq < ds + 1.5 + t * 0.15) {
             vec2 e = min(uv, 1.0 - uv); float okraj = smoothstep(0.0, 0.08, min(e.x, e.y));
-            return vec4(texture2D(tD, uv).rgb + texture2D(tL, uv).rgb * uN * uSvetla * 1.3, okraj * (1.0 - float(i) / 16.0));
+            return vec4(texture2D(tD, uv).rgb + texture2D(tL, uv).rgb * uN * uSvetla * 1.3, okraj * (1.0 - float(i) / 9.0));
           } }
-        t *= 1.38;
+        t *= 1.7;
       }
       return vec4(0.0);
     }
@@ -598,9 +592,10 @@ const slozeni = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMa
       if ((uAO > 0.5 || uMokro > 0.02) && nebe < 0.5 && d < 220.0) {
         vec3 w = paprsek(z), nw = normalize(cross(dFdx(w), dFdy(w))); if (dot(nw, kam - w) < 0.0) nw = -nw;
         if (uAO > 0.5) c *= mix(ssao(w, nw, d), 1.0, smoothstep(90.0, 160.0, d));
-        if (uMokro > 0.02 && nw.y > 0.92 && d > 2.5) {            // mokrá zem: odraz domů, aut a světel (Fresnel: víc v ostrém úhlu); ne palubní deska v kabině
-          vec4 od = odraz(w, nw, r); float fr = 0.12 + 0.88 * pow(1.0 - max(dot(-r, nw), 0.0), 4.0);
-          c = mix(c, od.rgb, od.a * fr * uMokro * 0.65 * (1.0 - smoothstep(120.0, 220.0, d)));
+        float fr = 0.12 + 0.88 * pow(1.0 - max(dot(-r, nw), 0.0), 4.0), sila = fr * uMokro * 0.65 * (1.0 - smoothstep(70.0, 130.0, d));
+        if (sila > 0.04 && nw.y > 0.92 && d > 2.5) {             // mokrá zem: odraz domů, aut a světel (Fresnel); jen kde je znát, do 130 m, ne palubní deska
+          vec4 od = odraz(w, nw, r);
+          c = mix(c, od.rgb, od.a * sila);
         }
       }
       c = mix(c, vec3(dot(c, vec3(0.3, 0.55, 0.15))) * 0.86, uZat * 0.45);                // zataženo: méně barev a světla
@@ -1985,13 +1980,11 @@ function kuzel(x, y, z, h, k) {
   K.m4.compose(K.v.set(x, z, -y), K.q, K.sc); K.mesh.setMatrixAt(K.n++, K.m4);
   K.mesh.count = K.n; K.mesh.instanceMatrix.needsUpdate = true;
 }
-// stěrače v pohledu z kabiny, když prší nebo sněží; ukazatel fps; automatické rozlišení (drží plynulost)
-const STER = $('steraky'), FPSBOX = $('fpsBox');
+// ukazatel fps; automatické rozlišení (drží plynulost). Stěrače jsou v kokpitu (jizda/kokpit.js), ne vrstva přes obraz.
+const FPSBOX = $('fpsBox');
 const PR_MAX = Math.min(devicePixelRatio || 1, DOTYK ? 1 : 1.5);
 let PR = PR_MAX, resT = 0;
 function grafikaPrubezne(now, fps) {
-  const ster = hrac.vAuto && hrac.kabina && (WXI.dest > 0.15 || WXI.snih > 0.15) && !MENU.open;
-  if (STER.hidden === ster) STER.hidden = !ster;
   const ukaz = $('fpsChk').checked;
   if (FPSBOX.hidden === ukaz) FPSBOX.hidden = !ukaz;
   if (ukaz) FPSBOX.textContent = `${fps} fps · ${Math.round(PR * 100)} %`;

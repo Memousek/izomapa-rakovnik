@@ -99,10 +99,14 @@ export function vytvorKokpit(THREE, scene, { jenVeDne = [] } = {}) {
   }
   let stF = 0, stPauza = 0, sucho = 0, rezim = 0;               // rezim: 0 automaticky (dešťový senzor), 1 stále, 2 rychle, 3 vypnuto
   const REZIMY = ['Stěrače: automaticky', 'Stěrače: stále', 'Stěrače: rychle', 'Stěrače: vypnuto'];
+  let tKap = 0, dtKap = 0;
   function kapkyAStierace(dt, dest, snih, v) {
     const pada = Math.max(dest, snih * 0.6);
-    if (kx) {
-      const n = pada * dt * (480 + Math.abs(v) * 20);                // za jízdy dopadá víc kapek
+    // plátno s kapkami jen 20× za sekundu (kreslení a nahrání textury každý snímek déšť zpomalovalo)
+    dtKap += dt; const kresli = (tKap += dt) > 0.05; let dk = 0;
+    if (kresli) { tKap = 0; dk = dtKap; dtKap = 0; }
+    if (kx && kresli) {
+      const n = pada * dk * (480 + Math.abs(v) * 20);                // za jízdy dopadá víc kapek
       for (let k = 0; k < n || (k === 0 && Math.random() < n); k++) {
         const x = Math.random() * KW, y = Math.random() * KH, r = (snih > dest ? 2.5 : 1.6) + Math.random() * 2.6;
         kx.fillStyle = snih > dest ? 'rgba(245,248,255,0.75)' : 'rgba(150,168,186,0.45)';
@@ -110,7 +114,7 @@ export function vytvorKokpit(THREE, scene, { jenVeDne = [] } = {}) {
         if (snih <= dest) { kx.strokeStyle = 'rgba(40,48,58,0.45)'; kx.lineWidth = 1.2; kx.stroke(); }   // okraj kapky (lom světla)
         kx.fillStyle = 'rgba(255,255,255,0.65)'; kx.beginPath(); kx.arc(x - r * 0.3, y - r * 0.35, r * 0.3, 0, Math.PI * 2); kx.fill();
       }
-      if (pada < 0.02 && (sucho += dt) > 0.5) {                   // bez deště kapky pomalu oschnou
+      if (pada < 0.02 && (sucho += dk) > 0.5) {                   // bez deště kapky pomalu oschnou
         sucho = 0; kx.save(); kx.globalCompositeOperation = 'destination-out'; kx.fillStyle = 'rgba(0,0,0,0.06)'; kx.fillRect(0, 0, KW, KH); kx.restore();
       }
     }
@@ -123,8 +127,12 @@ export function vytvorKokpit(THREE, scene, { jenVeDne = [] } = {}) {
       if (stF >= 1) { stF = 0; stPauza = pauza === Infinity ? 0 : pauza; }
     }
     const u = 0.04 + MAXU * (1 - Math.cos(stF * Math.PI * 2)) / 2;
-    for (const st of stierace) { if (Math.abs(u - st.uhel) > 1e-4) setri(st, st.uhel, u); st.uhel = u; st.rameno.rotation.z = u; }
-    if (ktex && (pada > 0.01 || stF > 0 || sucho === 0)) ktex.needsUpdate = true;
+    for (const st of stierace) {
+      st.rameno.rotation.z = u;
+      if (kresli) { setri(st, st.stopa ?? st.uhel, u); st.stopa = u; }     // výseč od posledního kreslení plátna
+      st.uhel = u;
+    }
+    if (ktex && kresli && (pada > 0.01 || stF > 0 || sucho === 0)) ktex.needsUpdate = true;
   }
 
   // budíky: plátno s rychloměrem a otáčkoměrem (svítí samo, i v noci)
