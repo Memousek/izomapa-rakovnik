@@ -81,7 +81,7 @@ def svet_js():
       vec2 uv = vec2((vW.x - uC.x + uHalf) / (2.0 * uHalf), (-vW.z - uC.y + uHalf) / (2.0 * uHalf));
       vec3 o = texture2D(uTexO, uv).rgb; float lu = dot(o, vec3(0.3, 0.59, 0.11));
       o = clamp(mix(vec3(lu), o, 1.3) * 1.08, 0.0, 1.0);
-      col = mix(col, o, (0.3 + 0.62 * smoothstep(14.0, 150.0, length(cameraPosition - vW))) * smoothstep(0.55, 0.8, n.y));
+      col = mix(col, o, 0.92 * smoothstep(30.0, 170.0, length(cameraPosition - vW)) * smoothstep(0.55, 0.8, n.y));
     }
     if (winter() && vA.z > 0.5 && n.y > 0.6) col = SNOW;
     gl_FragColor = vec4(shade(col, n, vW), 1.0);
@@ -149,7 +149,7 @@ def svet_js():
       if (uOrto > 0.5) {                                         // letecký snímek ČÚZK: zblízka ostrá kresba, do dálky skutečný povrch (pole, louky, plochy)
         vec3 o = texture2D(uTexO, vUv).rgb; float lu = dot(o, vec3(0.3, 0.59, 0.11));
         o = clamp(mix(vec3(lu), o, 1.3) * 1.08, 0.0, 1.0);
-        col = mix(col, o, 0.2 + 0.72 * smoothstep(14.0, 150.0, length(cameraPosition - vW)));
+        col = mix(col, o, 0.92 * smoothstep(30.0, 170.0, length(cameraPosition - vW)));   // do 30 m jen ostrá kresba
       }
       if (uMokro > 0.01) {                                       // šedé zpevněné plochy zmoknou nejvíc, tráva a pole málo
         float sat = max(max(col.r, col.g), col.b) - min(min(col.r, col.g), col.b), lum = dot(col, vec3(0.3, 0.59, 0.11));

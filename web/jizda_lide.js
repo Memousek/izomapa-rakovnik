@@ -106,7 +106,7 @@ export function vytvorLidi(THREE, scene, api) {
       const fx = -s, fy = c;                                 // lavička: sedí se k místní -z (opěradlo je vzadu)
       const p = novy();
       p.mod = 2; p.sedi = true; p.lav = b; p.tr = null; p.pes = false;
-      p.x = b.x + c * strana + fx * 0.12; p.y = b.y + s * strana + fy * 0.12; p.z = b.z; p.h = Math.atan2(fy, fx); p.v = 0;
+      p.x = b.x + c * strana + fx * 0.12; p.y = b.y + s * strana + fy * 0.12; p.z = Math.max(b.z, api.gz(p.x, p.y)); p.h = Math.atan2(fy, fx); p.v = 0;
       b.n++; pridej(p); return;
     }
   }
@@ -190,7 +190,7 @@ export function vytvorLidi(THREE, scene, api) {
     if (d < MIN_SPAWN || d > DOSAH || api.hitBuilding(x, y, 0.4)) return false;
     const p = novy();
     p.tr = t; p.s = s; p.dir = N(p) < 0.5 ? 1 : -1; p.ofs = p.ofsT = ofs; p.hint = o.i;
-    p.x = x; p.y = y; p.z = o.z; p.h = Math.atan2(o.dy * p.dir, o.dx * p.dir);
+    p.x = x; p.y = y; p.z = Math.max(o.z, api.gz(x, y)); p.h = Math.atan2(o.dy * p.dir, o.dx * p.dir);   // řídké body pěšiny: aspoň terén
     if (boj() && p.sc > 0.9) {                               // pouliční režim: v noci víc výtržníků a opilců
       const r = N(p), noc = api.doba() > 0.6, sance = noc ? 0.22 : 0.08;
       if (r < sance) nastavTyp(p, r < sance * 0.55 ? 1 : 2);
@@ -406,7 +406,7 @@ export function vytvorLidi(THREE, scene, api) {
         else p.ofs += Math.sign(rozd) * rychl * dt;
         if (p.mod === 1) { krok = p.v; cil = Math.atan2(ny * Math.sign(rozd), nx * Math.sign(rozd)); }
         else cil = Math.atan2(o.dy * p.dir, o.dx * p.dir);
-        p.x = o.x + nx * p.ofs; p.y = o.y + ny * p.ofs; p.z = o.z;
+        p.x = o.x + nx * p.ofs; p.y = o.y + ny * p.ofs; p.z = Math.max(o.z, api.gz(p.x, p.y));
         // stěna před chodcem → otočit (kontrola jen každý 4. snímek)
         if (p.blok > 0) p.blok -= dt;
         else if ((snimek + i) % 4 === 0) {

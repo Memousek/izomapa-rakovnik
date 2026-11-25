@@ -250,7 +250,9 @@ export function vytvorDopravu(api) {
   function carPose(c, back = 0) {                            // poloha a směr auta (back: návěs kamionu za tahačem)
     const r = roads[c.r], o = along(r, clamp(c.s - back * c.dir, 0, r.L)), L = Math.hypot(o.dx, o.dy) || 1, lane = r.o ? 0 : 1.6;
     const hx = o.dx / L * c.dir, hy = o.dy / L * c.dir;
-    return { x: o.x + hy * lane, y: o.y - hx * lane, z: o.z, h: Math.atan2(hy, hx) };
+    const x = o.x + hy * lane, y = o.y - hx * lane;
+    // body silnice jsou řídké: mezi nimi by auto projelo kopcem; aspoň výška terénu (na mostě zůstane mostovka)
+    return { x, y, z: api.gz ? Math.max(o.z, api.gz(x, y)) : o.z, h: Math.atan2(hy, hx) };
   }
 
   return {
