@@ -114,7 +114,7 @@ function sipkaPlatno(druh) {                                // bílá šipka na 
   if (d.has('right') || d.has('slight_right') || d.has('sharp_right')) vedle(1);
   return c;
 }
-export function vytvorPruhy(THREE, scene, { gz, jenVeDne, doMesta }) {
+export function vytvorPruhy(THREE, scene, { roads, gz, jenVeDne, doMesta }) {
   const MAX = 600, DOSAH_P = 250;
   const druhy = new Map();                                   // druh šipky -> InstancedMesh
   const geo = new THREE.PlaneGeometry(1.1, 4.4); geo.rotateX(-Math.PI / 2);
@@ -129,7 +129,7 @@ export function vytvorPruhy(THREE, scene, { gz, jenVeDne, doMesta }) {
     }
     return druhy.get(druh);
   };
-  let data = [], bx = 1e9, by = 1e9;
+  let data = [], bx = 1e9, by = 1e9, pocetSil = -1;
   fetch('jizda/pruhy.json').then((r) => (r.ok ? r.json() : [])).then((d) => { data = d.map((w) => ({ ...w, xy: w.p.map(([la, lo]) => doMesta(la, lo)) })); bx = 1e9; }).catch(() => {});
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3(), osaY = new THREE.Vector3(0, 1, 0);
   // bod ve vzdálenosti s od konce lomené čáry P (směr jízdy ke konci): poloha a jednotkový směr jízdy
@@ -152,11 +152,22 @@ export function vytvorPruhy(THREE, scene, { gz, jenVeDne, doMesta }) {
         if (!tag) continue;
         const pruhy = tag.split('|'), n = pruhy.length, L = delka(P);
         if (n < 1 || L < 8) continue;
-        const o0 = w.o ? -n * SIRKA_PRUHU / 2 : 0;           // jednosměrka: pruhy symetricky kolem osy; obousměrná: vpravo od osy
+        // šířka pruhu podle nejbližší silnice v datech (podklad terénu): pruhy jednoho směru se vejdou do jeho poloviny vozovky
+        const kon = P[P.length - 1]; let pul = 0, bd = 15;
+        for (const r of roads || []) {
+          const a0 = r.w[0]; if (Math.abs(a0[0] - kon[0]) > r.L + 15 || Math.abs(a0[1] - kon[1]) > r.L + 15) continue;
+          for (let i = 1; i < r.w.length; i++) {
+            const a = r.w[i - 1], b = r.w[i], dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy || 1;
+            const t = Math.max(0, Math.min(1, ((kon[0] - a[0]) * dx + (kon[1] - a[1]) * dy) / l2)), d = Math.hypot(a[0] + dx * t - kon[0], a[1] + dy * t - kon[1]);
+            if (d < bd) { bd = d; pul = r.o ? (PUL[r.c] || 3) * 0.7 * 2 : PUL[r.c] || 3; }
+          }
+        }
+        const sirka = pul ? Math.max(2.2, Math.min(SIRKA_PRUHU, (pul - 0.3) / n)) : 2.75;   // 0,3 m rezerva u kraje
+        const o0 = w.o ? -n * sirka / 2 : 0;                 // jednosměrka: pruhy symetricky kolem osy; obousměrná: vpravo od osy
         const usek = Math.min(30, L - 2);
         // dělicí čáry mezi pruhy
         for (let k = 1; k < n && nc < 2990; k++) {
-          const off = o0 + k * SIRKA_PRUHU;
+          const off = o0 + k * sirka;
           for (let s = 0.5; s < usek; s += (s < 20 ? 3 : 6)) {
             const s1 = Math.min(usek, s + 3), A = odKonce(P, s), B = odKonce(P, s1);
             if (!A || !B) break;
@@ -170,7 +181,7 @@ export function vytvorPruhy(THREE, scene, { gz, jenVeDne, doMesta }) {
         }
         // šipky ve středu pruhů
         for (let k = 0; k < n; k++) {
-          const druh = (pruhy[k] || 'through').trim() || 'through', M = mesh(druh), off = o0 + (k + 0.5) * SIRKA_PRUHU;
+          const druh = (pruhy[k] || 'through').trim() || 'through', M = mesh(druh), off = o0 + (k + 0.5) * sirka;
           for (const s of [6, 18]) {
             if (s > usek || M.count >= MAX) continue;
             const A = odKonce(P, s); if (!A) continue;
@@ -186,8 +197,9 @@ export function vytvorPruhy(THREE, scene, { gz, jenVeDne, doMesta }) {
   }
   return {
     update(hrac) {
-      if (!data.length || Math.hypot(hrac.x - bx, hrac.y - by) < 60) return;
-      bx = hrac.x; by = hrac.y; postav(bx, by);
+      const ns = roads ? roads.length : 0;
+      if (!data.length || (ns === pocetSil && Math.hypot(hrac.x - bx, hrac.y - by) < 60)) return;
+      pocetSil = ns; bx = hrac.x; by = hrac.y; postav(bx, by);
     },
   };
 }

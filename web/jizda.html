@@ -1893,7 +1893,7 @@ const EFEKTY = vytvorEfekty(THREE, scene3, camera, { obdobi: OBD, jenVeDne });
 // vodorovné značení ostře z dat silnic (jizda/znaceni.js); podklad terénu je ho zbavený
 const ZNACENI = vytvorZnaceni(THREE, scene3, { roads, ends, ek, gz, hitBuilding, jenVeDne });
 // jízdní pruhy a směrové šipky z OSM turn:lanes (jizda/pruhy.json z nastroje/pruhy.py)
-const PRUHY = vytvorPruhy(THREE, scene3, { gz, jenVeDne, doMesta: (la, lo) => [(lo - CAM.lon0) * CAM.kx, (la - CAM.lat0) * CAM.ky] });
+const PRUHY = vytvorPruhy(THREE, scene3, { roads, gz, jenVeDne, doMesta: (la, lo) => [(lo - CAM.lon0) * CAM.kx, (la - CAM.lat0) * CAM.ky] });
 const PTACI = vytvorPtaky(THREE, scene3, { jenVeDne });   // hejna nad městem ve dne (jizda/ptaci.js)
 const ZNACKY = vytvorZnacky(THREE, scene3, { roads, ends, ek, along, jenVeDne, hitBuilding, gz, mesto: document.querySelector('#hud h1')?.firstChild?.textContent.trim() });
 
