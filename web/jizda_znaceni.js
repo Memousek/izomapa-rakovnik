@@ -95,3 +95,99 @@ export function vytvorZnaceni(THREE, scene, { roads, ends, ek, gz, hitBuilding, 
     },
   };
 }
+
+// ---------- jízdní pruhy a směrové šipky z OSM (assets/pruhy.json z nastroje/pruhy.py: turn:lanes) ----------
+// U konce silnice ve směru jízdy (posledních 30 m před křižovatkou): dělicí čáry pruhů (posledních 20 m plné, dál
+// přerušované) a v každém pruhu šipky V9a 6 m a 18 m před koncem. Pruhy v turn:lanes jsou zleva doprava ve směru jízdy.
+const SIRKA_PRUHU = 3.0;
+function sipkaPlatno(druh) {                                // bílá šipka na průhledném plátně 128 × 512 (dopředu = nahoru)
+  const c = document.createElement('canvas'); c.width = 128; c.height = 512; const g = c.getContext('2d');
+  g.fillStyle = '#ecebe5'; g.strokeStyle = '#ecebe5'; g.lineCap = 'butt'; g.lineJoin = 'miter';
+  const rovne = () => { g.fillRect(52, 150, 24, 340); g.beginPath(); g.moveTo(64, 30); g.lineTo(110, 160); g.lineTo(18, 160); g.fill(); };
+  const vedle = (s) => {                                     // s = -1 vlevo, 1 vpravo: dřík nahoru a oblouk do strany
+    g.fillRect(52, 260, 24, 230); g.lineWidth = 24; g.beginPath(); g.moveTo(64, 272); g.quadraticCurveTo(64, 170, 64 + s * 30, 160); g.stroke();
+    g.beginPath(); g.moveTo(64 + s * 60, 160); g.lineTo(64 + s * 22, 110); g.lineTo(64 + s * 22, 210); g.fill();
+  };
+  const d = new Set(druh.split(';'));
+  if (d.has('through') || d.size === 0 || d.has('none') || d.has('')) rovne();
+  if (d.has('left') || d.has('slight_left') || d.has('sharp_left')) vedle(-1);
+  if (d.has('right') || d.has('slight_right') || d.has('sharp_right')) vedle(1);
+  return c;
+}
+export function vytvorPruhy(THREE, scene, { gz, jenVeDne, doMesta }) {
+  const MAX = 600, DOSAH_P = 250;
+  const druhy = new Map();                                   // druh šipky -> InstancedMesh
+  const geo = new THREE.PlaneGeometry(1.1, 4.4); geo.rotateX(-Math.PI / 2);
+  const caraG = new THREE.PlaneGeometry(1, 1); caraG.rotateX(-Math.PI / 2);
+  const caraM = new THREE.InstancedMesh(caraG, new THREE.MeshBasicMaterial({ color: 0xe9e8e2, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), 3000);
+  caraM.count = 0; caraM.frustumCulled = false; scene.add(caraM); if (jenVeDne) jenVeDne.push(caraM);
+  const mesh = (druh) => {
+    if (!druhy.has(druh)) {
+      const t = new THREE.CanvasTexture(sipkaPlatno(druh)); t.anisotropy = 8;
+      const m = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.5, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), MAX);
+      m.count = 0; m.frustumCulled = false; scene.add(m); if (jenVeDne) jenVeDne.push(m); druhy.set(druh, m);
+    }
+    return druhy.get(druh);
+  };
+  let data = [], bx = 1e9, by = 1e9;
+  fetch('jizda/pruhy.json').then((r) => (r.ok ? r.json() : [])).then((d) => { data = d.map((w) => ({ ...w, xy: w.p.map(([la, lo]) => doMesta(la, lo)) })); bx = 1e9; }).catch(() => {});
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3(), osaY = new THREE.Vector3(0, 1, 0);
+  // bod ve vzdálenosti s od konce lomené čáry P (směr jízdy ke konci): poloha a jednotkový směr jízdy
+  function odKonce(P, s) {
+    let acc = 0;
+    for (let i = P.length - 1; i > 0; i--) {
+      const a = P[i - 1], b = P[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (acc + L >= s || i === 1) { const t = L ? Math.min(1, (s - acc) / L) : 0; return { x: b[0] + (a[0] - b[0]) * t, y: b[1] + (a[1] - b[1]) * t, ux: (b[0] - a[0]) / (L || 1), uy: (b[1] - a[1]) / (L || 1), ok: acc + L >= s }; }
+      acc += L;
+    }
+  }
+  function postav(hx, hy) {
+    for (const m of druhy.values()) m.count = 0;
+    let nc = 0;
+    const delka = (P) => P.reduce((a, p, i) => (i ? a + Math.hypot(p[0] - P[i - 1][0], p[1] - P[i - 1][1]) : 0), 0);
+    for (const w of data) {
+      const e = w.xy[w.xy.length - 1], z0 = w.xy[0];
+      if (Math.hypot(e[0] - hx, e[1] - hy) > DOSAH_P && Math.hypot(z0[0] - hx, z0[1] - hy) > DOSAH_P) continue;
+      for (const [tag, P] of [[w.f, w.xy], [w.b, [...w.xy].reverse()]]) {
+        if (!tag) continue;
+        const pruhy = tag.split('|'), n = pruhy.length, L = delka(P);
+        if (n < 1 || L < 8) continue;
+        const o0 = w.o ? -n * SIRKA_PRUHU / 2 : 0;           // jednosměrka: pruhy symetricky kolem osy; obousměrná: vpravo od osy
+        const usek = Math.min(30, L - 2);
+        // dělicí čáry mezi pruhy
+        for (let k = 1; k < n && nc < 2990; k++) {
+          const off = o0 + k * SIRKA_PRUHU;
+          for (let s = 0.5; s < usek; s += (s < 20 ? 3 : 6)) {
+            const s1 = Math.min(usek, s + 3), A = odKonce(P, s), B = odKonce(P, s1);
+            if (!A || !B) break;
+            if (s >= 20 && (Math.floor((s - 20) / 6) % 2)) continue;   // za 20 m přerušovaná
+            const ax = A.x + A.uy * off, ay = A.y - A.ux * off, bx_ = B.x + B.uy * off, by_ = B.y - B.ux * off;   // vpravo = (uy, -ux)
+            const L2 = Math.hypot(bx_ - ax, by_ - ay); if (L2 < 0.2) continue;
+            q.setFromAxisAngle(osaY, Math.atan2(by_ - ay, bx_ - ax));
+            m4.compose(v.set((ax + bx_) / 2, Math.max(gz(ax, ay), gz(bx_, by_)) + 0.04, -(ay + by_) / 2), q, sc.set(L2, 1, 0.13));
+            caraM.setMatrixAt(nc++, m4);
+          }
+        }
+        // šipky ve středu pruhů
+        for (let k = 0; k < n; k++) {
+          const druh = (pruhy[k] || 'through').trim() || 'through', M = mesh(druh), off = o0 + (k + 0.5) * SIRKA_PRUHU;
+          for (const s of [6, 18]) {
+            if (s > usek || M.count >= MAX) continue;
+            const A = odKonce(P, s); if (!A) continue;
+            const x = A.x + A.uy * off, y = A.y - A.ux * off;        // vpravo ve směru jízdy
+            q.setFromAxisAngle(osaY, Math.atan2(-A.ux, A.uy));       // hrot (sever plátna) natočit do směru jízdy
+            m4.compose(v.set(x, gz(x, y) + 0.045, -y), q, sc.set(1, 1, 1)); M.setMatrixAt(M.count++, m4);
+          }
+        }
+      }
+    }
+    caraM.count = nc; caraM.instanceMatrix.needsUpdate = true;
+    for (const m of druhy.values()) m.instanceMatrix.needsUpdate = true;
+  }
+  return {
+    update(hrac) {
+      if (!data.length || Math.hypot(hrac.x - bx, hrac.y - by) < 60) return;
+      bx = hrac.x; by = hrac.y; postav(bx, by);
+    },
+  };
+}

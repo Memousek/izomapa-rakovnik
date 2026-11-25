@@ -249,7 +249,8 @@ def main():
         shutil.copy(f'node_modules/three/examples/jsm/{f}', f'{OUT}/three/{f}')
     if os.path.exists('assets/custom_models.js'): shutil.copy('assets/custom_models.js', f'{OUT}/custom_models.js')
     else: open(f'{OUT}/custom_models.js', 'w').write('// město nemá vlastní modely (assets/custom_models.js)\nexport {};\n')
-    if os.path.exists('assets/znacky.json'): shutil.copy('assets/znacky.json', f'{OUT}/znacky.json')   # dopravní značky z OSM (nastroje/znacky.py)
+    if os.path.exists('assets/znacky.json'): shutil.copy('assets/znacky.json', f'{OUT}/znacky.json')
+    if os.path.exists('assets/pruhy.json'): shutil.copy('assets/pruhy.json', f'{OUT}/pruhy.json')   # jízdní pruhy a šipky z OSM (nastroje/pruhy.py)   # dopravní značky z OSM (nastroje/znacky.py)
     # zajímavá místa pro mapu (klávesa M): dominanty, příběhy míst, obce; jen název a poloha
     mista = []
     if os.path.exists('assets/dominanty.json'):
