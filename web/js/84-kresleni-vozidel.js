@@ -162,13 +162,7 @@
   }
   // výzdoba jako překážka pro chodce a vozidla (treeShapes ve 82-stromy-u-cest.js): obrys stromu a stánků v obrázku mapy.
   // Rozměry podle render.html: strom kužel o poloměru 3,7 m od 1,2 m do špičky 14,7 m, stánek w × 2,4 m, střecha do 3,1 m.
-  const obal = (P) => {                                         // konvexní obal bodů [x, y] (monotone chain)
-    P = P.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-    const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]), lo = [], hi = [];
-    for (const p of P) { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
-    for (const p of P.reverse()) { while (hi.length > 1 && cr(hi[hi.length - 2], hi[hi.length - 1], p) <= 0) hi.pop(); hi.push(p); }
-    return lo.slice(0, -1).concat(hi.slice(0, -1));
-  };
+  // konvexní obal: obal() výš (stejná funkce přišla z Liberce, řídí i zakrytí za vozidly)
   const xmasOcc = [];
   for (const [lat, lon] of {{XMAS_LL}} || []) {
     const x = (lon - cam.lon0) * cam.kx, y = (lat - cam.lat0) * cam.ky, g = gz(x, y), P = [toImg(x, y, g + 14.7)];
