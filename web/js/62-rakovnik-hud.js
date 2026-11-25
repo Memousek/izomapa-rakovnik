@@ -107,14 +107,14 @@
     const b = $('pocasiRealne');
     if (!b || b.hidden) return;
     b.classList.add('prepinac');
-    b.innerHTML = '<span class="pr-kolej" aria-hidden="true"></span>Skutečné počasí';
+    b.innerHTML = '<span class="pr-kolej" aria-hidden="true"></span>Podle skutečnosti';
     const p = document.createElement('p'); p.className = 'pocasi-ted'; p.id = 'pocasiTed';
     $('weather').after(p);
-    const POC = { clear: 'jasno', rain: 'déšť', snow: 'sníh', fog: 'mlha' };
+    const POC = { clear: 'jasno', rain: 'déšť', snow: 'sníh', fog: 'mlha' }, OBD = { spring: 'jaro', summer: 'léto', autumn: 'podzim', winter: 'zima' };
     const obnov = () => {
       const on = b.getAttribute('aria-pressed') === 'true', ted = ($('predpovedVal') && $('predpovedVal').textContent) || '';
       p.hidden = !on;
-      if (on) p.textContent = ted ? `Nad městem teď ${ted.replace(/^(-?\d+ °C), /, '$1, ')}. Na mapě: ${POC[state.weather]}.` : 'Čekám na údaje z Open-Meteo…';
+      if (on) p.textContent = ted ? `Nad městem teď ${ted.replace(/^(-?\d+ °C), /, '$1, ')}. Na mapě: ${OBD[state.season]}, ${POC[state.weather]}.` : 'Čekám na údaje z Open-Meteo…';
     };
     obnov(); setInterval(obnov, 2000);
     b.addEventListener('click', () => setTimeout(obnov, 50));
