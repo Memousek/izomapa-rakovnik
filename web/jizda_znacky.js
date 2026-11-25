@@ -95,7 +95,9 @@ export function vytvorZnacky(THREE, scene, api) {
     const off = (r.o ? (PUL[r.c] || 3) * 0.7 : PUL[r.c] || 3) + 1.1;
     let x = o.x + hy * off, y = o.y - hx * off;
     if (api.hitBuilding && api.hitBuilding(x, y, 0.2)) { x = o.x + hy * (off - 0.9); y = o.y - hx * (off - 0.9); }
-    return { x, y, z: o.z, hx, hy, ox: o.x, oy: o.y };
+    // výška paty sloupku: terén v místě značky (silnice na náspu nebo ve svahu by ji zabořila); na mostě výška mostovky
+    const zt = api.gz ? api.gz(x, y) : o.z, naMoste = api.gz && o.z - api.gz(o.x, o.y) > 0.8;
+    return { x, y, z: naMoste ? o.z : zt, hx, hy, ox: o.x, oy: o.y };
   }
   function nejblizsi(x, y, max, bezService) {
     let best = null, bd = max;

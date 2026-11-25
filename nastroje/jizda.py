@@ -11,7 +11,7 @@ python nastroje/jizda.py --stranka  jen stránka a svet.js, data čtverců se ne
 -> site/jizda.html               stránka z web/jizda.html (texty z mesto.json)
 Spouštět z kořene repa po ./postav.sh (potřebuje build/**/scene.json a ground_*.png).
 """
-import html, json, os, shutil, sys, time
+import glob, html, json, os, shutil, sys, time
 sys.path.insert(0, '.')
 import geo
 from PIL import Image
@@ -22,6 +22,25 @@ JEN_STRANKA = '--stranka' in sys.argv     # jen site/jizda.html a svet.js (po ú
 OBDOBI = ['summer'] if RYCHLE else ['spring', 'summer', 'autumn', 'winter']
 GROUND_PX = 4096          # podklad terénu (originál 8000 px): ~0,56 m na pixel, pro pohled zblízka dost a stáhne se rychle
 OUT = 'site/jizda'
+
+
+ORTO_M = 0.4               # build/orto04: dlaždice ortofota ČÚZK po 0,4 m/px z nastroje/strechy.py (CC BY 4.0)
+
+
+def orto_ctverec(c, dst):
+    """letecký snímek pro čtverec c: stejný rozsah jako podklad terénu (sever nahoře), GROUND_PX; bez dlaždic nic"""
+    o = f'{dst}/orto.webp'
+    fs = glob.glob('build/orto04/*.jpg')
+    if not fs or (os.path.exists(o) and os.path.getmtime(o) > max(os.path.getmtime(f) for f in fs)): return
+    cx, cy = geo.chunk_center(c); H = geo.HALF; n = int(round(2 * H / ORTO_M))
+    src = geo.chunk_dir(c)
+    img = Image.open(f'{src}/ground_summer.png').convert('RGB').resize((n, n), Image.BILINEAR) if os.path.exists(f'{src}/ground_summer.png') else Image.new('RGB', (n, n))
+    for f in fs:
+        x, y, wh = os.path.basename(f)[:-4].split('_'); w, h = map(int, wh.split('x')); x, y = float(x), float(y)
+        px, py = round((x - (cx - H)) / ORTO_M), round(((cy + H) - y) / ORTO_M)
+        if px >= n or py >= n or px + w <= 0 or py + h <= 0: continue
+        img.paste(Image.open(f).convert('RGB'), (px, py))
+    img.resize((GROUND_PX, GROUND_PX), Image.LANCZOS).save(o, quality=80, method=4)
 
 
 def svet_js():
@@ -43,13 +62,17 @@ def svet_js():
     kod = jednou(kod, "await import('./assets/custom_models.js')",   # bez vlastních modelů žádný požadavek (jinak 404 / stará odpověď v mezipaměti)
                  "await import('./custom_models.js')" if os.path.exists('assets/custom_models.js') else 'await Promise.resolve({})')
     kod = jednou(kod, '`${DIR}/ground_${SEASON}.png`', '`${DIR}/ground_${SEASON}.webp`')
+    # letecký snímek ČÚZK na terénu (orto.webp, viz orto_ctverec): jen mimo zimu (snímek je letní), plynulé filtrování
+    kod = jednou(kod, 'const tex = await load(`${DIR}/ground_${SEASON}.webp`);', '''const tex = await load(`${DIR}/ground_${SEASON}.webp`);
+  const texO = O.orto && SEASON !== 'winter' ? await load(`${DIR}/orto.webp`).catch(() => null) : null;
+  if (texO) { texO.magFilter = THREE.LinearFilter; texO.minFilter = THREE.LinearMipmapLinearFilter; texO.generateMipmaps = true; texO.anisotropy = 8; texO.needsUpdate = true; }''')
     kod = jednou(kod, '`${DIR}/lightmap.png`', '`${DIR}/lightmap.webp`')
     # pixelový rozptyl podle pixelů obrazovky (gl_FragCoord) je v mapě pixel-art, ve 3D z něj je šum, který se při pohybu třpytí
     kod = jednou(kod, 'l = floor(l * 5.0 + hash(floor(gl_FragCoord.xy)) * 0.9) / 5.0;', 'l = l * 0.92;')
     kod = jednou(kod, '&& hash(floor(gl_FragCoord.xy)) > 0.6) col *= 0.93;', '&& hash(floor(vW.xz * 4.0)) > 0.6) col *= 0.93;')
     # počasí ve 3D na terénu: mokrý asfalt po dešti (tmavší, v ostrém úhlu odráží nebe) a postupně bílá zem při sněžení
-    kod = jednou(kod, '{ uTex: { value: tex }, uLmap: { value: lmap } }', '{ uTex: { value: tex }, uLmap: { value: lmap }, uMokro: O.uMokro || { value: 0 }, uSnih: O.uSnih || { value: 0 } }')
-    kod = jednou(kod, 'uniform sampler2D uTex, uLmap;', 'uniform sampler2D uTex, uLmap; uniform float uMokro, uSnih;')
+    kod = jednou(kod, '{ uTex: { value: tex }, uLmap: { value: lmap } }', '{ uTex: { value: tex }, uLmap: { value: lmap }, uMokro: O.uMokro || { value: 0 }, uSnih: O.uSnih || { value: 0 }, uTexO: { value: texO }, uOrto: { value: texO ? 1 : 0 } }')
+    kod = jednou(kod, 'uniform sampler2D uTex, uLmap;', 'uniform sampler2D uTex, uLmap, uTexO; uniform float uMokro, uSnih, uOrto;')
     # ---- kvalita obrazu zblízka (mapa je kreslená pro pohled shora po 0,2 m na pixel, chodec se dívá z 1,7 m) ----
     # detailní textura (stránka: O.uDet, dlaždicový šum s mipmapami; O.uDetS = 0 vše vypne) pro všechny materiály světa
     kod = jednou(kod, 'uniform float uLights; uniform vec2 uOff;', 'uniform float uLights; uniform vec2 uOff; uniform sampler2D uDet; uniform float uDetS; uniform float uOkna;')
@@ -103,6 +126,11 @@ def svet_js():
         col *= 1.0 + k * uDetS;
         col.rg += zel * trs * vec2(0.012, 0.02) * uDetS;                                       // tráva: trsy i v odstínu
       } else col = texture2D(uTex, vUv).rgb;
+      if (uOrto > 0.5) {                                         // letecký snímek ČÚZK: zblízka ostrá kresba, do dálky skutečný povrch (pole, louky, plochy)
+        vec3 o = texture2D(uTexO, vUv).rgb; float lu = dot(o, vec3(0.3, 0.59, 0.11));
+        o = clamp(mix(vec3(lu), o, 1.3) * 1.08, 0.0, 1.0);
+        col = mix(col, o, 0.2 + 0.72 * smoothstep(14.0, 150.0, length(cameraPosition - vW)));
+      }
       if (uMokro > 0.01) {                                       // šedé zpevněné plochy zmoknou nejvíc, tráva a pole málo
         float sat = max(max(col.r, col.g), col.b) - min(min(col.r, col.g), col.b), lum = dot(col, vec3(0.3, 0.59, 0.11));
         float asf = sat < 0.16 ? 1.0 : 0.25;                       // zpevněné plochy (asfalt, dlažba) zmoknou nejvíc
@@ -194,6 +222,7 @@ def main():
             if os.path.exists(f) and (not os.path.exists(o) or os.path.getmtime(o) < os.path.getmtime(f)):
                 Image.open(f).convert('RGB').resize((GROUND_PX, GROUND_PX), Image.LANCZOS).save(o, quality=88, method=4)
         if os.path.exists(f'{src}/lightmap.png'): Image.open(f'{src}/lightmap.png').convert('RGB').save(f'{dst}/lightmap.webp', quality=80)
+        orto_ctverec(c, dst)                                  # letecký snímek na terén (stránka: Grafika → Letecký snímek)
         # chodníky a stezky (prep.py walks: footway, path, pedestrian, cycleway) ve světových souřadnicích pro chodce
         cx, cy = geo.chunk_center(c); info = json.load(open(f'{src}/info_src.json'))
         H = geo.HALF

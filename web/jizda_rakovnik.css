@@ -125,3 +125,8 @@ kbd { font-family: var(--mono) !important; border-radius: 4px; }
   #tacho { width: 84px; height: 84px; font-size: 1.7rem; }
   #pohledBtn { bottom: 112px; }
 }
+
+/* hodiny ve hře v herní liště (jizda.html #hudCas): čas a štítek špičky */
+.hud-cas { padding: 0 10px 0 4px; font: 500 1rem var(--mono); color: var(--s9); white-space: nowrap; }
+.hud-cas b { margin-left: 6px; padding: 2px 6px; border-radius: 6px; background: #f1b23a; color: #3b2600; font: 500 .62rem var(--mono); letter-spacing: .08em; text-transform: uppercase; vertical-align: 2px; }
+.hud-cas b.vik { background: var(--s2); color: var(--s7); }
