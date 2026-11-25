@@ -342,7 +342,7 @@
     const w = { clear: 'jasno', rain: 'déšť', snow: 'sníh', fog: 'mlha' }[state.weather];
     $('vzhledVal').textContent = `${s} · ${t} · ${w}`;
   }
-  document.querySelectorAll('[data-s]').forEach((b) => b.addEventListener('click', () => { if (b.dataset.s !== state.season) $('realWeather').checked = false; setSeason(b.dataset.s); }));
+  document.querySelectorAll('[data-s]').forEach((b) => b.addEventListener('click', () => { if (b.dataset.s !== state.season) { $('realWeather').checked = false; if (casRezim === 'ted') setCas('vlastni'); } setSeason(b.dataset.s); }));   // jiné období než dnešní = už ne Právě teď
   const saveRW = (v) => { try { localStorage.setItem('izo-realweather', v ? '1' : '0'); } catch {} };
   document.querySelectorAll('[data-w]').forEach((b) => b.addEventListener('click', () => { $('realWeather').checked = false; saveRW(false); setWeather(b.dataset.w); ukazRealne(); }));
   applyRealWeather = () => { if ($('realWeather').checked && realWeather) setWeather(realWeather); ukazRealne(); };
@@ -384,6 +384,7 @@
     document.querySelectorAll('[data-cas]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cas === m)));
     $('realTime').checked = m === 'ted'; saveRT(m === 'ted');
     if ({{POCASI}} && m === 'ted') { $('realWeather').checked = true; if (uloz) saveRW(true); applyRealWeather(); ukazRealne(); }   // Právě teď = i skutečné počasí
+    if (m === 'ted' && state.season !== OBDOBI_MESIC[new Date().getMonth()] && !(state.season === 'winter' && [2, 10].includes(new Date().getMonth()))) setSeason(OBDOBI_MESIC[new Date().getMonth()]);   // Právě teď = i dnešní roční období (sníh v březnu a listopadu nechá zimu)
     $('casPauza').hidden = m !== 'samo';
     if (m === 'samo') { samoPauza = false; $('casPauza').textContent = 'Zastavit čas'; samoT0 = performance.now() / 1000 - Math.acos(1 - 2 * state.night) / (2 * Math.PI) * SAMO_S; }
     if (uloz) try { localStorage.setItem('izo-cas', m); } catch {}
