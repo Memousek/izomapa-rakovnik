@@ -256,7 +256,7 @@ button { font: inherit; color: inherit; }
         <button type="button" class="pol" role="tab" data-tab="nav" aria-controls="pnNav">Navigace</button>
         <button type="button" class="pol" role="tab" data-tab="spoje" aria-controls="pnSpoje">Autobusy a vlaky</button>
         <button type="button" class="pol" role="tab" data-tab="cas" aria-controls="pnCas">Čas a počasí</button>
-        <button type="button" class="pol" role="tab" data-tab="grafika" aria-controls="pnGrafika">Grafika</button>
+        <button type="button" class="pol" role="tab" data-tab="grafika" aria-controls="pnGrafika">Nastavení</button>
         <button type="button" class="pol" role="tab" data-tab="ovladani" aria-controls="pnOvl">Ovládání</button>
         <div class="mezera"></div>
         <div id="zvukbox"></div>
@@ -287,14 +287,8 @@ button { font: inherit; color: inherit; }
     <label class="rt"><input type="checkbox" id="realPocasi" checked> Podle skutečného počasí</label>
   </div>
         </section>
-        <section class="panel" data-panel="grafika" id="pnGrafika" role="tabpanel" hidden><h2>Grafika <small id="grafVal"></small></h2>
-          <div class="grafv" id="grafika" role="group" aria-label="Dohled a kvalita">
-            <button type="button" class="px-btn" data-g="nizka">Nízká</button><button type="button" class="px-btn" data-g="stredni">Střední</button><button type="button" class="px-btn" data-g="vysoka">Vysoká</button><button type="button" class="px-btn" data-g="ultra">Ultra</button>
-          </div>
-          <p class="rt" id="grafPopis"></p>
-          <label class="rt"><input type="checkbox" id="autoRes" checked> Automatické rozlišení (při nízkém fps sníží ostrost, ať hra běží plynule)</label>
-          <label class="rt"><input type="checkbox" id="fpsChk"> Ukazovat fps</label>
-          <label class="rt"><input type="checkbox" id="ortoChk"> Letecký snímek terénu (ortofoto ČÚZK; po změně se svět načte znovu)</label>
+        <section class="panel nast" data-panel="grafika" id="pnGrafika" role="tabpanel" hidden><h2>Nastavení <small id="grafVal"></small></h2>
+          <div id="nastaveni"></div>
         </section>
         <section class="panel ovl" data-panel="ovladani" id="pnOvl" role="tabpanel" hidden><h2>Ovládání</h2><dl>
     <dt>WASD / šipky</dt><dd>chůze, v autě plyn (W, ↑), brzda (S) a zatáčení (A, D)</dd>
@@ -347,6 +341,7 @@ import { postavCtverec } from './jizda/svet.js';
 import { vytvorNavigaci } from './jizda/navigace.js';
 import { vytvorPostavy } from './jizda/postavy.js';
 import { vytvorKokpit } from './jizda/kokpit.js';
+import { nactiNastaveni, vykresliNastaveni, PREDVOLBY, smiPohyb } from './jizda/nastaveni.js';
 import { vytvorLidi } from './jizda/lide.js';
 import { vytvorVozidla } from './jizda/vozidla.js';
 import { vytvorHru } from './jizda/hra.js';
@@ -394,25 +389,23 @@ const GRAFIKA = {
   vysoka: { nazev: 'Vysoká', stromy: 130, ctverce: 1300, opar: 3400, auta: 900 },
   ultra: { nazev: 'Ultra', stromy: 220, ctverce: 1800, opar: 4500, auta: 1300 },
 };
-let GRAF = 'stredni';
-try { const g = localStorage.getItem('izo-3d-grafika'); GRAF = GRAFIKA[g] ? g : (DOTYK ? 'nizka' : 'stredni'); } catch { GRAF = DOTYK ? 'nizka' : 'stredni'; }
+// nastavení (jizda/nastaveni.js): předvolba grafiky a každá volba zvlášť, kamera, přístupnost; pamatuje se v prohlížeči
+const NAST = nactiNastaveni({ dotyk: DOTYK });
+let GRAF = NAST.preset;
 // letecký snímek na terénu (jizda/c*/orto.webp): výchozí od Střední grafiky, volba se pamatuje; změna = nové načtení světa
-let ORTO = GRAF !== 'nizka';
+let ORTO = !!NAST.orto;
 // textury povrchů (jizda/textury, CC0 ambientCG): jednou pro všechny čtverce, s mipmapami a opakováním; na Nízké grafice ne
-const TEXTURY = GRAF === 'nizka' ? null : (() => {
+const TEXTURY = !NAST.textury ? null : (() => {
   const L = new THREE.TextureLoader(), t = {};
   for (const k of ['asfalt', 'trava', 'dlazba', 'sterk', 'omitka', 'cihly', 'beton', 'kamen', 'tasky', 'plech']) {
     t[k] = L.load(`jizda/textury/${k}.webp`); t[k].wrapS = t[k].wrapT = THREE.RepeatWrapping; t[k].anisotropy = 8; t[k].colorSpace = THREE.NoColorSpace;
   }
   return t;
 })();
-try { const o = localStorage.getItem('izo-3d-orto'); if (o) ORTO = o === '1'; } catch {}
-$('ortoChk').checked = ORTO;
-$('ortoChk').addEventListener('change', (e) => { try { localStorage.setItem('izo-3d-orto', e.target.checked ? '1' : '0'); } catch {} location.reload(); });
 const KVALITA = Q.has('kvalita') ? Math.max(0, Math.min(2, +Q.get('kvalita') || 0)) : DOTYK ? 1 : 2;
 const renderer = new THREE.WebGLRenderer({ antialias: false });   // kreslí se přes texturu (rtDen), vyhlazení hran je tam
 renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-renderer.setPixelRatio(Math.min(devicePixelRatio || 1, DOTYK ? 1 : 1.5));
+renderer.setPixelRatio(Math.max(0.5, Math.min(devicePixelRatio || 1, DOTYK ? 1 : 1.5) * NAST.rozliseni / 100));
 renderer.setSize(innerWidth, innerHeight);
 const NEBE = OBD === 'winter' ? 0xb9cadb : 0x9cc4e4;
 renderer.setClearColor(NEBE);
@@ -499,13 +492,13 @@ else {
 function velikostRT() { const w = Math.round(innerWidth * renderer.getPixelRatio()), h = Math.round(innerHeight * renderer.getPixelRatio()); rtDen.setSize(w, h); rtSvetla.setSize(w, h); if (typeof slozeni !== 'undefined') slozeni.material.uniforms.uPx.value.set(1 / w, 1 / h); }
 const slozeni = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
   uniforms: { tD: { value: rtDen.texture }, tZ: { value: rtDen.depthTexture }, tL: { value: rtSvetla.texture }, uN: { value: 0 }, uG: { value: 0 },
-              uSvetla: { value: 0 }, uMlha: { value: 1 / GRAFIKA[GRAF].opar }, uMlhaC: { value: new THREE.Color(0.74, 0.78, 0.83) }, uZat: { value: 0 }, uNear: { value: 0.1 }, uFar: { value: 3000 }, uPx: { value: new THREE.Vector2(1, 1) }, uAA: { value: KVALITA > 0 ? 1 : 0 },
+              uSvetla: { value: 0 }, uMlha: { value: 1 / NAST.opar }, uMlhaC: { value: new THREE.Color(0.74, 0.78, 0.83) }, uZat: { value: 0 }, uNear: { value: 0.1 }, uFar: { value: 3000 }, uPx: { value: new THREE.Vector2(1, 1) }, uAA: { value: KVALITA > 0 ? 1 : 0 },
               // vzhled (Rakovník): obloha, záře světel, blikání, filmové tónování; uFx 0 = vypnuto, 1 = bez záře a zrna, 2 = vše
               uFx: { value: 2 }, uCas: { value: 0 }, uSun: { value: null },
               uInvP: { value: new THREE.Matrix4() }, uCamW: { value: new THREE.Matrix4() }, uSunScr: { value: new THREE.Vector3(0.5, 0.5, 0) },
               // stín v koutech (SSAO, Vysoká a Ultra) a odrazy na mokré zemi (uMokro z počasí); uVP a uP11 z kamery každý snímek
-              uAO: { value: GRAF === 'vysoka' || GRAF === 'ultra' ? 1 : 0 }, uP11: { value: 1 }, uMokro: { value: 0 }, uVP: { value: new THREE.Matrix4() },
-              uOdraz: { value: GRAF === 'ultra' ? 2 : GRAF === 'vysoka' ? 1 : 0 } },   // odrazy na mokru: 0 vypnuto, 1 levné (Vysoká), 2 plné (Ultra)
+              uAO: { value: NAST.ssao ? 1 : 0 }, uP11: { value: 1 }, uMokro: { value: 0 }, uVP: { value: new THREE.Matrix4() },
+              uOdraz: { value: NAST.odrazy } },   // odrazy na mokru: 0 vypnuto, 1 levné (Vysoká), 2 plné (Ultra)
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
   fragmentShader: /* glsl */`
     uniform sampler2D tD, tZ, tL; uniform float uN, uG, uSvetla, uMlha, uZat, uNear, uFar, uAA; uniform vec3 uMlhaC; uniform vec2 uPx; varying vec2 vUv;
@@ -731,7 +724,7 @@ function krokPocasi(dt, cas) {
     const u = o.material.uniforms; u.uT.value = cas; u.uI.value = i; u.uCam.value.copy(camera.position); u.uVitr.value.set(POC.vitr[0], POC.vitr[1]);
   }
   const s = slozeni.material.uniforms;
-  const opar = GRAFIKA[GRAF].opar;
+  const opar = NAST.opar;
   s.uMlha.value = 1 / opar + WXI.mlha * (1 / 85 - 1 / opar);    // jasno: lehký opar v dálce (podle volby grafiky), mlha: dohled ~100 m
   s.uZat.value = WXI.zat;
   const M = POVRCH.uMokro, Sn = POVRCH.uSnih, tepl = POC.real && $('realPocasi').checked ? POC.real.t : (POC.w === 'snow' ? -2 : 8);
@@ -757,7 +750,7 @@ const sunL = new THREE.DirectionalLight(0xffffff, 1.25); sunL.position.set(0.38,
 // auta, lidé a stromy (na Ultra i domy, ostřeji). Shadery světa ji čtou přes O.stinN (nastroje/jizda.py, shadowN).
 const SLUNCE = new THREE.Vector3(0.38, 0.62, 0.68).normalize();
 slozeni.material.uniforms.uSun.value = SLUNCE;               // nebe a paprsky podle stejného slunce jako svět
-const STIN_ROZ = { nizka: 0, stredni: 0, vysoka: 1, ultra: 2 }[GRAF] || 0;
+const STIN_ROZ = NAST.stiny || 0;
 const STIN_N = { map: { value: null }, mat: { value: sunL.shadow.matrix }, on: { value: STIN_ROZ }, px: { value: new THREE.Vector2(1, 1) } };
 const STIN_R = STIN_ROZ > 1 ? 90 : 60, STIN_PX = STIN_ROZ > 1 ? 4096 : 2048;
 if (STIN_ROZ) {
@@ -1473,6 +1466,7 @@ const ORBIT_PITCH = 0.3;
 const orbit = { yaw: 0, pitch: ORBIT_PITCH, look: 0, dist: 8.5, t: -1e9, snap: true };
 const wrapA = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 function rozhled(mx, my) {                                 // posun myši nebo prstu v pixelech -> otočení pohledu
+  const cit = NAST.citlivost / 100; mx *= cit; my *= cit * (NAST.invertY ? -1 : 1);   // citlivost a obrácená osa (nastavení)
   if (hrac.vAuto || hrac.bus !== null) {
     orbit.t = performance.now();
     if (hrac.kabina) { orbit.yaw = clamp(orbit.yaw - mx * 0.003, -1.9, 1.9); orbit.look = clamp(orbit.look - my * 0.0025, -0.5, 0.45); }
@@ -1985,13 +1979,13 @@ function kuzel(x, y, z, h, k) {
 }
 // ukazatel fps; automatické rozlišení (drží plynulost). Stěrače jsou v kokpitu (jizda/kokpit.js), ne vrstva přes obraz.
 const FPSBOX = $('fpsBox');
-const PR_MAX = Math.min(devicePixelRatio || 1, DOTYK ? 1 : 1.5);
+let PR_MAX = Math.max(0.5, Math.min(devicePixelRatio || 1, DOTYK ? 1 : 1.5) * NAST.rozliseni / 100);   // nejvyšší ostrost podle nastavení
 let PR = PR_MAX, resT = 0;
 function grafikaPrubezne(now, fps) {
-  const ukaz = $('fpsChk').checked;
+  const ukaz = !!NAST.fps;
   if (FPSBOX.hidden === ukaz) FPSBOX.hidden = !ukaz;
   if (ukaz) FPSBOX.textContent = `${fps} fps · ${Math.round(PR * 100)} %`;
-  if ($('autoRes').checked && !MENU.open && document.visibilityState === 'visible' && now - resT > 2500 && fps > 0) {
+  if (NAST.autoRes && !MENU.open && document.visibilityState === 'visible' && now - resT > 2500 && fps > 0) {
     resT = now;
     const nove = fps < 38 && PR > 0.6 ? Math.max(0.6, PR - 0.15) : fps > 57 && PR < PR_MAX ? Math.min(PR_MAX, PR + 0.1) : PR;
     if (nove !== PR) { PR = nove; renderer.setPixelRatio(PR); renderer.setSize(innerWidth, innerHeight); velikostRT(); }
@@ -1999,7 +1993,7 @@ function grafikaPrubezne(now, fps) {
 }
 
 // ---------- načítání čtverců kolem hráče ----------
-let DOSAH = GRAFIKA[GRAF].ctverce, PRYC = DOSAH + 1000;   // podle volby grafiky (na telefonu výchozí méně: paměť grafiky)
+let DOSAH = NAST.ctverce, PRYC = DOSAH + 1000;   // podle volby grafiky (na telefonu výchozí méně: paměť grafiky)
 async function spravaCtvercu() {
   if (building) return;
   const want = CHUNKS.map(([i, j]) => ({ i, j, d: Math.hypot(Math.max(0, Math.abs(hrac.x - i * S2) - HALF), Math.max(0, Math.abs(hrac.y - j * S2) - HALF)) }))
@@ -2035,7 +2029,7 @@ function vykresli(dt = 0.016) {
   s.uN.value = uN; s.uG.value = uG; s.uSvetla.value = uN > 0.005 ? 1 : 0; s.uNear.value = camera.near; s.uFar.value = camera.far;
   s.uCas.value = performance.now() / 1000; s.uInvP.value.copy(camera.projectionMatrixInverse); s.uCamW.value.copy(camera.matrixWorld);
   s.uVP.value.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); s.uP11.value = camera.projectionMatrix.elements[5]; s.uMokro.value = POVRCH.uMokro.value;
-  s.uFx.value = KVALITA === 0 ? 0 : GRAF === 'nizka' || DOTYK ? 1 : 2;
+  s.uFx.value = KVALITA === 0 ? 0 : Math.min(NAST.efekty, DOTYK || NAST.menePohybu ? 1 : 2);   // méně pohybu: bez blikání a zrna
   {                                                           // poloha slunce na obrazovce pro paprsky; síla podle toho, jak moc se díváme ke slunci
     const sp = camera.position.clone().add(s.uSun.value.clone().multiplyScalar(1000)).project(camera), k = fwd.dot(s.uSun.value);
     s.uSunScr.value.set(sp.x * 0.5 + 0.5, sp.y * 0.5 + 0.5, sp.z < 1 && k > 0 ? Math.min(1, k * 1.4) * (1 - uN) * (1 - WXI.zat * 0.8) : 0);
@@ -2055,22 +2049,31 @@ function vykresli(dt = 0.016) {
 }
 
 // ---------- prostorové stromy u kamery (jizda/stromy.js; dál zůstávají billboardy z render.html) ----------
-const STROMY = vytvorStromy(THREE, scene3, { obdobi: OBD, blizko: GRAFIKA[GRAF].stromy, max: DOTYK ? 6000 : 14000, limit: DOTYK ? 2500 : 14000 });
-function nastavGrafiku(k) {
-  if (!GRAFIKA[k]) return;
-  GRAF = k; const g = GRAFIKA[k];
-  try { localStorage.setItem('izo-3d-grafika', k); } catch {}
-  STROMY.nastavDosah(g.stromy, DOTYK ? Math.min(6000, g.stromy * 45) : 14000);
-  DOSAH = g.ctverce; PRYC = DOSAH + 1000;
-  document.querySelectorAll('#grafika button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.g === k)));
-  $('grafVal').textContent = g.nazev;
-  $('grafPopis').textContent = `3D stromy do ${g.stromy} m, auta do ${g.auta} m, město do ${g.ctverce} m, opar od ${(g.opar / 1000).toFixed(1).replace('.', ',')} km` + (k === 'ultra' || k === 'vysoka' ? ' · náročnější na grafickou kartu' : '');
+const STROMY = vytvorStromy(THREE, scene3, { obdobi: OBD, blizko: NAST.stromy, max: DOTYK ? 6000 : 14000, limit: DOTYK ? 2500 : 14000 });
+// ---------- nastavení: panel (jizda/nastaveni.js) a okamžité použití změn ----------
+function pouzijNastaveni(k, v) {
+  const s = slozeni.material.uniforms;
+  if (k === 'ctverce') { DOSAH = v; PRYC = DOSAH + 1000; }
+  else if (k === 'stromy') STROMY.nastavDosah(v, DOTYK ? Math.min(6000, v * 45) : 14000);
+  else if (k === 'ssao') s.uAO.value = v ? 1 : 0;
+  else if (k === 'odrazy') s.uOdraz.value = v;
+  else if (k === 'rozliseni') { PR_MAX = Math.max(0.5, Math.min(devicePixelRatio || 1, DOTYK ? 1 : 1.5) * v / 100); PR = PR_MAX; renderer.setPixelRatio(PR); renderer.setSize(innerWidth, innerHeight); velikostRT(); }
+  else if (k === 'fov') { camera.fov = v; camera.updateProjectionMatrix(); }
+  GRAF = NAST.preset;
+  $('grafVal').textContent = PREDVOLBY[NAST.preset]?.nazev || 'Vlastní';
+  vzhledRozhrani();
 }
-document.querySelectorAll('#grafika button').forEach((b) => b.addEventListener('click', () => { b.blur(); nastavGrafiku(b.dataset.g); }));
-nastavGrafiku(GRAF);
+function vzhledRozhrani() {                                  // přístupnost a tečka uprostřed: třídy na <body>, velikost písma
+  document.body.classList.toggle('mene-pohybu', !!NAST.menePohybu);
+  document.body.classList.toggle('kontrast', !!NAST.kontrast);
+  document.documentElement.style.fontSize = NAST.pismo === 100 ? '' : `${NAST.pismo}%`;
+  $('zamer').hidden = !NAST.zamer;
+}
+const NAST_PANEL = vykresliNastaveni($('nastaveni'), NAST, pouzijNastaveni);
+pouzijNastaveni('fov', NAST.fov);
 // dopravní značky podle skutečnosti (jizda/znacky.js; data z OSM: nastroje/znacky.py)
 // tráva a keře kolem hráče jen na zelených místech podkladu (jizda/okraje.js); na Nízké grafice ne
-const OKRAJE = GRAF === 'nizka' ? null : vytvorOkraje(THREE, scene3, { gz, hitBuilding, obdobi: OBD, jenVeDne, HALF });
+const OKRAJE = !NAST.zelen ? null : vytvorOkraje(THREE, scene3, { gz, hitBuilding, obdobi: OBD, jenVeDne, HALF });
 // zorné pole podle rychlosti, chvění kamery, krok pěšky, padající listí na podzim (jizda/efekty.js)
 const EFEKTY = vytvorEfekty(THREE, scene3, camera, { obdobi: OBD, jenVeDne });
 // vodorovné značení ostře z dat silnic (jizda/znaceni.js); podklad terénu je ho zbavený
@@ -2113,8 +2116,7 @@ function hustota() {
 }
 // postavy s kostrou (jizda/postavy.js, CC0 Quaternius): nejbližší chodci a hráč; počet podle grafiky (Nízká = žádné)
 const POSTAVY = vytvorPostavy(THREE, scene3, { jenVeDne });
-const LOUTEK = { nizka: 0, stredni: 10, vysoka: 20, ultra: 32 }[GRAF] || 0;
-const LIDE_API = { postavy: LOUTEK ? POSTAVY : null, loutek: () => LOUTEK, obdobi: OBD, kamera: () => ({ x: camera.position.x, y: -camera.position.z }), gz, hitBuilding, roads, along, hrac, nah, doba: () => DOBA.n, zastavky: ZAST, hustota, boj: null, dest: () => WXI.dest, hodina: () => hodina(), vikend: () => vikend(),
+const LIDE_API = { postavy: POSTAVY, loutek: () => NAST.postavy, obdobi: OBD, kamera: () => ({ x: camera.position.x, y: -camera.position.z }), gz, hitBuilding, roads, along, hrac, nah, doba: () => DOBA.n, zastavky: ZAST, hustota, boj: null, dest: () => WXI.dest, hodina: () => hodina(), vikend: () => vikend(),
   prechody: { na: (r) => ZNACKY.prechodyNa(r), blizko: (x, y, R) => ZNACKY.prechodBlizko(x, y, R) } };   // chodci přecházejí na přechodech (jizda/znacky.js)
 const LIDE = vytvorLidi(THREE, scene3, LIDE_API);
 jenVeDne.push(...LIDE.telesa);
@@ -2232,7 +2234,7 @@ function frame(now) {
   carGaps();
   mrizkaVozidel();
   VOZ.zacni(hrac.x, hrac.y);
-  const dohledAut = GRAFIKA[GRAF].auta, sviti0 = DOBA.n > 0.3;
+  const dohledAut = NAST.auta, sviti0 = DOBA.n > 0.3;
   KUZELY.n = 0; KUZELY.mesh.count = 0;
   for (const c of cars) {
     const p = carPose(c);
@@ -2299,7 +2301,7 @@ function frame(now) {
       { troubi: keys.has('KeyH'), blinkr: BL.strana, blik: Math.floor(performance.now() / 380) % 2 === 0, dest: WXI.dest, snih: WXI.snih });
     if (hrac.kabina) {                                      // z kabiny: interiér, ruce na volantu, pohyb hlavy (jizda/kokpit.js)
       mojeAuto.visible = false;
-      KOKPIT.kamera(camera, fwd, orbit.yaw, orbit.look);
+      KOKPIT.kamera(camera, fwd, orbit.yaw, orbit.look, smiPohyb(NAST, 'naklon'));
     } else {
       mojeAuto.visible = true;
       kameraKolem(c.x, c.y, z, c.h, 1.3, orbit.dist, dt);
@@ -2348,6 +2350,7 @@ function frame(now) {
   STROMY.update(camera.position.x, -camera.position.z, camera.position.y);
   PTACI.update(dt, now / 1000, hrac, DOBA.n, WXI.zat, WXI.dest);
   EFEKTY.update(dt, now / 1000, { veVoze: hrac.vAuto || hrac.bus !== null, pesky: !hrac.vAuto && hrac.bus === null && SLED.i === null, zOci: !!hrac.zOci,
+    fov0: NAST.fov, fovRychlost: smiPohyb(NAST, 'fovRychlost'), houpani: smiPohyb(NAST, 'houpani'), chveni: smiPohyb(NAST, 'chveni'),
     vitr: Array.isArray(POC.vitr) ? POC.vitr : [0, 0], stromy: (x, y, R) => STROMY.listnate(x, y, R) }, gz, hrac);
   if (OKRAJE) OKRAJE.update(hrac);
   ZNACENI.update(hrac);
@@ -2371,7 +2374,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') window.__jizda = { FSD, fsdPrepni, hitBuilding, ramenoVolne, SLUNCE, sunL, WXI, WX_CIL, KOKPIT, DEST, SRAZKY_UVNITR, UZ, CAM, carPose, MRIZ, GARAZ, KONFIG, KUZELY, BL, OKNA, hodina, ULICE, ZNACKY, nastavGrafiku, parkovana, PARK, DETAIL, KVALITA, rtDen, slozeni, POVRCH, STROMY, HRA, ZVUK, hustota, hrac, orbit, gz, vyska, DOBA, NAV, LIDE, ZAST, busBlizko, cars, roads, DOPR, HRACI, CH, SIG, sigPosts, MHD, RT, keys, camera, scene3, renderer, nastoupit, snimek: (ms = 16) => { last = performance.now() - ms; frame(performance.now()); } };
+if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') window.__jizda = { FSD, fsdPrepni, hitBuilding, ramenoVolne, SLUNCE, sunL, WXI, WX_CIL, KOKPIT, DEST, SRAZKY_UVNITR, UZ, CAM, carPose, MRIZ, GARAZ, KONFIG, KUZELY, BL, OKNA, hodina, ULICE, ZNACKY, NAST, parkovana, PARK, DETAIL, KVALITA, rtDen, slozeni, POVRCH, STROMY, HRA, ZVUK, hustota, hrac, orbit, gz, vyska, DOBA, NAV, LIDE, ZAST, busBlizko, cars, roads, DOPR, HRACI, CH, SIG, sigPosts, MHD, RT, keys, camera, scene3, renderer, nastoupit, snimek: (ms = 16) => { last = performance.now() - ms; frame(performance.now()); } };
 </script>
 </body>
 </html>

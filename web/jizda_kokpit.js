@@ -228,13 +228,14 @@ export function vytvorKokpit(THREE, scene, { jenVeDne = [] } = {}) {
       if ((tBud += dt) > 0.1 || sip !== this._sip) { tBud = 0; this._sip = sip; kresliBudiky(kmh, otacky, sip); }
     },
     // kamera řidiče: oči nad sedadlem, pohyb hlavy, rozhlížení myší (yaw, look) a pohled do zatáčky
-    kamera(camera, fwd, yaw, look) {
-      const oko = new THREE.Vector3(0.02 + hlava.x, 1.27, -0.38 + hlava.z).applyMatrix4(g.matrixWorld);
+    kamera(camera, fwd, yaw, look, naklon = true) {           // naklon: pohyb hlavy (nastavení; při „méně pohybu“ vypnutý)
+      const hx = naklon ? hlava.x : 0, hz = naklon ? hlava.z : 0, hn = naklon ? hlava.nahl : 0;
+      const oko = new THREE.Vector3(0.02 + hx, 1.27, -0.38 + hz).applyMatrix4(g.matrixWorld);
       camera.position.copy(oko);
-      const a = yaw + hlava.nahl;
+      const a = yaw + hn;
       fwd.set(Math.cos(a) * Math.cos(look), Math.sin(look) - 0.04, -Math.sin(a) * Math.cos(look)).applyQuaternion(g.quaternion).normalize();
       camera.lookAt(camera.position.clone().add(fwd));
-      camera.rotateZ(-hlava.z * 0.6);                        // hlava se v zatáčce i lehce nakloní
+      if (hz) camera.rotateZ(-hz * 0.6);                        // hlava se v zatáčce i lehce nakloní
     },
   };
 }
