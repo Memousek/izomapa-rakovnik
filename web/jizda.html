@@ -682,7 +682,7 @@ async function nactiCtverec(i, j) {
   CH.set(key, { loading: true, cx, cy });
   $('stav').textContent = `Stavím čtverec ${i}, ${j}…`;
   await new Promise((r) => setTimeout(r, 30));             // ať se stihne vykreslit zpráva
-  const res = await postavCtverec(THREE, renderer, { dir: `jizda/${key}`, obdobi: OBD, orto: ORTO, stin: DOTYK ? 2048 : 4096, uMokro: POVRCH.uMokro, uSnih: POVRCH.uSnih, uDet: DETAIL.uDet, uDetS: DETAIL.uDetS, uOkna: OKNA });
+  const res = await postavCtverec(THREE, renderer, { dir: `jizda/${key}`, obdobi: OBD, orto: ORTO, cx, cy, stin: DOTYK ? 2048 : 4096, uMokro: POVRCH.uMokro, uSnih: POVRCH.uSnih, uDet: DETAIL.uDet, uDetS: DETAIL.uDetS, uOkna: OKNA });
   if (POVRCH.zimni) for (const m of res.allMats) if (m.uniforms?.uSeason) m.uniforms.uSeason.value = 3;
   const grp = new THREE.Group();
   while (res.world.children.length) grp.add(res.world.children[0]);

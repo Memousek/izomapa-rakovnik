@@ -65,8 +65,28 @@ def svet_js():
     # letecký snímek ČÚZK na terénu (orto.webp, viz orto_ctverec): jen mimo zimu (snímek je letní), plynulé filtrování
     kod = jednou(kod, 'const tex = await load(`${DIR}/ground_${SEASON}.webp`);', '''const tex = await load(`${DIR}/ground_${SEASON}.webp`);
   const texO = O.orto && SEASON !== 'winter' ? await load(`${DIR}/orto.webp`).catch(() => null) : null;
-  if (texO) { texO.magFilter = THREE.LinearFilter; texO.minFilter = THREE.LinearMipmapLinearFilter; texO.generateMipmaps = true; texO.anisotropy = 8; texO.needsUpdate = true; }''')
+  if (texO) { texO.magFilter = THREE.LinearFilter; texO.minFilter = THREE.LinearMipmapLinearFilter; texO.generateMipmaps = true; texO.anisotropy = 8; texO.needsUpdate = true; }
+  O._texO = texO;   // pro mosty a násypy níž (texO je v bloku terénu)''')
     kod = jednou(kod, '`${DIR}/lightmap.png`', '`${DIR}/lightmap.webp`')
+    # mosty, násypy, zdi a ploty (buffer L): ve 3D s leteckým snímkem na plochách směřujících nahoru (mostovka, svah násypu,
+    # vršek zdi či živého plotu), aby navazovaly na terén s ortofotem. Snímek se mapuje ze světa podle středu čtverce (O.cx, O.cy).
+    kod = jednou(kod, '  world.add(new THREE.Mesh(geom(L), solidMat));', """  const mostMat = O._texO ? mat(`
+  uniform sampler2D uTexO; uniform vec2 uC; uniform float uHalf;
+  varying vec3 vC; varying vec3 vN; varying vec3 vW; varying vec4 vA;
+  void main(){
+    if (uLights > 0.5) { gl_FragColor = vec4(vA.x > 0.5 ? vec3(1.0, 0.86, 0.6) * vA.x : vec3(0.0), 1.0); return; }
+    vec3 n = fn(normalize(vN));
+    vec3 col = vC;
+    if (n.y > 0.55) {
+      vec2 uv = vec2((vW.x - uC.x + uHalf) / (2.0 * uHalf), (-vW.z - uC.y + uHalf) / (2.0 * uHalf));
+      vec3 o = texture2D(uTexO, uv).rgb; float lu = dot(o, vec3(0.3, 0.59, 0.11));
+      o = clamp(mix(vec3(lu), o, 1.3) * 1.08, 0.0, 1.0);
+      col = mix(col, o, (0.3 + 0.62 * smoothstep(14.0, 150.0, length(cameraPosition - vW))) * smoothstep(0.55, 0.8, n.y));
+    }
+    if (winter() && vA.z > 0.5 && n.y > 0.6) col = SNOW;
+    gl_FragColor = vec4(shade(col, n, vW), 1.0);
+  }`, { uTexO: { value: O._texO }, uC: { value: new THREE.Vector2(O.cx || 0, O.cy || 0) }, uHalf: { value: HALF } }, THREE.DoubleSide) : null;
+  world.add(new THREE.Mesh(geom(L), mostMat || solidMat));""")
     # pixelový rozptyl podle pixelů obrazovky (gl_FragCoord) je v mapě pixel-art, ve 3D z něj je šum, který se při pohybu třpytí
     kod = jednou(kod, 'l = floor(l * 5.0 + hash(floor(gl_FragCoord.xy)) * 0.9) / 5.0;', 'l = l * 0.92;')
     kod = jednou(kod, '&& hash(floor(gl_FragCoord.xy)) > 0.6) col *= 0.93;', '&& hash(floor(vW.xz * 4.0)) > 0.6) col *= 0.93;')
