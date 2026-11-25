@@ -355,24 +355,32 @@
 
       PLANES.drawn.push([X_pl, Y_pl, p]);
 
-      // Noční poziční světla
-      if (night > 0.25) {
+      // Poziční a výstražná světla: červené na levém křídle, zelené na pravém, bílé vzadu; vidět jsou jen z těch směrů, odkud svítí
+      // (jako ve skutečnosti: červené z úhlu −10° až 110° vlevo od nosu, zelené z 10° vpravo až 110°, bílé zadní z ±110° až 180°).
+      // Kamera je na jihozápadě, tj. dívá se na severovýchod. Bílý strobo a červený maják blikají i ve dne.
+      {
         const a = k / NDIR * Math.PI * 2, fx_ = Math.cos(a), fy_ = Math.sin(a), sxv = -fy_, syv = fx_;
-        const tipW = p.cat === 'jet' ? 13.0 : 5.6, tipS = p.cat === 'jet' ? -4.5 : 0.2, tipZ = p.cat === 'jet' ? 0.2 : 1.08;
-        const P_light = (s, t, h) => {
-          const pt = toImg(p.x + fx_ * s + sxv * t, p.y + fy_ * s + syv * t, gz0 + vH + h);
+        const jt = p.cat === 'jet';
+        const tipW = jt ? 13.0 : 5.6, tipS = jt ? -4.5 : 0.2, tipZ = jt ? 0.2 : 1.08;
+        const P_light = (s_, t_, h_) => {
+          const pt = toImg(p.x + fx_ * s_ + sxv * t_, p.y + fy_ * s_ + syv * t_, gz0 + vH + h_);
           return [Math.round(ox + pt[0] * sx), Math.round(oy + pt[1] * sx)];
         };
-        NL_planes.push({ p: P_light(tipS, -tipW, tipZ), col: '#ff2828', size: Math.max(2, Math.round(3 * sx)) });
-        NL_planes.push({ p: P_light(tipS, tipW, tipZ), col: '#22ff44', size: Math.max(2, Math.round(3 * sx)) });
-        const strobeOn = (Math.floor(now / 400) % 3 === 0);
-        if (strobeOn) {
-          const finS = p.cat === 'jet' ? -13.8 : -4.2, finZ = p.cat === 'jet' ? 4.8 : 2.1;
-          NL_planes.push({ p: P_light(finS, 0, finZ), col: '#ffffff', size: Math.max(3, Math.round(4 * sx)), glow: true });
+        const hx = Math.sin(rad), hy = Math.cos(rad), vx = -Math.SQRT1_2, vy = -Math.SQRT1_2;   // směr letu a směr ke kameře (x východ, y sever)
+        const phi = Math.atan2(hx * vy - hy * vx, hx * vx + hy * vy) * 180 / Math.PI;           // > 0: kamera je vlevo od směru letu
+        const sz = Math.max(3, Math.round(4 * sx));
+        if (night > 0.25) {
+          if (phi > -10 && phi < 110) NL_planes.push({ p: P_light(tipS, tipW, tipZ), col: '#ff2a2a', glowC: '255,40,40', size: sz, glow: true });
+          if (phi < 10 && phi > -110) NL_planes.push({ p: P_light(tipS, -tipW, tipZ), col: '#22ff55', glowC: '40,255,90', size: sz, glow: true });
+          if (Math.abs(phi) > 110) NL_planes.push({ p: P_light(jt ? -14 : -4.4, 0, jt ? 0.5 : tipZ * 0.9), col: '#fffbe8', glowC: '255,250,220', size: sz, glow: true });
         }
-        const beaconOn = (Math.floor(now / 500) % 2 === 0);
-        if (beaconOn) {
-          NL_planes.push({ p: P_light(0, 0, -1.1), col: '#ff2222', size: Math.max(2, Math.round(3.5 * sx)), glow: true });
+        let hs = 0; for (const c_ of String(id)) hs = (hs * 31 + c_.charCodeAt(0)) | 0;           // každé letadlo bliká v jiné fázi
+        const ph = (now + Math.abs(hs) % 1200) % 1200;                                          // strobo: dvojitý záblesk co 1,2 s
+        if (ph < 90 || (ph > 190 && ph < 280)) {
+          NL_planes.push({ p: P_light(jt ? -13.8 : -4.2, 0, jt ? 4.8 : 2.1), col: '#ffffff', glowC: '255,255,255', size: Math.round(sz * 1.5), glow: true });
+        }
+        if ((now + Math.abs(hs) % 1000) % 1000 < 450) {                                         // maják na trupu
+          NL_planes.push({ p: P_light(0, 0, jt ? 0.7 : -0.4), col: '#ff2222', glowC: '255,40,40', size: Math.round(sz * 1.3), glow: true });
         }
       }
 
@@ -402,12 +410,18 @@
     }
 
     if (NL_planes.length) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const ga = 0.35 + 0.65 * Math.min(1, night * 2);                  // ve dne slabší aureola, aby se na světlém pozadí nepřepálila
+      for (const l of NL_planes) {
+        const [lx, ly] = l.p, R = l.size * 3.5;
+        const gr = ctx.createRadialGradient(lx, ly, 0, lx, ly, R);
+        gr.addColorStop(0, `rgba(${l.glowC},${0.8 * ga})`); gr.addColorStop(0.35, `rgba(${l.glowC},${0.3 * ga})`); gr.addColorStop(1, `rgba(${l.glowC},0)`);
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(lx, ly, R, 0, 6.2832); ctx.fill();
+      }
+      ctx.restore();
       for (const l of NL_planes) {
         const [lx, ly] = l.p;
-        if (l.glow) {
-          ctx.fillStyle = l.col === '#ffffff' ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 40, 40, 0.4)';
-          ctx.fillRect(lx - l.size * 1.5, ly - l.size * 1.5, l.size * 3, l.size * 3);
-        }
         ctx.fillStyle = l.col;
         ctx.fillRect(lx - l.size / 2, ly - l.size / 2, l.size, l.size);
       }
