@@ -103,10 +103,54 @@ export function vytvorStromy(THREE, scene, opts = {}) {
     for (const q of gs) q.dispose();
     return g;
   }
+  // chomáče koruny listnáče [x, y, z, poloměr] pro strom o výšce 1 a lístkové karty po jejich povrchu (rozedraný obrys)
+  const CHOMACE = [[0, 0.66, 0, 0.26], [0.17, 0.6, 0.08, 0.18], [-0.16, 0.62, -0.1, 0.19], [0.05, 0.8, -0.12, 0.17], [-0.08, 0.52, 0.14, 0.16], [0.12, 0.77, 0.12, 0.15]];
+  function listoveKarty() {
+    let sd = 777; const rnd = () => ((sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296);
+    const pos = [], uv = [], col = [], q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3();
+    for (let k = 0; k < 120; k++) {
+      const [cx, cy, cz, r] = CHOMACE[Math.floor(rnd() * CHOMACE.length)];
+      const th = rnd() * 6.283, ph = Math.acos(2 * rnd() - 1) * 0.85, d = r * (0.95 + rnd() * 0.2);
+      const px = cx + Math.sin(ph) * Math.cos(th) * d * 1.1, py = cy + Math.cos(ph) * d * 0.95, pz = cz + Math.sin(ph) * Math.sin(th) * d * 1.1;
+      e.set(rnd() * 6.283, rnd() * 6.283, rnd() * 6.283); q.setFromEuler(e);
+      const S = 0.07 + rnd() * 0.05, kk = 0.8 + rnd() * 0.35;
+      const roh = [[-S, -S], [S, -S], [S, S], [-S, -S], [S, S], [-S, S]], ruv = [[0, 0], [1, 0], [1, 1], [0, 0], [1, 1], [0, 1]];
+      for (let i = 0; i < 6; i++) { v.set(roh[i][0], roh[i][1], 0).applyQuaternion(q); pos.push(px + v.x, py + v.y, pz + v.z); uv.push(...ruv[i]); col.push(kk, kk, kk); }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
+    return g;
+  }
+  // textura shluku listů (průhledná, šedá: barvu dává instance podle období)
+  const listTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+    let sd = 99; const rnd = () => ((sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296);
+    for (let i = 0; i < 46; i++) {
+      const a = rnd() * 6.283, d = Math.sqrt(rnd()) * 50, x = 64 + Math.cos(a) * d, y = 64 + Math.sin(a) * d, sh = 150 + rnd() * 105;
+      g.fillStyle = `rgb(${sh},${sh},${sh})`; g.beginPath(); g.ellipse(x, y, 9 + rnd() * 5, 4 + rnd() * 3, rnd() * 6.283, 0, 6.283); g.fill();
+    }
+    const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
+  })();
+  // vítr: koruna a listí se kývají, výš víc (čas v uCasS, nastaví update)
+  const uCasS = { value: 0 };
+  const vitr = (m) => { m.onBeforeCompile = (sh) => {
+    sh.uniforms.uCasS = uCasS;
+    sh.vertexShader = 'uniform float uCasS;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      #ifdef USE_INSTANCING
+        float vy = max(position.y - 0.35, 0.0), ph = instanceMatrix[3].x * 0.21 + instanceMatrix[3].z * 0.17;
+        transformed.x += sin(uCasS * 1.6 + ph + position.y * 3.0) * 0.018 * vy;
+        transformed.z += cos(uCasS * 1.25 + ph * 1.3) * 0.014 * vy;
+      #endif`);
+  }; return m; };
+  const matKoruna = vitr(new THREE.MeshLambertMaterial({ vertexColors: true }));
+  const matListi = vitr(new THREE.MeshLambertMaterial({ vertexColors: true, map: listTex, alphaTest: 0.45, side: THREE.DoubleSide }));
   const kmenG = (() => { const g = new THREE.CylinderGeometry(0.7, 1, 1, 5, 1); g.translate(0, 0.5, 0); return sloz([g], 0.85, 1.05); })();
   const GEO = {
     kmen: kmenG,
-    listnac: sloz([blob(1, 0.30, 1.15, 1, 1.15, 0, 0.66, 0), blob(0, 0.20, 1, 0.9, 1, 0.20, 0.55, 0.10), blob(1, 0.21, 1, 1, 1, -0.18, 0.73, -0.12)], 0.78, 1.12),
+    // koruna z šesti chomáčů (Rakovník: místo tří hladkých koulí), stínování hladké (matKoruna)
+    listnac: sloz(CHOMACE.map(([x, y, z, r]) => blob(1, r, 1.1, 0.95, 1.1, x, y, z)), 0.74, 1.14),
+    listi: listoveKarty(),
     jehlicnan: sloz([kuzel(0.24, 0.42, 0.10, 7), kuzel(0.19, 0.38, 0.32, 7), kuzel(0.13, 0.46, 0.54, 7)], 0.8, 1.1),
     snihJehl: sloz([kuzel(0.115, 0.19, 0.335, 7), kuzel(0.092, 0.171, 0.529, 7), kuzel(0.063, 0.207, 0.793, 7)], 1, 1),
     sloup: sloz([blob(1, 1, 0.12, 0.5, 0.12, 0, 0.52, 0)], 0.8, 1.1),
@@ -123,7 +167,7 @@ export function vytvorStromy(THREE, scene, opts = {}) {
   const casti = {};      // název -> { mesh, n }
   const telesa = [];
   for (const k of Object.keys(GEO)) {
-    const mesh = new THREE.InstancedMesh(GEO[k], mat, kapacita);
+    const mesh = new THREE.InstancedMesh(GEO[k], k === 'listi' ? matListi : k === 'listnac' || k === 'ker' ? matKoruna : mat, kapacita);
     mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(kapacita * 3), 3);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
@@ -217,7 +261,7 @@ export function vytvorStromy(THREE, scene, opts = {}) {
         const km = zima ? L.kmenZima : L.kmen, kc = mix(km, s.r2, sv);
         pridejInstanci(casti.kmen, x, y, z, yaw, Math.min(0.45, Math.max(0.12, 0.035 * h)), (zima ? 0.5 : 0.62) * h, Math.min(0.45, Math.max(0.12, 0.035 * h)), kc[0], kc[1], kc[2]);
         if (zima) pridejInstanci(casti.vetve, x, y, z, yaw, h, h, h, kc[0], kc[1], kc[2]);
-        else { const c = barvaListi(s); pridejInstanci(casti.listnac, x, y, z, yaw, h * w, h, h * w, c[0], c[1], c[2]); }
+        else { const c = barvaListi(s); pridejInstanci(casti.listnac, x, y, z, yaw, h * w, h, h * w, c[0], c[1], c[2]); pridejInstanci(casti.listi, x, y, z, yaw, h * w, h, h * w, c[0] * 1.08, c[1] * 1.08, c[2] * 1.08); }
       } else if (s.typ === TYP_JEHLICNAN) {
         const c = mix(L.conifer[Math.floor(s.r * 2)], s.r2, 0.92 + 0.16 * s.r3), kc = mix(L.kmen, s.r2, sv), rr = Math.min(0.3, Math.max(0.1, 0.025 * h));
         pridejInstanci(casti.kmen, x, y, z, yaw, rr, 0.2 * h, rr, kc[0], kc[1], kc[2]);
@@ -240,6 +284,7 @@ export function vytvorStromy(THREE, scene, opts = {}) {
     uBlizko.value.set(cx, camZ, -cy, blizko);
   }
   function update(camX, camY, camZ) {
+    uCasS.value = performance.now() / 1000;
     if (!mamKotvu || spinave || Math.hypot(camX - ax, camY - ay) > Math.max(POSUN_PRESTAVBY, blizko * 0.1)) prestav(camX, camY, camZ);
   }
   function nastavObdobi(o) { if (o !== obdobi) { obdobi = o; spinave = true; } }
