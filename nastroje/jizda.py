@@ -30,20 +30,20 @@ ORTO_M = 0.4               # build/orto04: dlaždice ortofota ČÚZK po 0,4 m/px
 # vodorovné značení z podkladu pryč (ve 3D se kreslí ostře z dat silnic, web/jizda_znaceni.js): pixely barvy „marking“
 # u asfaltu přebarvit asfaltem v plném rozlišení, před zmenšením (v shaderu by po něm zůstala šmouha). Barvy jsou
 # z palety prep.py (SEASON_PAL): značení a silnice, v zimě jiné. Lajny hřišť dál od silnice zůstanou.
-ZNACENI_BARVA = {'winter': ((190, 192, 196), (104, 106, 114))}
-ZNACENI_BARVA_LETO = ((236, 232, 214), (92, 92, 98))
+# Obrubník (curb, 0,35 m po stranách silnice) se v pixelu 0,6 m rozpadne na vlnitý světlý pás („štěrk“), proto je ve 3D asfaltem.
+ZNACENI_BARVA = {'winter': ((190, 192, 196), (104, 106, 114), (226, 230, 236))}
+ZNACENI_BARVA_LETO = ((236, 232, 214), (92, 92, 98), (176, 172, 162))
 
 
 def bez_znaceni(img, obdobi):
     import numpy as np
     from scipy import ndimage
-    mk_c, rd_c = ZNACENI_BARVA.get(obdobi, ZNACENI_BARVA_LETO)
+    mk_c, rd_c, kb_c = ZNACENI_BARVA.get(obdobi, ZNACENI_BARVA_LETO)
     a = np.asarray(img).copy()
-    mk = np.all(a == mk_c, axis=2)
-    if not mk.any(): return img
     rd = np.all(np.abs(a.astype(np.int16) - rd_c) <= 8, axis=2)          # asfalt (i s drobným zrnem +8)
-    mk &= ndimage.binary_dilation(rd, iterations=16)   # i široké zebry přechodů (kreslí je jizda/znacky.js z OSM)
-    a[mk] = rd_c
+    mk = np.all(a == mk_c, axis=2) & ndimage.binary_dilation(rd, iterations=16)   # i široké zebry přechodů (kreslí je jizda/znacky.js z OSM)
+    kb = np.all(np.abs(a.astype(np.int16) - kb_c) <= 6, axis=2) & ndimage.binary_dilation(rd, iterations=3)   # obrubník u silnice
+    a[mk | kb] = rd_c
     return Image.fromarray(a)
 
 
@@ -152,6 +152,34 @@ def svet_js():
   float s00 = z > texture2D(uShadow, b).r ? 0.0 : 1.0, s10 = z > texture2D(uShadow, b + vec2(e.x, 0.0)).r ? 0.0 : 1.0;
   float s01 = z > texture2D(uShadow, b + vec2(0.0, e.y)).r ? 0.0 : 1.0, s11 = z > texture2D(uShadow, b + e).r ? 0.0 : 1.0;
   return mix(mix(s00, s10, tf.x), mix(s01, s11, tf.x), tf.y) > 0.5 ? 1.0 : 0.0;''')
+    # stíny podle denní doby (Rakovník): předpečená mapa čtverce (shadowB) se přepočítá pro nové slunce (stinSlunce níž)
+    # a kolem hráče je blízká stínová mapa three.js (stránka: O.stinN, světlo slunce) s auty, lidmi a stromy; na Ultra i s domy.
+    # uSNon: 0 bez blízké mapy, 1 jen pohyblivé věci navíc k předpečené, 2 blízká mapa nahradí předpečenou (s plynulým okrajem).
+    kod = jednou(kod, 'float shadow(vec3 wp, vec3 n){', 'float shadowB(vec3 wp, vec3 n){')
+    kod = jednou(kod, 'vec3 shade(vec3 col, vec3 n, vec3 wp){', """uniform sampler2D uSN; uniform mat4 uSNM; uniform float uSNon; uniform vec2 uSNpx;
+#include <packing>
+float shadowN(vec3 wp, vec3 n, out float w){
+  vec4 c = uSNM * vec4(wp + n * 0.06, 1.0); c.xyz /= c.w; w = 0.0;
+  if (c.x < 0.0 || c.x > 1.0 || c.y < 0.0 || c.y > 1.0 || c.z > 1.0) return 1.0;
+  vec2 e2 = min(c.xy, 1.0 - c.xy); w = smoothstep(0.0, 0.1, min(e2.x, e2.y));
+  float z = c.z - 0.0004, s = 0.0;
+  for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) s += z > unpackRGBAToDepth(texture2D(uSN, c.xy + vec2(float(i), float(j)) * uSNpx)) ? 0.0 : 1.0;
+  return s / 9.0;
+}
+float shadow(vec3 wp, vec3 n){
+  float b = shadowB(wp, n);
+  if (uSNon < 0.5 || uLights > 0.5) return b;
+  float w; float s = shadowN(wp, n, w);
+  return uSNon > 1.5 ? mix(b, s, w) : min(b, mix(1.0, s, w));
+}
+vec3 shade(vec3 col, vec3 n, vec3 wp){""")
+    kod = jednou(kod, 'uDet: O.uDet || { value: null }, uDetS: O.uDetS || { value: 0 }, uOkna: O.uOkna || { value: 1 }, ...extra,',
+                 'uDet: O.uDet || { value: null }, uDetS: O.uDetS || { value: 0 }, uOkna: O.uOkna || { value: 1 }, uSN: O.stinN?.map || { value: null }, uSNM: O.stinN?.mat || { value: new THREE.Matrix4() }, uSNon: O.stinN?.on || { value: 0 }, uSNpx: O.stinN?.px || { value: new THREE.Vector2(1, 1) }, ...extra,')
+    # předpečená stínová mapa jako funkce: stránka ji volá znovu, když se slunce posune (kde = scéna s díly čtverce v souřadnicích čtverce)
+    kod = jednou(kod, '// ---------- stínová mapa ----------\n{', '// ---------- stínová mapa ----------\nconst stinSlunce = (SUN, kde = world) => {')
+    kod = jednou(kod, "  world.overrideMaterial = new THREE.MeshDepthMaterial();\n  renderer.setRenderTarget(shadowRT); renderer.clear(); renderer.render(world, lc);\n  renderer.setRenderTarget(null); world.overrideMaterial = null;",
+                 "  kde.overrideMaterial = new THREE.MeshDepthMaterial();\n  renderer.setRenderTarget(shadowRT); renderer.clear(); renderer.render(kde, lc);\n  renderer.setRenderTarget(null); kde.overrideMaterial.dispose(); kde.overrideMaterial = null;")
+    kod = jednou(kod, '  for (const m of allMats) m.uniforms.uLightVP.value.copy(vp);\n}', '  for (const m of allMats) m.uniforms.uLightVP.value.copy(vp);\n};\nstinSlunce(O.slunce || SUN);')
     # terén: podklad má 0,56 m na pixel, zblízka je to rozmazaná šmouha. Kde se texel roztáhne přes víc pixelů obrazovky:
     # 1) ostřejší přechod mezi texely (hrana silnice, štěrk × asfalt) a jeho okraj rozhozený šumem, aby nebyl schodovitý,
     # 2) jemná kresba povrchu podle barvy: zrno asfaltu a dlažby, trsy trávy, kamínky štěrku. V dálce zmizí sama (mipmapy).
@@ -292,7 +320,7 @@ def svet_js():
             "let SKIRT_EDGES = 'nsew';\n"
             'const BG = [27 / 255, 35 / 255, 51 / 255];\n'
             + kod +
-            '\nreturn { world, allMats, scene, camDir };\n}\n')
+            '\nreturn { world, allMats, scene, camDir, stinSlunce };\n}\n')
 
 
 def vnitrek(scene):
@@ -350,7 +378,7 @@ def main():
         for s in OBDOBI:
             f, o = f'{src}/ground_{s}.png', f'{dst}/ground_{s}.webp'
             if os.path.exists(f) and (not os.path.exists(o) or os.path.getmtime(o) < os.path.getmtime(f)):
-                bez_znaceni(Image.open(f).convert('RGB'), s).resize((GROUND_PX, GROUND_PX), Image.LANCZOS).save(o, quality=88, method=4)
+                bez_znaceni(Image.open(f).convert('RGB'), s).resize((GROUND_PX, GROUND_PX), Image.BOX)   # BOX: LANCZOS dělal u hran světlý a tmavý lem, šikmo vlnitý.save(o, quality=88, method=4)
         if os.path.exists(f'{src}/lightmap.png'): Image.open(f'{src}/lightmap.png').convert('RGB').save(f'{dst}/lightmap.webp', quality=80)
         orto_ctverec(c, dst)                                  # letecký snímek na terén (stránka: Grafika → Letecký snímek)
         voda_ctverec(c, src, dst)                             # výška nad vodou pro rozlití potoka podle vodního stavu

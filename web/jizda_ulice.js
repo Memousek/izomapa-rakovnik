@@ -1093,15 +1093,16 @@ export function vytvorUlici(THREE, scene, api) {
     const rx = Math.sin(yaw) * 0.45, ry = -Math.cos(yaw) * 0.45;    // posun doprava (přes pravé rameno)
     const hz = hrac.z + skokZ + (zebra ? 0.9 : 1.35);
     T3.set(hrac.x + rx, hz, -(hrac.y + ry));
-    let k = 1;
-    for (let f = 0.2; f <= 1.0001; f += 0.1) {
-      const x = hrac.x + rx - Math.cos(yaw + sway) * Math.cos(e) * D * f, y = hrac.y + ry - Math.sin(yaw + sway) * Math.cos(e) * D * f;
-      if (api.hitBuilding(x, y, 0.25)) { k = Math.max(0.15, f - 0.12); break; }
-    }
-    const cx = hrac.x + rx - Math.cos(yaw + sway) * Math.cos(e) * D * k, cy = hrac.y + ry - Math.sin(yaw + sway) * Math.cos(e) * D * k;
-    const cz = Math.max(hz + Math.sin(e) * D * k, api.gz(cx, cy) + 0.5);
+    // dům mezi ramenem a kamerou (i s výškou domu): kamera před zeď, nejméně 0,6 m od postavy
+    const px = hrac.x + rx - Math.cos(yaw + sway) * Math.cos(e) * D, py = hrac.y + ry - Math.sin(yaw + sway) * Math.cos(e) * D, pz = hz + Math.sin(e) * D;
+    const vol = api.ramenoVolne(hrac.x + rx, hrac.y + ry, hz, px, py, pz, 0.35);
+    const k = vol < 1 ? Math.max(0.12, vol - 0.3 / D) : 1;
+    const cx = hrac.x + rx + (px - hrac.x - rx) * k, cy = hrac.y + ry + (py - hrac.y - ry) * k;
+    const cz = Math.max(hz + (pz - hz) * k, api.gz(cx, cy) + 0.5);
     W3.set(cx, cz, -cy);
-    if (snapK) { camera.position.copy(W3); snapK = false; } else camera.position.lerp(W3, 1 - Math.exp(-dt * 16));
+    const kTer = Math.hypot(camera.position.x - hrac.x, camera.position.z + hrac.y);
+    if (snapK || (vol < 1 && Math.hypot(cx - hrac.x, cy - hrac.y) < kTer - 0.05)) { camera.position.copy(W3); snapK = false; }
+    else camera.position.lerp(W3, 1 - Math.exp(-dt * 16));
     L3.set(hrac.x + rx + Math.cos(yaw) * 2.5, hz + 0.15, -(hrac.y + ry + Math.sin(yaw) * 2.5));
     camera.lookAt(L3);
     if (sway) camera.rotateZ(sway * 0.3);

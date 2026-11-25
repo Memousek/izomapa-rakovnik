@@ -504,7 +504,7 @@ const slozeni = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMa
   uniforms: { tD: { value: rtDen.texture }, tZ: { value: rtDen.depthTexture }, tL: { value: rtSvetla.texture }, uN: { value: 0 }, uG: { value: 0 },
               uSvetla: { value: 0 }, uMlha: { value: 1 / GRAFIKA[GRAF].opar }, uMlhaC: { value: new THREE.Color(0.74, 0.78, 0.83) }, uZat: { value: 0 }, uNear: { value: 0.1 }, uFar: { value: 3000 }, uPx: { value: new THREE.Vector2(1, 1) }, uAA: { value: KVALITA > 0 ? 1 : 0 },
               // vzhled (Rakovník): obloha, záře světel, blikání, filmové tónování; uFx 0 = vypnuto, 1 = bez záře a zrna, 2 = vše
-              uFx: { value: 2 }, uCas: { value: 0 }, uSun: { value: new THREE.Vector3(0.38, 0.62, 0.68).normalize() },
+              uFx: { value: 2 }, uCas: { value: 0 }, uSun: { value: null },
               uInvP: { value: new THREE.Matrix4() }, uCamW: { value: new THREE.Matrix4() }, uSunScr: { value: new THREE.Vector3(0.5, 0.5, 0) } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
   fragmentShader: /* glsl */`
@@ -702,6 +702,73 @@ const CERNA = new THREE.MeshBasicMaterial({ color: 0x000000 });
 scene3.add(new THREE.HemisphereLight(0xe6eef7, 0x5c5444, 1.05));
 velikostRT();
 const sunL = new THREE.DirectionalLight(0xffffff, 1.25); sunL.position.set(0.38, 0.62, 0.68); scene3.add(sunL);   // stejné slunce jako render.html
+// ---------- slunce podle denní doby a stíny (Rakovník) ----------
+// SLUNCE: směr ke slunci (three: x východ, y nahoru, z jih) podle hodiny ve hře a data; sdílí ho shadery světa (stínování stěn),
+// skládání obrazu (nebe, paprsky) i světlo pro auta a lidi. Stíny: předpečená mapa každého čtverce se po posunu slunce
+// přepočítá (prepocitejStiny), na Vysoké a Ultra je kolem hráče navíc blízká stínová mapa three.js, do které kreslí stín
+// auta, lidé a stromy (na Ultra i domy, ostřeji). Shadery světa ji čtou přes O.stinN (nastroje/jizda.py, shadowN).
+const SLUNCE = new THREE.Vector3(0.38, 0.62, 0.68).normalize();
+slozeni.material.uniforms.uSun.value = SLUNCE;               // nebe a paprsky podle stejného slunce jako svět
+const STIN_ROZ = { nizka: 0, stredni: 0, vysoka: 1, ultra: 2 }[GRAF] || 0;
+const STIN_N = { map: { value: null }, mat: { value: sunL.shadow.matrix }, on: { value: STIN_ROZ }, px: { value: new THREE.Vector2(1, 1) } };
+const STIN_R = STIN_ROZ > 1 ? 90 : 60, STIN_PX = STIN_ROZ > 1 ? 4096 : 2048;
+if (STIN_ROZ) {
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.shadowMap.autoUpdate = false;
+  sunL.castShadow = true; sunL.shadow.mapSize.set(STIN_PX, STIN_PX);
+  Object.assign(sunL.shadow.camera, { left: -STIN_R, right: STIN_R, top: STIN_R, bottom: -STIN_R, near: 1, far: 900 });
+  sunL.shadow.camera.updateProjectionMatrix(); sunL.shadow.bias = -0.0003; sunL.shadow.normalBias = 0.04;
+  STIN_N.px.value.set(1 / STIN_PX, 1 / STIN_PX); scene3.add(sunL.target);
+}
+function smerSlunce(hod, out) {                             // hodina místního času -> směr ke slunci (nejníž 3° nad obzorem)
+  const rad = Math.PI / 180, d = new Date(), lat = CAM.lat0 * rad, lon = CAM.lon0;
+  const den = (Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - Date.UTC(d.getUTCFullYear(), 0, 0)) / 864e5;
+  const dec = -23.44 * Math.cos(2 * Math.PI / 365 * (den + 10)) * rad;
+  const utc = -d.getTimezoneOffset() / 60;                   // posun místního času (zimní / letní)
+  const H = ((hod - utc) + lon / 15 - 12) * 15 * rad;        // hodinový úhel
+  let alt = Math.asin(Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(H));
+  const az = Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(lat) - Math.tan(dec) * Math.cos(lat));   // od jihu k západu
+  alt = Math.max(alt, 3 * rad);
+  return out.set(-Math.sin(az) * Math.cos(alt), Math.sin(alt), Math.cos(az) * Math.cos(alt)).normalize();   // jih = +z
+}
+const _slCil = new THREE.Vector3(), _stinT = new THREE.Vector3();
+let slunceStart = true;
+function slunceKrok(dt) {
+  smerSlunce(hodina(), _slCil);
+  if (slunceStart) { SLUNCE.copy(_slCil); slunceStart = false; }
+  else SLUNCE.lerp(_slCil, Math.min(1, dt * 0.8)).normalize();   // posuvník času: slunce dojede plynule
+  if (STIN_ROZ) {                                          // blízká stínová mapa kolem kamery, střed zaokrouhlený na texel (stín se netřepí)
+    const k = (2 * STIN_R) / STIN_PX * 4, c = camera.position;
+    _stinT.set(Math.round((c.x + fwd.x * STIN_R * 0.5) / k) * k, Math.round(c.y / k) * k, Math.round((c.z + fwd.z * STIN_R * 0.5) / k) * k);
+    sunL.target.position.copy(_stinT); sunL.position.copy(_stinT).addScaledVector(SLUNCE, 450);
+    sunL.target.updateMatrixWorld(); sunL.updateMatrixWorld();
+  } else sunL.position.copy(SLUNCE);
+}
+const STIN_P = { k: 0, scena: new THREE.Scene(), T: new THREE.Matrix4() };
+function prepocitejStiny() {                                // předpečené stíny čtverců pro nové slunce: nejvýš jeden čtverec za 4 snímky
+  if (++STIN_P.k % 4) return;
+  for (const c of CH.values()) {
+    if (!c.stin || !c.grp || (c.stinSmer && c.stinSmer.angleTo(SLUNCE) < 0.026)) continue;   // posun pod 1,5°
+    const rodic = c.grp.parent;
+    c.grp.position.set(0, 0, 0); STIN_P.scena.add(c.grp);
+    c.stin(SLUNCE.clone(), STIN_P.scena);
+    c.grp.position.set(c.cx, 0, -c.cy); (rodic || scene3).add(c.grp);
+    STIN_P.T.makeTranslation(-c.cx, 0, c.cy);
+    for (const m of new Set(c.mats)) if (m.uniforms?.uLightVP) m.uniforms.uLightVP.value.multiply(STIN_P.T);
+    c.stinSmer = SLUNCE.clone();
+    return;
+  }
+}
+function stinyObjektu() {                                    // kdo vrhá a přijímá stín v blízké mapě (nová tělesa přibývají, proto opakovaně)
+  if (!STIN_ROZ) return;
+  scene3.traverse((o) => {
+    if (!o.isMesh || o.userData.stinOK) return;
+    o.userData.stinOK = true;
+    const m = Array.isArray(o.material) ? o.material[0] : o.material;
+    if (!m || m.transparent || m.isMeshBasicMaterial || o.userData.bezStinu) return;   // světla, sklo, kužely reflektorů ne
+    if (m.isShaderMaterial) { if (STIN_ROZ > 1 && o.userData.dum) o.castShadow = true; return; }   // svět: domy jen na Ultra
+    o.castShadow = true; o.receiveShadow = true;
+  });
+}
 const camW = new THREE.Vector3(0, 1, 0);                   // směr ke kameře pro shadery světa (uCam), mění se každý snímek
 const tv = (x, y, z) => new THREE.Vector3(x, z, -y);
 
@@ -710,11 +777,11 @@ const CH = new Map();                                      // klíč 'ci_j' -> {
 const POLY = new Map(), PC = 25;                           // mřížka půdorysů budov (kolize)
 let building = false;
 async function nactiCtverec(i, j) {
-  const key = `c${i}_${j}`, cx = i * S2, cy = j * S2;
+  const key = `c${i}_${j}`, cx = i * S2, cy = j * S2, slunceTed = smerSlunce(hodina(), new THREE.Vector3());
   CH.set(key, { loading: true, cx, cy });
   $('stav').textContent = `Stavím čtverec ${i}, ${j}…`;
   await new Promise((r) => setTimeout(r, 30));             // ať se stihne vykreslit zpráva
-  const res = await postavCtverec(THREE, renderer, { dir: `jizda/${key}`, obdobi: OBD, orto: ORTO, textury: TEXTURY, uCas: CAS_V, vodaH: VODA.h, vodaK: VODA.k, cx, cy, stin: DOTYK ? 2048 : 4096, uMokro: POVRCH.uMokro, uSnih: POVRCH.uSnih, uDet: DETAIL.uDet, uDetS: DETAIL.uDetS, uOkna: OKNA });
+  const res = await postavCtverec(THREE, renderer, { dir: `jizda/${key}`, obdobi: OBD, orto: ORTO, textury: TEXTURY, uCas: CAS_V, vodaH: VODA.h, vodaK: VODA.k, cx, cy, stin: DOTYK ? 2048 : 4096, uMokro: POVRCH.uMokro, uSnih: POVRCH.uSnih, uDet: DETAIL.uDet, uDetS: DETAIL.uDetS, uOkna: OKNA, stinN: STIN_N, slunce: slunceTed });
   if (POVRCH.zimni) for (const m of res.allMats) if (m.uniforms?.uSeason) m.uniforms.uSeason.value = 3;
   const grp = new THREE.Group();
   while (res.world.children.length) grp.add(res.world.children[0]);
@@ -727,6 +794,7 @@ async function nactiCtverec(i, j) {
     if (u.uCam) u.uCam.value = camW;
     if (u.uOff) u.uOff.value = new THREE.Vector2(0, 0);
     if (u.uLightVP) u.uLightVP.value.multiply(T);
+    if (u.uSun) u.uSun.value = SLUNCE;                     // slunce podle denní doby (stínování stěn a střech)
     if (u.uTex && u.uTex.value) {                          // podklad terénu: zblízka vyhladit, v dálce mipmapy (jinak se kostičky a pruhy třepí)
       const t = u.uTex.value; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true;
       t.anisotropy = renderer.capabilities.getMaxAnisotropy(); t.needsUpdate = true;
@@ -750,18 +818,19 @@ async function nactiCtverec(i, j) {
     o.material.uniforms.uBlizko = STROMY.uBlizko;
     o.material.side = THREE.DoubleSide; o.material.needsUpdate = true;
   });
+  grp.traverse((o) => { if (o.isMesh && !o.material?.uniforms?.uTex && !o.geometry.attributes.aTile) o.userData.dum = true; });   // vrhá stín na Ultra
   scene3.add(grp);
   const sc = res.scene;
   for (const b of sc.buildings) {
     if (b.s === 12) continue;                              // přístřešek na sloupech
     const p = b.p.map(([x, y]) => [x + cx, y + cy]);
     const bb = [Math.min(...p.map((q) => q[0])), Math.min(...p.map((q) => q[1])), Math.max(...p.map((q) => q[0])), Math.max(...p.map((q) => q[1]))];
-    const o = { p, bb, key };
+    const o = { p, bb, key, t: (b.e || 0) + (b.rh || 0) + (b.tw ? Math.max(0, ...b.tw.map((q) => q.to - b.e)) : 0) };   // t: vršek (kamera)
     for (let gx = Math.floor(bb[0] / PC); gx <= Math.floor(bb[2] / PC); gx++) for (let gy = Math.floor(bb[1] / PC); gy <= Math.floor(bb[3] / PC); gy++) {
       const k = gx + ',' + gy; if (!POLY.has(k)) POLY.set(k, []); POLY.get(k).push(o);
     }
   }
-  CH.set(key, { grp, hs: sc.heights, n: sc.n, step: sc.step, cx, cy, mats: res.allMats });
+  CH.set(key, { grp, hs: sc.heights, n: sc.n, step: sc.step, cx, cy, mats: res.allMats, stin: res.stinSlunce, stinSmer: slunceTed });
   pridejParkovana(key, sc, grp, cx, cy);
   STROMY.pridejCtverec(key, sc.trees.map(([x, y, z, h, conif, kind]) => [x + cx, y + cy, z, h, conif, kind]));
   LOADED.push([cx, cy]);
@@ -838,6 +907,21 @@ function hitBuilding(x, y, r) {                            // bod (s poloměrem 
   return false;
 }
 
+// kamera nesmí do domu: jaká část ramene od cíle (tx, ty, tz) ke kameře (px, py, pz) je volná (1 = celé). Bod ramene je
+// v domě, když leží v půdorysu (nebo blíž než r ke zdi) a pod jeho vrškem. Krok ~0,4 m, ať se nepřeskočí tenká zeď.
+function ramenoVolne(tx, ty, tz, px, py, pz, r = 0.45) {
+  const d = Math.hypot(px - tx, py - ty, pz - tz), n = Math.max(6, Math.ceil(d / 0.4));
+  for (let i = 1; i <= n; i++) {
+    const f = i / n, x = tx + (px - tx) * f, y = ty + (py - ty) * f, z = tz + (pz - tz) * f;
+    for (const o of POLY.get(Math.floor(x / PC) + ',' + Math.floor(y / PC)) || []) {
+      if (z > o.t + 0.3 || x < o.bb[0] - r || x > o.bb[2] + r || y < o.bb[1] - r || y > o.bb[3] + r) continue;
+      let uvnitr = inPoly(x, y, o.p);
+      if (!uvnitr) for (let k = 0; k < o.p.length; k++) if (segDist(x, y, o.p[k], o.p[(k + 1) % o.p.length]) < r) { uvnitr = true; break; }
+      if (uvnitr) return Math.max(0, (i - 1) / n);
+    }
+  }
+  return 1;
+}
 // ---------- mosty a lávky (overlay.json decks: mostovka [x, y, výška] i s nájezdy, šířka w) ----------
 // Mřížka 32 m se seznamem úseků mostovek jako v mapě (web/app.html deckZ).
 const DZG = new Map(), DZC = 32, dzk = (i, j) => i * 100003 + j;
@@ -955,6 +1039,7 @@ function oknaPodleCasu(h) {                                  // večer svítí s
 const MAXV = 1400;
 const VOZ = vytvorVozidla(THREE, scene3, MAXV);
 jenVeDne.push(...VOZ.telesa);
+VOZ.priTelese = (m) => jenVeDne.push(m);                 // hotové modely aut se načtou později
 
 // ---------- semafory ve 3D ----------
 const sig3 = [];
@@ -1703,8 +1788,12 @@ function kameraKolem(x, y, z, h0, vyskaCile, dist, dt) {
   let px = x - Math.cos(h) * cp * dist, py = y - Math.sin(h) * cp * dist, pz = Math.max(z + vyskaCile + Math.sin(orbit.pitch) * dist, gz(px, py) + 0.8);
   const tt = STROMY.prekazka(x, y, z + vyskaCile, px, py, pz);   // koruna stromu mezi vozidlem a kamerou: rameno zkrátit (nejméně 3 m)
   if (tt < 1) { const f = Math.max(3 / dist, tt * 0.92); px = x + (px - x) * f; py = y + (py - y) * f; pz = Math.max(z + vyskaCile + (pz - z - vyskaCile) * f, gz(px, py) + 0.8); }
+  const tb = ramenoVolne(x, y, z + vyskaCile, px, py, pz);   // dům mezi vozidlem a kamerou: kamera před zeď
+  if (tb < 1) { const f = Math.max(0.12, tb - 0.4 / dist); px = x + (px - x) * f; py = y + (py - y) * f; pz = Math.max(z + vyskaCile + (pz - z - vyskaCile) * f, gz(px, py) + 0.6); }
   const want = new THREE.Vector3(px, pz, -py);
-  if (orbit.snap) { camera.position.copy(want); orbit.snap = false; } else camera.position.lerp(want, 1 - Math.exp(-dt * 10));
+  // blíž k cíli skočit hned (plynulé dotažení by vedlo stěnou), dál od něj plynule
+  const kTer = Math.hypot(camera.position.x - x, camera.position.z + y), kChce = Math.hypot(px - x, py - y);
+  if (orbit.snap || (tb < 1 && kChce < kTer - 0.05)) { camera.position.copy(want); orbit.snap = false; } else camera.position.lerp(want, 1 - Math.exp(-dt * 10));
   camera.lookAt(T); fwd.copy(T).sub(camera.position).normalize();
 }
 function polohaAuta() {                                     // auto po terénu nebo mostovce: sklon z přední a zadní nápravy
@@ -1862,12 +1951,15 @@ async function spravaCtvercu() {
 }
 
 // ---------- vykreslení podle denní doby ----------
-function vykresli() {
+function vykresli(dt = 0.016) {
   const n = DOBA.n, uN = clamp((n - 0.42) / 0.5, 0, 1), uG = n <= 0.42 ? n / 0.42 : clamp(1 - (n - 0.42) / 0.3, 0, 1);
   // nebe před složením: po teplém tónu vyjde oranžové při západu, po nočním ztmavení tmavomodré
   const den = new THREE.Color(NEBE), zapad = new THREE.Color(0.9, 0.82, 0.74), noc = new THREE.Color(0.34, 0.44, 0.78);
   renderer.setClearColor(den.lerp(zapad, uG).lerp(noc, uN));
+  slunceKrok(dt); prepocitejStiny(); if (STIN_P.k % 60 === 1) stinyObjektu();
+  if (STIN_ROZ) renderer.shadowMap.needsUpdate = true;     // blízká stínová mapa jen jednou za snímek (ne i pro obraz světel)
   renderer.setRenderTarget(rtDen); renderer.clear(); renderer.render(scene3, camera);   // vždy přes texturu: mlha a opar se počítají z hloubky
+  if (STIN_ROZ && sunL.shadow.map && STIN_N.map.value !== sunL.shadow.map.texture) STIN_N.map.value = sunL.shadow.map.texture;
   if (uN > 0.005) {                                        // obraz světel: svět v režimu lights (render.html), naše tělesa bez světla schovaná
     const mats = [...CH.values()].flatMap((c) => c.mats || []);
     for (const m of mats) if (m.uniforms?.uLights) m.uniforms.uLights.value = 1;
@@ -2004,7 +2096,7 @@ $('zvukbox').appendChild(ZVUK.tlacitko);
 const HRA = vytvorHru(THREE, scene3, { hrac, limit, cervenaNaTrase, adresy: () => NAV.adresy(), trasa: (a, b, c, d, e) => NAV.trasa(a, b, c, d, e),
   navigace: { zvol: (e) => NAV.zvol(e), konec: () => NAV.konec() }, panel: $('hrapanel'), tacho: $('tacho'), toast, zvuk: (n) => ZVUK.hraj(n), gz, ulice: ULICE_STAV });
 const ULICE_START = { x: hrac.x, y: hrac.y };
-const ULICE = vytvorUlici(THREE, scene3, { hrac, cars, roads, carPose, along, LIDE, lideBoj: LIDE_API, hra: HRA, zvuk: ZVUK, toast, gz, vyska, hitBuilding, inMap, volneMisto,
+const ULICE = vytvorUlici(THREE, scene3, { hrac, cars, roads, carPose, along, LIDE, lideBoj: LIDE_API, hra: HRA, zvuk: ZVUK, toast, gz, vyska, hitBuilding, ramenoVolne, inMap, volneMisto,
   doba: () => DOBA.n, pocasi: () => WXI, obdobi: OBD, mojeAuto, jenVeDne, panel: $('hrapanel'), canvas: renderer.domElement, camera, stav: ULICE_STAV, nastoupit,
   mesto: document.querySelector('#hud h1')?.firstChild?.textContent.trim() || 'Město', dotyk: DOTYK, start: ULICE_START, parkovana, skryjParkovane,
   navigace: { zvol: (e) => NAV.zvol(e), adresy: () => NAV.adresy(), trasa: (a, b, c, d, e) => NAV.trasa(a, b, c, d, e) } });
@@ -2068,7 +2160,7 @@ function frame(now) {
   provozPodleTmy(now);
   carGaps();
   mrizkaVozidel();
-  VOZ.zacni();
+  VOZ.zacni(hrac.x, hrac.y);
   const dohledAut = GRAFIKA[GRAF].auta, sviti0 = DOBA.n > 0.3;
   KUZELY.n = 0; KUZELY.mesh.count = 0;
   for (const c of cars) {
@@ -2086,7 +2178,7 @@ function frame(now) {
     if (Math.abs(q.x - hrac.x) > dohledAut || Math.abs(q.y - hrac.y) > dohledAut) continue;
     const fl = (brzdi ? 1 : 0) | (c.nehoda ? 6 : c.blink || 0);
     if (c.t === 'semi') { const t = carPose(c, 8.2); VOZ.pridej('trailer', t.x, t.y, t.z, t.h, '#e9e8e2', undefined, fl); }   // návěs vykreslit těsně za tahačem
-    VOZ.pridej(c.t, q.x, q.y, q.z, q.h, c.col, undefined, fl);
+    VOZ.pridej(c.t, q.x, q.y, q.z, q.h, c.col, undefined, fl, c.sd);
     if (sviti0 && Math.abs(q.x - hrac.x) < 170 && Math.abs(q.y - hrac.y) < 170) kuzel(q.x, q.y, q.z, q.h, c.t === 'car' || c.t === 'van' ? 1 : 1.3);
   }
   if (MHD.on) {
@@ -2188,7 +2280,7 @@ function frame(now) {
   ZNACENI.update(hrac);
   PRUHY.update(hrac);
   CAS_V.value = now / 1000;
-  EFEKTY.pred(); vykresli(); EFEKTY.po();
+  EFEKTY.pred(); vykresli(dt); EFEKTY.po();
   fpsN++; if (now - fpsT > 1000) { fps = fpsN; fpsN = 0; fpsT = now; }
   OKNA.value = oknaPodleCasu(hodina());
   grafikaPrubezne(now, fps);
@@ -2206,7 +2298,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') window.__jizda = { FSD, fsdPrepni, UZ, CAM, carPose, MRIZ, GARAZ, KONFIG, KUZELY, BL, OKNA, hodina, ULICE, ZNACKY, nastavGrafiku, parkovana, PARK, DETAIL, KVALITA, rtDen, slozeni, POVRCH, STROMY, HRA, ZVUK, hustota, hrac, orbit, gz, vyska, DOBA, NAV, LIDE, ZAST, busBlizko, cars, roads, DOPR, HRACI, CH, SIG, sigPosts, MHD, RT, keys, camera, scene3, renderer, nastoupit, snimek: (ms = 16) => { last = performance.now() - ms; frame(performance.now()); } };
+if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') window.__jizda = { FSD, fsdPrepni, hitBuilding, ramenoVolne, SLUNCE, sunL, UZ, CAM, carPose, MRIZ, GARAZ, KONFIG, KUZELY, BL, OKNA, hodina, ULICE, ZNACKY, nastavGrafiku, parkovana, PARK, DETAIL, KVALITA, rtDen, slozeni, POVRCH, STROMY, HRA, ZVUK, hustota, hrac, orbit, gz, vyska, DOBA, NAV, LIDE, ZAST, busBlizko, cars, roads, DOPR, HRACI, CH, SIG, sigPosts, MHD, RT, keys, camera, scene3, renderer, nastoupit, snimek: (ms = 16) => { last = performance.now() - ms; frame(performance.now()); } };
 </script>
 </body>
 </html>
