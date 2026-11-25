@@ -20,15 +20,40 @@
     // (na telefonu 3D nahoru do sloupce ovládání: v doku by ho schovalo backdrop-filter, Dřív a teď se nevejde)
     const dok = isMobile() ? document.querySelector('.controls') : $('tabs');
     for (const id of ['histBtn', 'jizda3d']) { const a = $(id); if (a) { a.classList.add('dok-akce'); if (isMobile()) dok.prepend(a); else dok.append(a); } }
-    // stavový pruh: hodiny a počasí z předpovědi (00-zaklad.js píše do #predpovedVal)
+    // stavový pruh: čas na mapě. Právě teď = skutečný čas a počasí (ŽIVĚ); Vlastní = dnešní hodina, kdy je slunce
+    // nad městem tam, kde stojí posuvník (odpoledne, plná noc = 22:00); Samo = herní hodiny (poledne až půlnoc a zpět)
     const stav = $('stav');
+    const hhmm = (d) => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const OBD = { spring: 'jaro', summer: 'léto', autumn: 'podzim', winter: 'zima' }, POC = { clear: 'jasno', rain: 'déšť', snow: 'sníh', fog: 'mlha' };
+    let odhad = { n: -1, t: '' };
+    const casZNoci = (n) => {                       // první čas po poledni, kdy je tma aspoň n (sunAlt, nightFromSun z 10-vrstvy.js)
+      if (odhad.n === n) return odhad.t;
+      const d = new Date(); d.setHours(12, 0, 0, 0);
+      let t = n >= 0.99 ? '22:00' : '12:00';
+      if (n > 0 && n < 0.99) for (let m = 0; m < 12 * 60; m += 5) { const x = new Date(d.getTime() + m * 60000); if (nightFromSun(sunAlt(x)) >= n) { t = hhmm(x); break; } }
+      odhad = { n, t }; return t;
+    };
     const obnov = () => {
-      const d = new Date();
-      $('stavCas').textContent = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
-      $('stavPopis').textContent = ($('predpovedVal') && $('predpovedVal').textContent) || '';
+      const ziva = casRezim === 'ted';
+      let t;
+      if (ziva) t = hhmm(new Date());
+      else if (casRezim === 'samo') {
+        const f = ((performance.now() / 1000 - samoT0) % SAMO_S) / SAMO_S, min = Math.round((12 + 24 * f) * 60) % 1440;
+        t = `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
+      } else t = casZNoci(Math.round(state.night * 100) / 100);
+      $('stavCas').textContent = t;
+      $('stavPopis').textContent = ziva ? (($('predpovedVal') && $('predpovedVal').textContent) || 'skutečný čas') : `${OBD[state.season]} · ${POC[state.weather]}`;
+      stav.classList.toggle('ziva', ziva);
+      stav.title = ziva ? 'Skutečný čas a počasí nad městem' : 'Čas na mapě (nastavíte ve Vzhledu)';
       stav.hidden = false;
     };
-    obnov(); setInterval(obnov, 15000);
+    obnov(); setInterval(obnov, 1000);
+    // Escape zavře otevřené podokno doku (otevřenou kartu zavře nejdřív 40-karta.js, podokno až dalším stiskem)
+    addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || !paneOpen || !$('card').hidden || document.querySelector('dialog[open]') || !$('vitej').hidden) return;
+      if (e.target.matches && e.target.matches('input, textarea, select') && e.target.id !== 'night') return;
+      openPane(null); try { localStorage.setItem('izo-tab', '-'); } catch {}
+    }, true);
     // noc: panely přejdou do tmavé varianty (stejný práh jako odkaz „-noc“)
     let noc = null;
     setInterval(() => {

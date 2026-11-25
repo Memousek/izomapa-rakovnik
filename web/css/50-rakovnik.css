@@ -301,3 +301,7 @@ body.noc .places button:hover { background: var(--panel-2); }
   .pk-znamka { top: -110px; width: 56px; height: 68px; }
   .pk-kredit { display: none; }
 }
+
+/* čas na mapě: červená tečka jen u skutečného času (ŽIVĚ), jinak prázdný kroužek */
+.stav:not(.ziva) .stav-dot { background: transparent; box-shadow: inset 0 0 0 2px var(--s4); }
+.stav.ziva b::after { content: "živě"; margin-left: 8px; font: 500 .62rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--red); vertical-align: 2px; }
