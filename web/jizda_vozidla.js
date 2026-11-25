@@ -556,6 +556,92 @@ export function vytvorVozidla(THREE, scene, max = 1400) {
     typy[druh] = t; seznam.push(t);
   }
 
+  // ---------- hotové modely (Kenney, CC0) pro nejbližší auta v provozu ----------
+  // Model má ~2 000 trojúhelníků, proto jen do DOSAH_M od hráče a nejvýš MAX_M aut; dál zůstávají jednoduché karoserie.
+  // Varianta podle semínka auta (stejné auto = stejný model). Lak: proužek palety se v shaderu přebarví barvou instance.
+  const VARIANTY = {
+    car: [['m_sedan', 30], ['m_hatch_sport', 22], ['m_suv', 22], ['m_suv_lux', 10], ['m_sedan_sport', 6], ['m_nakladak', 6], ['m_taxi', 4]],
+    van: [['m_van', 6], ['m_dodavka', 4]], garbage: [['m_popelar', 1]], tractor: [['m_traktor', 1]],
+  };
+  for (const v of Object.values(VARIANTY)) { const s_ = v.reduce((a, [, w]) => a + w, 0); let c_ = 0; for (const q of v) { c_ += q[1] / s_; q[2] = c_; } }
+  const DOSAH_M = 110, MAX_M = 220;
+  const modelTypy = new Map();                               // klíč HOTOVE -> typ (jako typy[druh]) | null během načítání
+  let okoX = 0, okoY = 0, nM = 0, priTelese = null;
+  function typModelu(k) {
+    if (modelTypy.has(k)) return modelTypy.get(k);
+    modelTypy.set(k, null);
+    if (typeof document !== 'undefined') nactiModel(k).then((sb) => { if (sb) modelTypy.set(k, postavTyp(sb)); });
+    return null;
+  }
+  function postavTyp(sb) {
+    const H = sb.H, p = [], nn = [], uv = [];
+    let map = null;
+    for (const k of sb.kusy) {
+      let g = k.g.index ? k.g.toNonIndexed() : k.g.clone();
+      if (k.kolo) g.translate(k.poz.x, k.poz.y, k.poz.z);
+      const P = g.attributes.position.array, N = g.attributes.normal?.array, U = g.attributes.uv?.array;
+      for (let i = 0; i < P.length / 3; i++) {
+        p.push(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]);
+        if (N) nn.push(N[i * 3], N[i * 3 + 1], N[i * 3 + 2]); else nn.push(0, 1, 0);
+        if (U) uv.push(U[i * 2], U[i * 2 + 1]); else uv.push(0, 0);
+      }
+      if (!map && k.mat.map) map = k.mat.map;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(nn, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    if (map) map.colorSpace = THREE.NoColorSpace;            // paleta bez převodu, stejně jako barvy ostatních aut
+    // průměrný jas proužku laku v paletě: přebarvení zachová stínování proužku (jas / průměr × barva laku)
+    let ref = 0.6;
+    if (map && H.lak && map.image) {
+      const im = map.image, cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height;
+      const c2 = cv.getContext('2d'); c2.drawImage(im, 0, 0);
+      const w = im.width / 16, h = im.height / 4, d = c2.getImageData(Math.round(H.lak[0] * w), Math.round(H.lak[1] * h), Math.round(w), Math.round(h)).data;
+      let sum = 0; for (let i = 0; i < d.length; i += 4) sum += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      ref = Math.max(0.05, sum / (d.length / 4) / 255);
+    }
+    const lak = H.lak ? new THREE.Vector4(H.lak[0] / 16, (H.lak[0] + 1) / 16, H.lak[1] / 4, (H.lak[1] + 1) / 4) : new THREE.Vector4(-1, -1, -1, -1);
+    const mat = new THREE.MeshLambertMaterial({ map, color: map ? 0xffffff : 0xcccccc });
+    mat.onBeforeCompile = (sh) => {
+      sh.uniforms.uLak = { value: lak }; sh.uniforms.uRef = { value: ref };
+      sh.fragmentShader = 'uniform vec4 uLak; uniform float uRef;\n' + sh.fragmentShader.replace('#include <color_fragment>', `
+#if defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR )
+#ifdef USE_MAP
+  if (vMapUv.x >= uLak.x && vMapUv.x < uLak.y && vMapUv.y >= uLak.z && vMapUv.y < uLak.w)
+    diffuseColor.rgb = vColor * (dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114)) / uRef);
+#endif
+#endif`);
+    };
+    mat.customProgramCacheKey = () => 'auto_lak_' + (H.lak ? H.lak.join('_') : 'x');
+    const t = { n: 0, lak: null, det: null, sv: null, im: null, ic: null, ced: null, nb: 0, nl: 0, model: true };
+    t.im = new THREE.InstancedBufferAttribute(new Float32Array(MAX_M * 16), 16); t.im.setUsage(THREE.DynamicDrawUsage);
+    t.ic = new THREE.InstancedBufferAttribute(new Float32Array(MAX_M * 3).fill(1), 3); t.ic.setUsage(THREE.DynamicDrawUsage);
+    const sitM = (geo_, m_) => { const im = new THREE.InstancedMesh(geo_, m_, MAX_M); im.instanceMatrix = t.im; im.frustumCulled = false; im.count = 0; im.visible = false; scene.add(im); return im; };
+    t.det = sitM(g, mat); t.det.instanceColor = t.ic;
+    const m = { P: sit(), Z: sit(), R: sit(), D: sit() }, [p0, p1] = H.sv || [0.4, 0.5], hw = sb.hw;
+    svetla(m, true, sb.xf - 0.03, sb.vyska * p0, sb.vyska * p1, hw * 0.5, hw * 0.85);
+    svetla(m, false, sb.xr + 0.03, sb.vyska * p0, sb.vyska * p1, hw * 0.55, hw * 0.85);
+    t.sv = sitM(geom(spoj(m.P, m.Z), true), matSv);
+    const mz = meze(m.Z), mp = meze(m.P);
+    t.brz = instance(geom(m.Z, false), matBrzda, MAX_M);
+    t.bl = instance(gBlinkr, matBlinkr, MAX_M * 4);
+    t.blBody = [[mp.x1 - 0.02, (mp.y0 + mp.y1) / 2, Math.max(mp.z, 0.6)], [mz.x0 + 0.02, (mz.y0 + mz.y1) / 2 + 0.02, Math.max(mz.z, 0.6)]];
+    t.max = MAX_M;
+    telesa.push(t.det); if (priTelese) priTelese(t.det);
+    seznam.push(t);
+    return t;
+  }
+  function vyberModel(druh, x, y, sd) {                     // typ s hotovým modelem pro auto blízko hráče, jinak null
+    const v = VARIANTY[druh];
+    if (!v || sd === undefined || nM >= MAX_M || Math.abs(x - okoX) > DOSAH_M || Math.abs(y - okoY) > DOSAH_M) return null;
+    const u = ((sd >>> 8) % 10007) / 10007;
+    let k = v[v.length - 1][0]; for (const q of v) if (u < q[2]) { k = q[0]; break; }
+    const t = typModelu(k);
+    if (t && t.n < MAX_M) { nM++; return t; }
+    return null;
+  }
+
   // ---------- cedule s číslem linky (jen nejbližší autobusy a čela vlaků) ----------
   const maDoc = typeof document !== 'undefined';
   const textury = new Map();
@@ -592,11 +678,13 @@ export function vytvorVozidla(THREE, scene, max = 1400) {
 
   return {
     telesa,
-    zacni() { for (let i = 0; i < seznam.length; i++) { seznam[i].n = 0; seznam[i].nb = 0; seznam[i].nl = 0; } fronty[0].n = 0; fronty[1].n = 0; blik = Math.floor(performance.now() / 380) % 2 === 0; },
+    zacni(ox, oy) { if (ox !== undefined) { okoX = ox; okoY = oy; } nM = 0; for (let i = 0; i < seznam.length; i++) { seznam[i].n = 0; seznam[i].nb = 0; seznam[i].nl = 0; } fronty[0].n = 0; fronty[1].n = 0; blik = Math.floor(performance.now() / 380) % 2 === 0; },
+    set priTelese(f) { priTelese = f; },                    // nová tělesa (hotové modely se načítají později) -> f(mesh)
     // fl: 1 brzdí, 2 blinkr vlevo, 4 blinkr vpravo (obojí = výstražná světla); blinkr svítí jen v sudé fázi (blik)
-    pridej(druh, x, y, z, h, barva, linka, fl) {
-      const t = typy[druh] || typy.car;
-      if (t.n >= max) return;
+    // sd: semínko auta v provozu (jizda/doprava.js); blízko hráče pak dostane hotový model
+    pridej(druh, x, y, z, h, barva, linka, fl, sd) {
+      const t = vyberModel(druh, x, y, sd) || typy[druh] || typy.car;
+      if (t.n >= (t.max || max)) return;
       const i = t.n++, a = t.im.array, o = i * 16, c = Math.cos(h), s = Math.sin(h);
       a[o] = c; a[o + 1] = 0; a[o + 2] = -s; a[o + 3] = 0;
       a[o + 4] = 0; a[o + 5] = 1; a[o + 6] = 0; a[o + 7] = 0;
