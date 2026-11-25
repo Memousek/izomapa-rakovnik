@@ -130,3 +130,6 @@ kbd { font-family: var(--mono) !important; border-radius: 4px; }
 .hud-cas { padding: 0 10px 0 4px; font: 500 1rem var(--mono); color: var(--s9); white-space: nowrap; }
 .hud-cas b { margin-left: 6px; padding: 2px 6px; border-radius: 6px; background: #f1b23a; color: #3b2600; font: 500 .62rem var(--mono); letter-spacing: .08em; text-transform: uppercase; vertical-align: 2px; }
 .hud-cas b.vik { background: var(--s2); color: var(--s7); }
+
+/* povodeň v herní liště (vodní stav ČHMÚ, jizda.html #hudVoda) */
+.hud-voda { margin-right: 6px; padding: 4px 9px; border-radius: 8px; background: #1f6fd1; color: #fff; font: 500 .68rem var(--mono); letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }

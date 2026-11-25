@@ -47,6 +47,27 @@ def bez_znaceni(img, obdobi):
     return Image.fromarray(a)
 
 
+# výška nad nejbližší vodou (HAND) pro rozlití potoka podle skutečného vodního stavu (web/jizda.html: ČHMÚ, ?voda=cm):
+# z podkladu (třídy voda, potok) a výšek terénu čtverce. Šedotón 1024 px, 1 = 2,5 cm, 255 = 6,35 m a víc nebo daleko od vody.
+def voda_ctverec(c, src, dst):
+    import numpy as np
+    from scipy import ndimage
+    o = f'{dst}/voda.png'; f = f'{src}/ground_summer.png'
+    if not os.path.exists(f) or (os.path.exists(o) and os.path.getmtime(o) > os.path.getmtime(f)): return
+    M = 1024
+    g = np.asarray(Image.open(f).convert('RGB').resize((M, M), Image.NEAREST)).astype(np.int16)
+    voda = (g[..., 2] - g[..., 0] > 50) & (g[..., 2] >= g[..., 1]) & (g[..., 2] > 115)   # voda, potok, bazén z palety prep.py
+    sc = json.load(open(f'{src}/scene.json')); n = sc['n']; H = np.array(sc['heights'], dtype=np.float32).reshape(n, n)
+    yy, xx = np.mgrid[0:M, 0:M].astype(np.float32) * ((n - 1) / (M - 1))
+    h = ndimage.map_coordinates(H, [yy, xx], order=1)
+    if not voda.any(): Image.fromarray(np.full((M, M), 255, np.uint8)).save(o); return
+    d, (iy, ix) = ndimage.distance_transform_edt(~voda, return_indices=True)
+    hand = h - h[iy, ix]                                  # výška nad hladinou nejbližší vody
+    hand[(hand < 0) & ~voda] = 0.5                        # níž než nejbližší voda (údolí po proudu): zaplaví se až od +0,5 m
+    hand[d * (2 * geo.HALF / M) > 400] = 99               # dál než 400 m od vody se nerozlévá
+    Image.fromarray(np.clip(np.round(hand / 0.025), 0, 255).astype(np.uint8)).save(o)
+
+
 def orto_ctverec(c, dst):
     """letecký snímek pro čtverec c: stejný rozsah jako podklad terénu (sever nahoře), GROUND_PX; bez dlaždic nic"""
     o = f'{dst}/orto.webp'
@@ -86,7 +107,9 @@ def svet_js():
     kod = jednou(kod, 'const tex = await load(`${DIR}/ground_${SEASON}.webp`);', '''const tex = await load(`${DIR}/ground_${SEASON}.webp`);
   const texO = O.orto && SEASON !== 'winter' ? await load(`${DIR}/orto.webp`).catch(() => null) : null;
   if (texO) { texO.magFilter = THREE.LinearFilter; texO.minFilter = THREE.LinearMipmapLinearFilter; texO.generateMipmaps = true; texO.anisotropy = 8; texO.needsUpdate = true; }
-  O._texO = texO;   // pro mosty a násypy níž (texO je v bloku terénu)''')
+  O._texO = texO;   // pro mosty a násypy níž (texO je v bloku terénu)
+  O._voda = O.vodaH ? await load(`${DIR}/voda.png`).catch(() => null) : null;
+  if (O._voda) { O._voda.magFilter = O._voda.minFilter = THREE.LinearFilter; }''')
     kod = jednou(kod, '`${DIR}/lightmap.png`', '`${DIR}/lightmap.webp`')
     # mosty, násypy, zdi a ploty (buffer L): ve 3D s leteckým snímkem na plochách směřujících nahoru (mostovka, svah násypu,
     # vršek zdi či živého plotu), aby navazovaly na terén s ortofotem. Snímek se mapuje ze světa podle středu čtverce (O.cx, O.cy).
@@ -111,8 +134,8 @@ def svet_js():
     kod = jednou(kod, 'l = floor(l * 5.0 + hash(floor(gl_FragCoord.xy)) * 0.9) / 5.0;', 'l = l * 0.92;')
     kod = jednou(kod, '&& hash(floor(gl_FragCoord.xy)) > 0.6) col *= 0.93;', '&& hash(floor(vW.xz * 4.0)) > 0.6) col *= 0.93;')
     # počasí ve 3D na terénu: mokrý asfalt po dešti (tmavší, v ostrém úhlu odráží nebe) a postupně bílá zem při sněžení
-    kod = jednou(kod, '{ uTex: { value: tex }, uLmap: { value: lmap } }', '{ uTex: { value: tex }, uLmap: { value: lmap }, uMokro: O.uMokro || { value: 0 }, uSnih: O.uSnih || { value: 0 }, uTexO: { value: texO }, uOrto: { value: texO ? 1 : 0 }, uTA: { value: O.textury?.asfalt || null }, uTG: { value: O.textury?.trava || null }, uTP: { value: O.textury?.dlazba || null }, uTS: { value: O.textury?.sterk || null }, uSplat: { value: O.textury ? 1 : 0 }, uCasV: O.uCas || { value: 0 } }')
-    kod = jednou(kod, 'uniform sampler2D uTex, uLmap;', 'uniform sampler2D uTex, uLmap, uTexO, uTA, uTG, uTP, uTS; uniform float uMokro, uSnih, uOrto, uSplat, uCasV;')
+    kod = jednou(kod, '{ uTex: { value: tex }, uLmap: { value: lmap } }', '{ uTex: { value: tex }, uLmap: { value: lmap }, uMokro: O.uMokro || { value: 0 }, uSnih: O.uSnih || { value: 0 }, uTexO: { value: texO }, uOrto: { value: texO ? 1 : 0 }, uTA: { value: O.textury?.asfalt || null }, uTG: { value: O.textury?.trava || null }, uTP: { value: O.textury?.dlazba || null }, uTS: { value: O.textury?.sterk || null }, uSplat: { value: O.textury ? 1 : 0 }, uCasV: O.uCas || { value: 0 }, uVoda: { value: O._voda || null }, uVodaOK: { value: O._voda ? 1 : 0 }, uVodaH: O.vodaH || { value: 0 }, uVodaK: O.vodaK || { value: 0 } }')
+    kod = jednou(kod, 'uniform sampler2D uTex, uLmap;', 'uniform sampler2D uTex, uLmap, uTexO, uTA, uTG, uTP, uTS; uniform float uMokro, uSnih, uOrto, uSplat, uCasV, uVodaH, uVodaK, uVodaOK; uniform sampler2D uVoda;')
     # ---- kvalita obrazu zblízka (mapa je kreslená pro pohled shora po 0,2 m na pixel, chodec se dívá z 1,7 m) ----
     # detailní textura (stránka: O.uDet, dlaždicový šum s mipmapami; O.uDetS = 0 vše vypne) pro všechny materiály světa
     kod = jednou(kod, 'uniform float uLights; uniform vec2 uOff;', 'uniform float uLights; uniform vec2 uOff; uniform sampler2D uDet; uniform float uDetS; uniform float uOkna;')
@@ -189,14 +212,18 @@ def svet_js():
       {                                                          // voda (Rakovník): vlnky, odraz nebe podle úhlu pohledu, odlesk slunce; v zimě zamrzlá
         vec3 kv = texture2D(uTex, vUv).rgb;                      // třída z podkladu (před ortofotem a texturami)
         float voda = uSeason < 2.5 ? smoothstep(0.18, 0.3, kv.b - kv.r) * step(kv.g, kv.b) * step(0.45, kv.b) : 0.0;
+        // rozlití podle skutečného vodního stavu (ČHMÚ): terén níž nad vodou, než o kolik hladina stoupla
+        float hand = uVodaH > 0.0 && uVodaOK > 0.5 ? texture2D(uVoda, vUv).r * 6.375 : 99.0, zaplav = uSeason < 2.5 ? 1.0 - smoothstep(uVodaH - 0.08, uVodaH + 0.04, hand) : 0.0;
+        voda = max(voda, zaplav * step(0.02, uVodaH));
         if (voda > 0.01) {
-          vec2 q1 = vW.xz * 0.35 + vec2(uCasV * 0.05, uCasV * 0.03), q2 = vW.xz * 0.21 - vec2(uCasV * 0.035, -uCasV * 0.045);
+          float rych = 1.0 + uVodaK * 2.5;                         // velká voda teče rychleji
+          vec2 q1 = vW.xz * 0.35 + vec2(uCasV * 0.05, uCasV * 0.03) * rych, q2 = vW.xz * 0.21 - vec2(uCasV * 0.035, -uCasV * 0.045) * rych;
           vec4 w1 = texture2D(uDet, q1), w2 = texture2D(uDet, q2);
           vec3 nw = normalize(vec3((w1.g - 0.5) * 0.5 + (w2.a - 0.5) * 0.5, 1.0, (w1.a - 0.5) * 0.5 + (w2.g - 0.5) * 0.5));
           vec3 vd = normalize(cameraPosition - vW), rf = reflect(-vd, nw);
           float fres = 0.06 + 0.94 * pow(1.0 - max(dot(nw, vd), 0.0), 4.0);
           vec3 nebe = mix(vec3(0.72, 0.8, 0.88), vec3(0.32, 0.5, 0.78), clamp(rf.y * 1.4, 0.0, 1.0));
-          vec3 hloubka = mix(vec3(0.07, 0.15, 0.17), col * 0.45, 0.35);
+          vec3 hloubka = mix(mix(vec3(0.07, 0.15, 0.17), col * 0.45, 0.35), vec3(0.32, 0.26, 0.16), uVodaK);   // kalná při velké vodě
           float lesk = pow(max(dot(rf, normalize(uSun)), 0.0), 180.0) * 2.2;
           col = mix(col, mix(hloubka, nebe, fres) + lesk, voda);
         }
@@ -326,6 +353,7 @@ def main():
                 bez_znaceni(Image.open(f).convert('RGB'), s).resize((GROUND_PX, GROUND_PX), Image.LANCZOS).save(o, quality=88, method=4)
         if os.path.exists(f'{src}/lightmap.png'): Image.open(f'{src}/lightmap.png').convert('RGB').save(f'{dst}/lightmap.webp', quality=80)
         orto_ctverec(c, dst)                                  # letecký snímek na terén (stránka: Grafika → Letecký snímek)
+        voda_ctverec(c, src, dst)                             # výška nad vodou pro rozlití potoka podle vodního stavu
         # chodníky a stezky (prep.py walks: footway, path, pedestrian, cycleway) ve světových souřadnicích pro chodce
         cx, cy = geo.chunk_center(c); info = json.load(open(f'{src}/info_src.json'))
         H = geo.HALF
