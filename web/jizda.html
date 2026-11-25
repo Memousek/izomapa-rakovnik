@@ -598,7 +598,7 @@ const slozeni = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMa
       if ((uAO > 0.5 || uMokro > 0.02) && nebe < 0.5 && d < 220.0) {
         vec3 w = paprsek(z), nw = normalize(cross(dFdx(w), dFdy(w))); if (dot(nw, kam - w) < 0.0) nw = -nw;
         if (uAO > 0.5) c *= mix(ssao(w, nw, d), 1.0, smoothstep(90.0, 160.0, d));
-        if (uMokro > 0.02 && nw.y > 0.92) {                        // mokrá zem: odraz domů, aut a světel (Fresnel: víc v ostrém úhlu)
+        if (uMokro > 0.02 && nw.y > 0.92 && d > 2.5) {            // mokrá zem: odraz domů, aut a světel (Fresnel: víc v ostrém úhlu); ne palubní deska v kabině
           vec4 od = odraz(w, nw, r); float fr = 0.12 + 0.88 * pow(1.0 - max(dot(-r, nw), 0.0), 4.0);
           c = mix(c, od.rgb, od.a * fr * uMokro * 0.65 * (1.0 - smoothstep(120.0, 220.0, d)));
         }
@@ -702,7 +702,7 @@ function srazky(n, druh) {
         p = uCam + mod(p - uCam + B * 0.5, B) - B * 0.5;            // krabice jede s kamerou, částice se nikde neobjeví naráz
         // vzdálenost bližšího konce kapky (oba vrcholy stejně): kapka s koncem v kabině nebo za kamerou zmizí celá, jinak by z ní byla čára přes obraz
         vec3 mvA = (modelViewMatrix * vec4(p, 1.0)).xyz, mvB = (modelViewMatrix * vec4(p + vec3(-uVitr.x * 0.06, 1.3, uVitr.y * 0.06), 1.0)).xyz;
-        vD = min(length(mvA), length(mvB)); if (mvA.z > -0.3 || mvB.z > -0.3) vD = -1.0;   // za kamerou: vždy pryč
+        vD = min(-mvA.z, -mvB.z); if (vD < 0.3) vD = -1.0;          // hloubka před kamerou (ne vzdálenost: kapka vedle oka by byla čára přes obraz); za kamerou vždy pryč
         ${druh === 'dest' ? 'p += aKonec * vec3(-uVitr.x * 0.06, 1.3, uVitr.y * 0.06);' : ''}   // kapka = čárka po směru pádu
         vA = step(position.x, uI);                                  // intenzita: jen část částic
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
@@ -714,6 +714,7 @@ function srazky(n, druh) {
       void main(){
         if (vA < 0.5 || vD < uUvnitr) discard;                       // v kabině vozidla neprší dovnitř
         ${druh === 'snih' ? 'vec2 q = gl_PointCoord - 0.5; if (dot(q, q) > 0.25) discard; gl_FragColor = vec4(vec3(0.96, 0.97, 1.0) * uJas, 0.95);' : 'gl_FragColor = vec4(vec3(0.84, 0.88, 0.95) * uJas, 0.75);'}
+        if (uUvnitr > 0.0) gl_FragColor.a *= smoothstep(uUvnitr, uUvnitr * 3.2, vD);   // z kabiny: kapky těsně před sklem slabé (jinak vypadají jako tyče)
       }`,
     transparent: true, depthWrite: false,
   });
@@ -2044,7 +2045,7 @@ function vykresli(dt = 0.016) {
     s.uSunScr.value.set(sp.x * 0.5 + 0.5, sp.y * 0.5 + 0.5, sp.z < 1 && k > 0 ? Math.min(1, k * 1.4) * (1 - uN) * (1 - WXI.zat * 0.8) : 0);
   }     // vzhled: telefon a nízká grafika bez záře a zrna
   renderer.setRenderTarget(null); renderer.clear(); renderer.render(slozScena, slozCam);
-  SRAZKY_UVNITR.value = (hrac.vAuto || hrac.bus !== null) && hrac.kabina ? 2.2 : 0;
+  SRAZKY_UVNITR.value = (hrac.vAuto || hrac.bus !== null) && hrac.kabina ? 2.2 : 0;   // z kabiny: kapky uvnitř a těsně u skla pryč, do ~7 m slábnou
   if (KOKPIT.skupina.visible) {                            // kabina: nejdřív jen hloubka kokpitu, aby kapky na skle a déšť nešly přes palubní desku a sloupky
     renderer.autoClear = false; renderer.clearDepth();
     const k = KOKPIT.skupina, rodic = k.parent; HLOUBKA_KOKPITU.add(k); renderer.render(HLOUBKA_KOKPITU, camera); rodic.add(k);
@@ -2374,7 +2375,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') window.__jizda = { FSD, fsdPrepni, hitBuilding, ramenoVolne, SLUNCE, sunL, WXI, WX_CIL, KOKPIT, UZ, CAM, carPose, MRIZ, GARAZ, KONFIG, KUZELY, BL, OKNA, hodina, ULICE, ZNACKY, nastavGrafiku, parkovana, PARK, DETAIL, KVALITA, rtDen, slozeni, POVRCH, STROMY, HRA, ZVUK, hustota, hrac, orbit, gz, vyska, DOBA, NAV, LIDE, ZAST, busBlizko, cars, roads, DOPR, HRACI, CH, SIG, sigPosts, MHD, RT, keys, camera, scene3, renderer, nastoupit, snimek: (ms = 16) => { last = performance.now() - ms; frame(performance.now()); } };
+if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') window.__jizda = { FSD, fsdPrepni, hitBuilding, ramenoVolne, SLUNCE, sunL, WXI, WX_CIL, KOKPIT, DEST, SRAZKY_UVNITR, UZ, CAM, carPose, MRIZ, GARAZ, KONFIG, KUZELY, BL, OKNA, hodina, ULICE, ZNACKY, nastavGrafiku, parkovana, PARK, DETAIL, KVALITA, rtDen, slozeni, POVRCH, STROMY, HRA, ZVUK, hustota, hrac, orbit, gz, vyska, DOBA, NAV, LIDE, ZAST, busBlizko, cars, roads, DOPR, HRACI, CH, SIG, sigPosts, MHD, RT, keys, camera, scene3, renderer, nastoupit, snimek: (ms = 16) => { last = performance.now() - ms; frame(performance.now()); } };
 </script>
 </body>
 </html>
