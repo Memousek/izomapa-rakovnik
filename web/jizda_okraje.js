@@ -1,16 +1,12 @@
-// Okraje silnic ve 3D jízdě (Rakovník): obrubníky podél silnic v zástavbě, travnatá krajnice s trsy trávy a keři
-// podél silnic za městem i ve městě. Staví se jen kolem hráče (do DOSAH m) a přestaví, když hráč popojde.
-// Vše je InstancedMesh (obrubníky, trsy trávy, keře = tři volání kreslení). Souřadnice: svět x východ, y sever,
-// z nahoru; three pozice = (x, z, -y).
-const PUL = { motorway: 9, trunk: 6, primary: 5, secondary: 4.5, tertiary: 4, residential: 3, unclassified: 3, living_street: 3, service: 1.5 };
-const DOSAH = 150, PRESTAV = 45;
+// Zeleň u země ve 3D jízdě (Rakovník): trsy trávy a keře kolem hráče, ale jen tam, kde je na podkladu terénu
+// opravdu tráva (zelený pixel textury ground_<období>.webp) a nestojí budova. Silnice, chodníky a parkoviště zůstanou
+// čisté. Podklad se pro každý čtverec načte zmenšený (1024 px, ~2,2 m na pixel) a z něj se čte jen maska zeleně.
+// Vše je InstancedMesh (tráva, keře = dvě volání kreslení). Souřadnice: svět x východ, y sever, z nahoru; three = (x, z, -y).
+const DOSAH = 70, PRESTAV = 25, MASKA = 1024;
 const hash = (x, y) => { const v = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return v - Math.floor(v); };
 
-export function vytvorOkraje(THREE, scene, { roads, gz, hitBuilding, obdobi, jenVeDne }) {
-  const MAX_OBR = 1600, MAX_TRAVA = 7000, MAX_KER = 700;
-  // obrubník: kvádr 1 × 1 × 1 (škáluje se na délku úseku, výšku 0,14 m a šířku 0,22 m)
-  const obrMat = new THREE.MeshBasicMaterial({ color: 0xaaa59b });   // beton bez stínování (Lambert vycházel jako černá čára)
-  const obr = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), obrMat, MAX_OBR);
+export function vytvorOkraje(THREE, scene, { gz, hitBuilding, obdobi, jenVeDne, HALF }) {
+  const MAX_TRAVA = 5000, MAX_KER = 400;
   // trs trávy: vějíř pěti tenkých stébel, u země tmavší, špička světlejší (barva instance se násobí)
   const tg = new THREE.BufferGeometry(), tp = [], tc = [];
   for (let k = 0; k < 5; k++) {
@@ -19,70 +15,70 @@ export function vytvorOkraje(THREE, scene, { roads, gz, hitBuilding, obdobi, jen
     tc.push(0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 1.15, 1.15, 1.1);
   }
   tg.setAttribute('position', new THREE.Float32BufferAttribute(tp, 3)); tg.setAttribute('color', new THREE.Float32BufferAttribute(tc, 3));
-  const trMat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, vertexColors: true });
-  const trava = new THREE.InstancedMesh(tg, trMat, MAX_TRAVA);
-  // keř: nízký zploštělý mnohostěn
+  const trava = new THREE.InstancedMesh(tg, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, vertexColors: true }), MAX_TRAVA);
   const ker = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.55, 1), new THREE.MeshLambertMaterial({ flatShading: true }), MAX_KER);
-  for (const m of [obr, trava, ker]) { m.count = 0; m.frustumCulled = false; scene.add(m); if (jenVeDne) jenVeDne.push(m); }
+  for (const m of [trava, ker]) { m.count = 0; m.frustumCulled = false; scene.add(m); if (jenVeDne) jenVeDne.push(m); }
   const BARVY_TRAVA = { spring: [0x7fb04a, 0x92c05a, 0x6fa040], summer: [0x7aa046, 0x8fae4e, 0x9aae58], autumn: [0x8fa04e, 0xa8a858, 0x7f9446], winter: [0x9aa08c, 0xa8ae9a, 0x8d947e] };
   const BARVY_KER = { spring: [0x5a8f34, 0x6a9a3e], summer: [0x4a7a30, 0x5a8636], autumn: [0x5a7a32, 0x8a7a34, 0x9a6a30], winter: [0x6a665c, 0x5e5a52] };
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3(), osa = new THREE.Vector3(0, 1, 0), osaZ = new THREE.Vector3(0, 0, 1), q2 = new THREE.Quaternion(), col = new THREE.Color();
-  let bx = 1e9, by = 1e9, pocet = 0;
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3(), osa = new THREE.Vector3(0, 1, 0), col = new THREE.Color();
+  let bx = 1e9, by = 1e9, spinave = false;
+
+  // ---------- maska zeleně po čtvercích ----------
+  const masky = new Map();                                   // 'i_j' -> Uint8Array (1 = tráva) | 'nacita'
+  const S2 = 2 * HALF;
+  async function nactiMasku(i, j) {
+    const k = `${i}_${j}`; masky.set(k, 'nacita');
+    try {
+      const b = await (await fetch(`jizda/c${i}_${j}/ground_${obdobi}.webp`)).blob();
+      const bmp = await createImageBitmap(b, { resizeWidth: MASKA, resizeHeight: MASKA, resizeQuality: 'medium' });
+      const cv = new OffscreenCanvas(MASKA, MASKA), g = cv.getContext('2d'); g.drawImage(bmp, 0, 0);
+      const d = g.getImageData(0, 0, MASKA, MASKA).data, m = new Uint8Array(MASKA * MASKA);
+      for (let p = 0, o = 0; p < m.length; p++, o += 4) {
+        const r = d[o], gg = d[o + 1], bb = d[o + 2], mx = Math.max(r, gg, bb), sat = mx - Math.min(r, gg, bb);
+        m[p] = gg >= r && gg >= bb && sat > 18 && mx > 60 ? 1 : 0;          // zelená: tráva, louka, zahrada (ne asfalt, dlažba, holé pole)
+      }
+      masky.set(k, m); spinave = true;
+    } catch { masky.set(k, new Uint8Array(1)); }
+  }
+  // je bod na trávě? zelený pixel i jeho sousedé (kraj trávníku u silnice se nepočítá)
+  function zelene(x, y) {
+    const i = Math.floor((x + HALF) / S2), j = Math.floor((y + HALF) / S2), k = `${i}_${j}`, m = masky.get(k);
+    if (!m) { nactiMasku(i, j); return false; }
+    if (m === 'nacita' || m.length < 2) return false;
+    const px = Math.floor(((x - i * S2) + HALF) / S2 * MASKA), py = Math.floor((HALF - (y - j * S2)) / S2 * MASKA);
+    if (px < 1 || py < 1 || px >= MASKA - 1 || py >= MASKA - 1) return false;
+    const o = py * MASKA + px;
+    return !!(m[o] && m[o - 1] && m[o + 1] && m[o - MASKA] && m[o + MASKA]);
+  }
 
   function postav(hx, hy) {
-    let no = 0, nt = 0, nk = 0;
+    let nt = 0, nk = 0;
     const ob = BARVY_TRAVA[obdobi] || BARVY_TRAVA.summer, kb = BARVY_KER[obdobi] || BARVY_KER.summer;
-    for (const r of roads) {
-      const w0 = r.w[0];
-      if (Math.abs(w0[0] - hx) > DOSAH + r.L || Math.abs(w0[1] - hy) > DOSAH + r.L) continue;
-      const pul = (r.o ? (PUL[r.c] || 3) * 0.7 : PUL[r.c] || 3);
-      const vMeste = hitBuilding(w0[0], w0[1], 30) || hitBuilding(r.w[r.w.length - 1][0], r.w[r.w.length - 1][1], 30);
-      const obrubnik = vMeste && r.c !== 'service' && r.c !== 'motorway' && r.c !== 'trunk';
-      for (let i = 1; i < r.w.length; i++) {
-        const a = r.w[i - 1], b = r.w[i], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy);
-        if (L < 0.5) continue;
-        const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
-        if (Math.hypot(mx - hx, my - hy) > DOSAH) continue;
-        const most = a[2] - gz(a[0], a[1]) > 0.8 || b[2] - gz(b[0], b[1]) > 0.8;   // na mostě a nájezdu nic
-        if (most) continue;
-        const ux = dx / L, uy = dy / L, nx = -uy, ny = ux, h = Math.atan2(dy, dx);
-        for (const s of [1, -1]) {
-          const ex = mx + nx * s * (pul + 0.1), ey = my + ny * s * (pul + 0.1);
-          if (obrubnik && no < MAX_OBR && !hitBuilding(ex, ey, 0.3)) {        // obrubník po celé délce úseku
-            const z = (a[2] + b[2]) / 2;
-            const sklon = Math.atan2(b[2] - a[2], L);                         // obrubník kopíruje sklon silnice
-            q.setFromAxisAngle(osa, h).multiply(q2.setFromAxisAngle(osaZ, sklon)); m4.compose(v.set(ex, z + 0.05, -ey), q, sc.set(L + 0.05, 0.14, 0.22));
-            obr.setMatrixAt(no++, m4);
-          }
-          // krajnice: trsy trávy a občas keř za obrubníkem nebo přímo u kraje vozovky
-          const n = Math.floor(L * (vMeste ? 0.6 : 1.4));
-          for (let k = 0; k < n && nt < MAX_TRAVA; k++) {
-            const t = (k + hash(i * 7 + k, s)) / Math.max(n, 1), od = pul + (obrubnik ? 0.45 : 0.25) + hash(k, i * 3 + s) * (vMeste ? 0.9 : 1.8);
-            const x = a[0] + dx * t + nx * s * od, y = a[1] + dy * t + ny * s * od;
-            if (hitBuilding(x, y, 0.4)) continue;
-            const z = gz(x, y), hh = hash(x * 0.37, y * 0.53);
-            if (hh < 0.025 && nk < MAX_KER && !vMeste) {                         // keř u silnice za městem
-              q.setFromAxisAngle(osa, hh * 40); const vel = 0.8 + hh * 16;
-              m4.compose(v.set(x, z + 0.35 * vel, -y), q, sc.set(vel, vel * 0.7, vel)); ker.setMatrixAt(nk, m4);
-              ker.setColorAt(nk++, col.setHex(kb[Math.floor(hh * 100) % kb.length]));
-              continue;
-            }
-            q.setFromAxisAngle(osa, hh * 6.28); const vel = 0.8 + hash(y, x) * 0.7;
-            m4.compose(v.set(x, z - 0.02, -y), q, sc.set(vel, vel * (obdobi === 'winter' ? 0.6 : 1), vel)); trava.setMatrixAt(nt, m4);
-            trava.setColorAt(nt++, col.setHex(ob[Math.floor(hh * 1000) % ob.length]));
-          }
-        }
+    // pevná mřížka 1,6 m ve světě (stejné trsy na stejném místě i po přestavbě), v buňce nejvýš jeden trs
+    const C = 1.6, g0x = Math.floor((hx - DOSAH) / C), g1x = Math.floor((hx + DOSAH) / C), g0y = Math.floor((hy - DOSAH) / C), g1y = Math.floor((hy + DOSAH) / C);
+    for (let gx = g0x; gx <= g1x && nt < MAX_TRAVA; gx++) for (let gy = g0y; gy <= g1y && nt < MAX_TRAVA; gy++) {
+      const h = hash(gx, gy);
+      if (h > 0.45) continue;                                // řídce: asi polovina buněk
+      const x = (gx + hash(gy, gx)) * C, y = (gy + hash(gx * 1.7, gy)) * C;
+      if ((x - hx) ** 2 + (y - hy) ** 2 > DOSAH * DOSAH || !zelene(x, y) || hitBuilding(x, y, 0.6)) continue;
+      const z = gz(x, y);
+      if (h < 0.006 && nk < MAX_KER) {                       // občas keř
+        q.setFromAxisAngle(osa, h * 900); const vel = 0.8 + hash(x, y) * 0.9;
+        m4.compose(v.set(x, z + 0.3 * vel, -y), q, sc.set(vel, vel * 0.7, vel)); ker.setMatrixAt(nk, m4);
+        ker.setColorAt(nk++, col.setHex(kb[Math.floor(h * 1e4) % kb.length]));
+        continue;
       }
+      q.setFromAxisAngle(osa, h * 14); const vel = 0.8 + hash(y, x) * 0.7;
+      m4.compose(v.set(x, z - 0.02, -y), q, sc.set(vel, vel * (obdobi === 'winter' ? 0.6 : 1), vel)); trava.setMatrixAt(nt, m4);
+      trava.setColorAt(nt++, col.setHex(ob[Math.floor(h * 1e3) % ob.length]));
     }
-    obr.count = no; trava.count = nt; ker.count = nk;
-    for (const m of [obr, trava, ker]) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
-    pocet = no + nt + nk;
+    trava.count = nt; ker.count = nk;
+    for (const m of [trava, ker]) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
   }
   return {
-    update(hrac, zmenaSilnic) {
-      if (!zmenaSilnic && Math.hypot(hrac.x - bx, hrac.y - by) < PRESTAV) return;
-      bx = hrac.x; by = hrac.y; postav(bx, by);
+    update(hrac) {
+      if (!spinave && Math.hypot(hrac.x - bx, hrac.y - by) < PRESTAV) return;
+      spinave = false; bx = hrac.x; by = hrac.y; postav(bx, by);
     },
-    get pocet() { return pocet; },
   };
 }

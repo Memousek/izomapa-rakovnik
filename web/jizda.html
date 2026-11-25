@@ -845,10 +845,9 @@ const zabradli = (zPred, v) => zPred - v.z > 1.0;           // sjet nebo sejít 
 
 // ---------- doprava: stejná pravidla jako v mapě (web/app.html): semafory, přednost, odstupy, odbočování ----------
 // simulace je v jizda/doprava.js (bez kreslení); tady jen napojení na hráče, denní dobu, uzavírky, značky a 3D semafory
-let okrajeZmena = false;                                   // silnice se změnily: přestavět okraje (jizda/okraje.js)
 const DOPR = vytvorDopravu({
   HALF, hrac: () => hrac, doba: () => DOBA.n, hustota: () => hustotaProvozu(),
-  silnice: (i0) => { oznacUzavirky(i0); ZNACKY.zmena(); okrajeZmena = true; }, hotovo: () => stavSignaly(),
+  silnice: (i0) => { oznacUzavirky(i0); ZNACKY.zmena(); }, hotovo: () => stavSignaly(),
 });
 const { roads, ends, cars, LOADED, ULICE_STAV, ek, along, SIG, sigPosts, sigState, XC, xc3, blocked, TRAILER, TAH,
   pickExit, nactiDopravu, GARAZ, provozPodleTmy, carGaps, stepCar, carPose } = DOPR;
@@ -1878,8 +1877,8 @@ function nastavGrafiku(k) {
 document.querySelectorAll('#grafika button').forEach((b) => b.addEventListener('click', () => { b.blur(); nastavGrafiku(b.dataset.g); }));
 nastavGrafiku(GRAF);
 // dopravní značky podle skutečnosti (jizda/znacky.js; data z OSM: nastroje/znacky.py)
-// obrubníky, krajnice s trávou a keře podél silnic kolem hráče (jizda/okraje.js); na Nízké grafice ne
-const OKRAJE = GRAF === 'nizka' ? null : vytvorOkraje(THREE, scene3, { roads, gz, hitBuilding, obdobi: OBD, jenVeDne });
+// tráva a keře kolem hráče jen na zelených místech podkladu (jizda/okraje.js); na Nízké grafice ne
+const OKRAJE = GRAF === 'nizka' ? null : vytvorOkraje(THREE, scene3, { gz, hitBuilding, obdobi: OBD, jenVeDne, HALF });
 // zorné pole podle rychlosti, chvění kamery, krok pěšky, padající listí na podzim (jizda/efekty.js)
 const EFEKTY = vytvorEfekty(THREE, scene3, camera, { obdobi: OBD, jenVeDne });
 const PTACI = vytvorPtaky(THREE, scene3, { jenVeDne });   // hejna nad městem ve dne (jizda/ptaci.js)
@@ -2149,7 +2148,7 @@ function frame(now) {
   PTACI.update(dt, now / 1000, hrac, DOBA.n, WXI.zat, WXI.dest);
   EFEKTY.update(dt, now / 1000, { veVoze: hrac.vAuto || hrac.bus !== null, pesky: !hrac.vAuto && hrac.bus === null && SLED.i === null, zOci: !!hrac.zOci,
     vitr: Array.isArray(POC.vitr) ? POC.vitr : [0, 0], stromy: (x, y, R) => STROMY.listnate(x, y, R) }, gz, hrac);
-  if (OKRAJE) { OKRAJE.update(hrac, okrajeZmena); okrajeZmena = false; }
+  if (OKRAJE) OKRAJE.update(hrac);
   EFEKTY.pred(); vykresli(); EFEKTY.po();
   fpsN++; if (now - fpsT > 1000) { fps = fpsN; fpsN = 0; fpsT = now; }
   OKNA.value = oknaPodleCasu(hodina());
