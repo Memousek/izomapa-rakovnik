@@ -1,4 +1,8 @@
-# izomapa – návod pro AI agenta
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## izomapa – návod pro AI agenta
 
 Uživatel chce izometrickou pixel-art mapu svého města („udělej mi izometrickou mapu Chrastavy“). Předloha je
 https://izomapa.fun (Liberec). Liberec sám nedělej, ten si autor spravuje sám: když o něj uživatel požádá, nabídni
@@ -127,6 +131,7 @@ Automaticky z dat vyjde celé město. Ručně je potřeba:
 - **Sypače ŘSD (volitelné, výchozí vypnuto):** `"pluhy": true` v `mesto.json` zobrazí živé polohy sypačů a pluhů zimní údržby z veřejné mapy ŘSD (https://udrzba.rsd.cz, jen dálnice a silnice I. třídy) a jejich trasy za posledních 12 h: oranžově zásah (posyp, pluhování) podle stáří, šedě pojezd bez zásahu. API ŘSD je bez klíče, ale bez CORS, proto ho podává prostředník `functions/api/pluhy.js` (polohy cache 5 s, trasy 60 s, ořez na výřez mapy; s workerem z `hlaseni/` ho obslouží worker). Prohlížeč se ptá každých 10 s a vůz mezi polohami plynule dojíždí; je to oranžová Tatra se sypací nástavbou (modrý pruh, nádrže se solankou), šikmou radlicí (spuštěnou při zásahu), dvěma blikajícími majáky a posypem za vozem; model je typ 11 ve `web/js/80-vozidla.js`. Vrstva má v panelu přepínač s počtem vozů v okolí, v patičce je zdroj ŘSD ČR. Bez prostředníka (404) se prohlížeč přestane ptát.
 - **Letiště (doplněk `letiste`, volitelné):** travnaté nebo zpevněné dráhy, odstavná plocha a pojížděcí dráha v dlaždicích a v prohlížeči ilustrační provoz malých letadel (Cessna, ultralight, An-2 s parašutisty). Zkopíruj `priklady/letiste.sample.json` do `assets/doplnky/letiste.json` a uprav: `drahy` [{`ref`, `a`, `b` [lat, lon] konců, `sirka` m, `povrch` trava|asfalt}], `aktivni` {`draha`, `od` a|b (konec, odkud se vzlétá), `okruh` levy|pravy (podle AIP)}, `odstavna` (polygon), `pojizdeni` (čára), `stani` (body, kde letadla stojí), `dz` (místo seskoků, bez něj An-2 létá jen okruhy), `letadla` [{`typ` c172|ul|an2, `stani` index, `leta` false = jen stojí}], `vyska_okruhu` (m, výchozí 110 – kvůli čitelnosti mapy nižší než skutečných ~300 m). Létá se jen ve dne, v zimě nejvýš jedno letadlo. Na rozdíl od `"letadla"` (skutečné polohy z ADS-B) jde o vymyšlený provoz, proto ho popis mapy má označit jako ilustrační. Hangáry: u dominanty `"hangar": 1`, `"face": [lat, lon]` (bod na ploše letiště, k němu míří vrata) a `"vrata": výška m`; stěna s vraty má posuvná vrata, ostatní stěny vlnitý plech (styly fasády 20/21). Po změně dráhy nebo hangárů je potřeba render dotčených čtverců, provoz stačí `overlay.py`.
 - **Vlaky z celostátního jízdního řádu (volitelné):** když GTFS vlaky nemá, stáhni ZIP s CZPTT XML z portal.cisjr.cz do `build/vlaky/JR<rok>.zip` a pusť `.venv/bin/python nastroje/vlaky_vyber.py` a `.venv/bin/python nastroje/vlaky.py`. V `mesto.json` musí být volba `"vlak"`, části názvů stanic na mapě v `"vlaky_stanice": ["Olomouc", "Velká Bystřice"]` (výchozí je název města). `mhd.py` je přidá k ostatním spojům. Před zveřejněním ověř podmínky užití dat.
+- **Přesný terén a mosty z laseru ČÚZK:** `.venv/bin/python nastroje/dmr.py` stáhne listy DMR 5G (45 listů pro Rakovník, ~200 MB) do `build/dmr/` a vyrobí `build/dmr_teren.npz` (mřížka 5 m v S-JTSK). `prep.py` pak bere terén odtud místo Terraria (SRTM ~30 m), mimo pokrytí Terrarium. Výšku mostovky bere `prep.py` z laseru DMP 1G (`build/dmp/`, `dmp_mostovka`), když ho laser zachytil 0,5–30 m nad terénem aspoň v polovině rozpětí; jinak pravidla (podjezdná výška 5,2 / 6 m, nad vodou 1–1,3 m). Laser je z let 2009–2013, novější mosty (D6 u Krupé) v něm chybí a jedou podle pravidel. Vypnout: `"mosty_laser": false` v `assets/upresneni.json`. Po změně `prep.py` a render všech čtverců.
 - **Les a pole:** maska lesa z ortofota (`nastroje/les.py`), pole ze ZABAGED (`nastroje/zabaged.py`, `nastroje/pole.py`).
   `nastroje/pole_cesty.py` rozdělí velké bloky orné půdy podle cest, tratí a potoků a pak podle barvy na ortofotu
   na menší pole a plodinu vybere podle jasu (světlé obilí, tmavá kukuřice; `assets/zabaged.json` klíče `orna_dil`,
@@ -168,6 +173,9 @@ Automaticky z dat vyjde celé město. Ručně je potřeba:
   Okna podle hodin: v režimu Právě teď svítí v noci jen část oken, ráno ve všední den se rozsvěcí, o víkendu a svátcích se zhasíná později (`oknaPodleHodin` ve `web/js/10-vrstvy.js`). Render není potřeba, stačí `build_html.py`.
 - **Názvy čtvrtí a místních částí** (při oddálení): z Overture (`macrohood`, `microhood`). Když je Overture pro město nemá (menší města), `overlay.py` vezme obce a jejich části z adres ČÚZK (`postal_city`) a popisek dá k domu uprostřed největší souvislé zástavby části (domy do 80 m od sebe, aspoň 15 adres). Kromě města a obcí z `obce/*.json` dostane popisek i každá obec, jejíž území (Overture `localadmin`) leží z víc než poloviny v mapě. Obec (i hlavní část se stejným názvem) má větší tučné písmo, ostatní místní části menší. Lepší zdroj (přednost před Overture i adresami): `.venv/Scripts/python nastroje/zsj.py` stáhne základní sídelní jednotky z RÚIAN ČÚZK (úřední pojmenované části města a vesnice, Rakovník: Vinohrady, Šamotka, Huřviny, Karlovarské předměstí…) do `assets/zsj.json`; ZSJ se jménem obce je větším písmem, přejmenovat jde `"prejmenuj_casti": {"Rakovník-střed": "Rakovník"}`. Skrýt název: `"skryte_casti": ["Název"]` v `mesto.json`. Render není potřeba, stačí `overlay.py`.
 - **Systém doplňků a knihoven (volitelné):** Doplňky leží v `doplnky/<id>/`, sdílené JS knihovny v `knihovny/<id>/<id>.js` (`profanity`, `server_client`), soukromé doplňky nebo knihovny stačí přidat do `.gitignore` (příp. `.git/info/exclude`). Konfigurace zapnutých doplňků patří do `assets/doplnky.json` (ukázka `priklady/doplnky.sample.json`) nebo `mesto.json` (`"doplnky"`), městská data doplňků do `assets/doplnky/<id>.json`. Pokud `assets/doplnky.json` neexistuje, `plugins.py` automaticky aktivuje každý doplněk z `doplnky/`, pro který existuje `assets/doplnky/<id>.json` (`ctx['data_file']`). Doplněk si v `manifest.json` může vyžádat knihovny přes `"libs": [...]` (zkopírují se jen při použití a prohlížeč (`web/js/90-doplnky-api.js`) je načte nejvýš 1× před skripty doplňků) a neveřejné volby pro build hook schovat pod klíč `"private"`. Klientský vzor a kompletní přehled API (`window.Izomapa`, `onFrame`, `registerLib`) je v `priklady/doplnek_vzor/README.md`. Render není potřeba, stačí `overlay.py`.
+
+Testy (bez sítě): JS `node tests/test-<název>.mjs`; Python s `if __name__ == '__main__'` `PYTHONUTF8=1 .venv/bin/python tests/test_<název>.py`. `test_koleje.py`, `test_kruhace.py` a `test_prejezdy.py` jsou jen funkce pro pytest (spuštěné přímo nic neověří): `.venv/bin/pip install pytest` a `.venv/bin/python -m pytest tests/test_koleje.py`.
+Kontrola syntaxe celé stránky po úpravě `web/js/` (soubory jsou jedna funkce, chyba v jednom shodí mapu): `python build_html.py`, pak vytáhnout velký `<script>` ze `site/index.html` do souboru a `node --check` na něj.
 
 Rychlá kontrola jednoho místa bez celého čtverce:
 `python prep.py data_c0_-1 0,-1` a `node render.mjs dir=build/c0_-1 out=build/test season=summer alpha=1 "tiles=7_3;7_4"`
@@ -222,6 +230,20 @@ Lokálně i s funkcemi: `npx wrangler pages dev site --ip 127.0.0.1 --port 8788`
 Hlášení nepřesností je samostatný Worker s D1 v `hlaseni/` (viz výše), nasazuje se zvlášť.
 
 Tahle kopie (Rakovník): projekt `izomapa-rakovnik`, https://izomapa-rakovnik.pages.dev, první nasazení 17. 11. 2026. KV pro úpravy uzavírek: `izomapa-rakovnik-uzavirky` (id 93d7162aa2664492ba1c1f7838082b7b).
+
+### Tahle kopie (Rakovník): co je jinak než v šabloně
+
+- **Data a úpravy města jsou v gitu** (repo Memousek/izomapa-rakovnik): `mesto.json`, `mista.json`, `obce/` (Lišany, Krupá, Lubná: `index_<obec>.html`),
+  `assets/` (i to, co šablona ignoruje). Mimo git jen `build/`, `site/`, `data*/`, fotky a tajemství. Commity pod účtem `Memousek` (lokální `git config` repa).
+- **Novinky z hlavního repa:** remote `upstream` = adamklatovsky/izomapa, `git fetch upstream && git merge upstream/main`. Konflikty bývají v `CLAUDE.md`,
+  `web/app.html` a `web/js/84-kresleni-vozidel.js`, `89-kresleni.js` (rakovnický ořez chodců po pixelech `drawBehindTrees`): rakovnické úpravy nechat,
+  převzít nové z Liberce. Po sloučení vždy kontrola syntaxe JS (dvakrát deklarovaná `const` shodí celou stránku).
+- **Vlastní vzhled** nad šablonou (soubory 00–40 nechat co nejblíž Liberci): `web/css/50-rakovnik.css` (barvy webu města: červená `#c40006`, kamenné šedé,
+  DM Sans, nadpisy Fraunces; `#panel` je jen obal s `display: contents`, jeho části stojí samostatně: štítek vlevo nahoře, hledání nahoře, záložky jako
+  dok dole, podokno nad ním; `body.noc` tmavé panely), `web/js/01-nacitani.js` (načítání skládá čtverce z `tiles.json`), `web/js/62-rakovnik-hud.js`
+  (výběr obcí, čas na mapě vpravo nahoře, Escape zavře podokno, přepínač Podle skutečnosti = počasí i dnešní roční období, úvodní pohlednice `vitej()`).
+  Texty pohlednice: `"vitej"` a `"vitej_nadpis"` (2. pád) v `mesto.json` a `obce/*.json`. Logo ani znak města v mapě nepoužívat (není oficiální web města).
+- **Náhled designu bez renderu:** `site/` z `build_html.py` a dlaždice ze živé mapy přes malý proxy server (chybějící soubory bere z izomapa-rakovnik.pages.dev).
 
 ## Pravidla
 

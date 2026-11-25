@@ -153,7 +153,23 @@ def dem_sampler():
         x0 = np.clip(x0, 0, big.shape[1] - 2); y0 = np.clip(y0, 0, big.shape[0] - 2)
         return (big[y0, x0] * (1 - fx) * (1 - fy) + big[y0, x0 + 1] * fx * (1 - fy)
                 + big[y0 + 1, x0] * (1 - fx) * fy + big[y0 + 1, x0 + 1] * fx * fy)
-    return sample
+    if not os.path.exists('build/dmr_teren.npz'): return sample
+    # přesný terén z laseru ČÚZK (nastroje/dmr.py, DMR 5G v mřížce 5 m); Terrarium jen mimo pokrytí
+    from pyproj import Transformer
+    _t = Transformer.from_crs('EPSG:4326', 'EPSG:5514', always_xy=True)
+    _f = np.load('build/dmr_teren.npz'); Z, X0, Y0, R = _f['z'].astype(np.float64), float(_f['x0']), float(_f['y0']), float(_f['r'])
+    print('terén z DMR 5G (ČÚZK)', Z.shape)
+
+    def sample_dmr(px, py):
+        px, py = np.asarray(px, dtype=float), np.asarray(py, dtype=float)
+        sx, sy = _t.transform(*to_lonlat(px, py))
+        fx = (np.asarray(sx) - X0) / R - 0.5; fy = (np.asarray(sy) - Y0) / R - 0.5
+        uvnitr = (fx >= 0) & (fx <= Z.shape[1] - 1.001) & (fy >= 0) & (fy <= Z.shape[0] - 1.001)
+        x0 = np.clip(np.floor(fx).astype(int), 0, Z.shape[1] - 2); y0 = np.clip(np.floor(fy).astype(int), 0, Z.shape[0] - 2)
+        tx = np.clip(fx - x0, 0, 1); ty = np.clip(fy - y0, 0, 1)
+        z = (Z[y0, x0] * (1 - tx) * (1 - ty) + Z[y0, x0 + 1] * tx * (1 - ty) + Z[y0 + 1, x0] * (1 - tx) * ty + Z[y0 + 1, x0 + 1] * tx * ty)
+        return np.where(uvnitr, z, sample(px, py)) if not uvnitr.all() else z
+    return sample_dmr
 
 
 dem = dem_sampler()
@@ -519,6 +535,43 @@ for _k, items in _bg.items():
     for l in lines(shapely.ops.linemerge(shapely.MultiLineString([q for g0, _r in items for q in lines(g0)]))):
         bridge_segs.append((l, max(items, key=lambda it: it[0].intersection(l.buffer(0.5)).length)[1]))
 DECKS = []                                  # (čára, vzdálenosti, výšky mostovky, výšky terénu, šířka, druh, třída, název)
+_DMP = None
+def dmp_mostovka(xy):
+    """výška povrchu z laseru DMP 1G (build/dmp, třídy terén a budovy) nad HREF v bodech xy; NaN, kde laser nic nemá.
+    Laser je z let 2009–2013: novější most v něm chybí a ukáže se terén pod ním (takový bod se nepoužije, viz níž)."""
+    global _DMP
+    if _DMP is None:
+        _DMP = False
+        import glob as _g
+        fs = _g.glob('build/dmp/*.laz')
+        if fs:
+            import laspy
+            from scipy.spatial import cKDTree
+            from pyproj import Transformer
+            _t = Transformer.from_crs('EPSG:4326', 'EPSG:5514', always_xy=True)
+            bx = DRAWBOX.bounds
+            sx, sy = _t.transform(*to_lonlat(np.array([bx[0], bx[2], bx[0], bx[2]]), np.array([bx[1], bx[1], bx[3], bx[3]])))
+            x0, x1, y0, y1 = min(sx), max(sx), min(sy), max(sy)
+            P = []
+            for f in fs:
+                with laspy.open(f) as r:
+                    h = r.header
+                    if h.maxs[0] < x0 or h.mins[0] > x1 or h.maxs[1] < y0 or h.mins[1] > y1: continue
+                    l = r.read()
+                c = np.asarray(l.classification); x, y = np.asarray(l.x), np.asarray(l.y)
+                m = ((c == 2) | (c == 6)) & (x >= x0) & (x <= x1) & (y >= y0) & (y <= y1)
+                P.append(np.c_[x[m], y[m], np.asarray(l.z)[m]])
+            if P:
+                P = np.concatenate(P); _DMP = (cKDTree(P[:, :2]), P[:, 2], _t)
+                print('laser DMP pro mosty', len(P), 'bodů')
+    if not _DMP: return np.full(len(xy), np.nan)
+    tree, Zl, _t = _DMP
+    sx, sy = _t.transform(*to_lonlat(xy[:, 0], xy[:, 1]))
+    out = np.full(len(xy), np.nan)
+    for k, ii in enumerate(tree.query_ball_point(np.c_[sx, sy], 1.2)):
+        if len(ii) >= 4: out[k] = float(np.median(Zl[ii])) - HREF
+    return out
+_mostu_z_laseru = 0
 for g0, r in bridge_segs:
     for l in lines(g0):
         if not l.intersects(DRAWBOX): continue
@@ -561,6 +614,12 @@ for g0, r in bridge_segs:
             if cross is not None and cross.contains(pt): req[i] = gz[i] + (6.0 if kind == 'rail' else 5.2)
             elif _water.contains(pt): req[i] = gz[i] + (1.0 if kind == 'foot' else 1.3)   # i chodník podél potoka pod mostem
             elif cross_foot is not None and cross_foot.contains(pt): req[i] = gz[i] + 2.7    # podchod pro pěší
+        # skutečná výška mostovky z laseru: jen když laser mostovku zachytil (0,5–30 m nad terénem) aspoň v polovině rozpětí
+        if UP.get('mosty_laser', True) and span.sum() >= 2:
+            _lz = dmp_mostovka(xy); _nad = _lz - gz
+            _ok = span & np.isfinite(_lz) & (_nad >= 0.5) & (_nad <= 30)
+            if _ok.sum() >= 0.5 * span.sum():
+                req[_ok] = _lz[_ok]; _mostu_z_laseru += 1
         G = GRADE[kind]
         hr = req - gz                                  # požadovaná výška nad terénem; nájezd ji ubírá o G na metr (cesta dál kopíruje svah)
         hz = np.max(hr[None, :] - G * np.abs(d[:, None] - d[None, :]), axis=1)
@@ -593,7 +652,7 @@ for qb in UP.get('bridges', []):
         t_ = bd / max(bd[-1], 0.1)
         bz = bgz + 0.35 + qb.get('h', 1.2) * np.sin(np.pi * t_)
         DECKS.append((bl, bd, bz, bgz, qb.get('w', 2.5), qb.get('k', 'foot'), qb.get('c', 'footway'), None, 1, np.ones(len(bd), int)))
-print('mostů', len(DECKS), 'z toho lávek', sum(k[5] == 'foot' for k in DECKS), 'nájezdů', len(_rcut))
+print('mostů', len(DECKS), 'z toho lávek', sum(k[5] == 'foot' for k in DECKS), 'nájezdů', len(_rcut), 'výška z laseru', _mostu_z_laseru)
 def _rest(l_, cuts):                       # cesta bez úseků pod mostovkami
     out, a = [], 0.0
     for c0, c1 in sorted(cuts):
