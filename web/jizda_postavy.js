@@ -47,8 +47,9 @@ export function vytvorPostavy(THREE, scene, { jenVeDne = [] } = {}) {
           if (z < 0.5) vZa.x += w; else if (z < 1.5) vZa.y += w; else if (z < 2.5) vZa.z += w; else if (z < 3.5) vZa.w += w;
           else if (z < 4.5) vZb.x += w; else if (z < 5.5) vZb.y += w; else vZb.z += w;
         }`);
-      sh.fragmentShader = `varying vec4 vZa; varying vec3 vZb; uniform vec3 uKoze, uTriko, uKalh, uBoty; uniform vec4 uStrih;
+      sh.fragmentShader = `varying vec4 vZa; varying vec3 vZb; uniform vec3 uKoze, uTriko, uKalh, uBoty; uniform vec4 uStrih; uniform float uOrez;
 ` + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      if (length(vViewPosition) < uOrez) discard;   // pohled z očí: hlava a krk u kamery pryč
       {
         // uStrih: x rukáv (0 bez, 1 krátký, 2 dlouhý), y nohavice (0 kraťasy, 1 dlouhé, 2 sukně ke kolenům), z bunda (tmavší, delší)
         float j = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)), latka = mix(0.88, 1.1, smoothstep(0.2, 0.6, j));
@@ -84,15 +85,15 @@ export function vytvorPostavy(THREE, scene, { jenVeDne = [] } = {}) {
     const druh = vz.zena ? 'zena' : 'muz';
     const root = S.SU.clone(S[druh]);
     const u = { uKoze: { value: new THREE.Color(vz.koze) }, uTriko: { value: new THREE.Color(vz.triko) }, uKalh: { value: new THREE.Color(vz.kalh) },
-      uBoty: { value: new THREE.Color(vz.boty ?? 0x2a2a2e) }, uStrih: { value: new THREE.Vector4(...(vz.strih || [1, 1, 0]), 1) } };
-    let telo = null;
+      uBoty: { value: new THREE.Color(vz.boty ?? 0x2a2a2e) }, uStrih: { value: new THREE.Vector4(...(vz.strih || [1, 1, 0]), 1) }, uOrez: { value: 0 } };
+    let telo = null; const hlava = [];                         // vlasy, oči, obočí: v pohledu z očí schované
     root.traverse((o) => {
       if (!o.isSkinnedMesh) return;
       o.frustumCulled = false;
       const jm = o.material?.name || '';
       if (/Superhero/.test(jm)) { o.material = materialTela(o.material, u, o.skeleton.bones); telo = o; }
-      else if (/Hair/.test(jm)) o.material = materialVlasu(o.material, vz.vlasy);   // obočí
-      else { const mp = o.material.map; if (mp) mp.colorSpace = THREE.NoColorSpace; o.material = new THREE.MeshLambertMaterial({ map: mp }); }
+      else if (/Hair/.test(jm)) { o.material = materialVlasu(o.material, vz.vlasy); hlava.push(o); }   // obočí
+      else { const mp = o.material.map; if (mp) mp.colorSpace = THREE.NoColorSpace; o.material = new THREE.MeshLambertMaterial({ map: mp }); hlava.push(o); }
       jenVeDne.push(o);
     });
     // účes: síť navázaná na kost hlavy, kostru přebere od těla (stejná jména kostí)
@@ -103,7 +104,7 @@ export function vytvorPostavy(THREE, scene, { jenVeDne = [] } = {}) {
       const kosti = o.skeleton.bones.map((b) => telo.skeleton.bones.find((q) => q.name === b.name) || telo.skeleton.bones[0]);
       const v = new THREE.SkinnedMesh(o.geometry, materialVlasu(o.material, vz.vlasy));
       v.bind(new THREE.Skeleton(kosti, o.skeleton.boneInverses), telo.bindMatrix);
-      v.frustumCulled = false; telo.parent.add(v); jenVeDne.push(v);
+      v.frustumCulled = false; telo.parent.add(v); jenVeDne.push(v); hlava.push(v);
     });
     const g = new THREE.Group(); g.add(root); g.scale.setScalar(vz.sc || 1); scene.add(g);
     const mixer = new THREE.AnimationMixer(root), akce = {};
@@ -129,6 +130,8 @@ export function vytvorPostavy(THREE, scene, { jenVeDne = [] } = {}) {
       },
       poloha(x, y, z, h) { g.position.set(x, z, -y); g.rotation.y = h + Math.PI / 2; },
       skryj(v) { g.visible = !v; },
+      // pohled z očí: bez hlavy a vlasů, tělo do 0,5 m od kamery se nekreslí (zbude hruď, ruce a nohy při pohledu dolů)
+      prvniOsoba(ano) { for (const o of hlava) o.visible = !ano; u.uOrez.value = ano ? 0.5 : 0; if (telo) telo.castShadow = true; },
       zrus() { scene.remove(g); mixer.stopAllAction(); root.traverse((o) => { if (o.material) o.material.dispose?.(); const i = jenVeDne.indexOf(o); if (i >= 0) jenVeDne.splice(i, 1); }); },
     };
     return loutka;

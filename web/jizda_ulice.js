@@ -1163,8 +1163,9 @@ export function vytvorUlici(THREE, scene, api) {
       for (const o of hracG.children) o.visible = false;
       hracL.u.uTriko.value.setHex(s.on ? 0x5b4a36 : 0x2f5fa8);
       hracL.skryj(!hracG.visible);
+      hracL.prvniOsoba(oci);
       // z očí tělo dál za kamerou: oči modelu jsou ~12 cm před osou hlavy
-      const zp = oci ? 0.24 : 0;
+      const zp = oci ? 0.12 : 0;
       hracL.poloha(hrac.x - Math.cos(modelH) * zp, hrac.y - Math.sin(modelH) * zp, hrac.z + skokZ, modelH);
       const pohyb = skokV !== 0 ? 'skok' : uderAnim > 0 ? 'uder' : zebra ? 'sedi' : !jde ? 'stoji' : rych > 4.5 ? 'bezi' : rych > 2.2 ? 'klus' : 'jde';
       hracL.nastav(pohyb, rych, dt);
