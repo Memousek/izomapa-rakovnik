@@ -61,6 +61,72 @@ export function vytvorKokpit(THREE, scene, { jenVeDne = [] } = {}) {
   box(0.295, 0.3, 1.34, 1.4, -0.12, 0.12, lam(0x8e99a6));
   tyc(V(0.32, 1.41, 0), V(0.2, 1.52, 0), 0.012, TMAVA);
 
+  // ---------- čelní sklo: kapky a stěrače ----------
+  // Sklo je rovina od spodní hrany (x 1,02, y 1,0) k horní (x 0,14, y 1,52), šířka z ±0,74. Kapky jsou na plátně (u = z, v = po skle),
+  // přibývají podle deště (a sněhu), stěrač je maže výsečí kolem své osy. Bez deště stěrače parkují dole a kapky pomalu oschnou.
+  const SK0 = V(1.0, 1.0, 0), SKU = V(-0.86, 0.51, 0).normalize(), SKL = 1.02, SKW = 0.74, SKN = V(-0.51, -0.86, 0);   // SKN: normála ke kabině
+  const KW = 512, KH = 352, skloG = new THREE.Group();
+  const kc = typeof document !== "undefined" ? document.createElement('canvas') : null; let kx = null, ktex = null;
+  if (kc) { kc.width = KW; kc.height = KH; kx = kc.getContext('2d'); ktex = new THREE.CanvasTexture(kc); ktex.colorSpace = THREE.NoColorSpace; }
+  {
+    const p = (u, v) => SK0.clone().addScaledVector(SKU, v * SKL).add(V(0, 0, (u - 0.5) * 2 * SKW)).addScaledVector(SKN, 0.012);
+    const gs = new THREE.BufferGeometry().setFromPoints([p(0, 0), p(1, 0), p(1, 1), p(0, 0), p(1, 1), p(0, 1)]);
+    gs.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1], 2));
+    // sklo se kreslí až na složený obraz (jizda.html: KOKPIT.sklo ve vlastní scéně), jinak by kapky přes nebe a dálku přemazala obloha a mlha
+    const sklo = new THREE.Mesh(gs, new THREE.MeshBasicMaterial({ map: ktex, transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
+    sklo.userData.bezStinu = true; skloG.add(sklo);
+  }
+  const PIVOTY = [-0.36, 0.14];                                  // osy stěračů (z), ramena parkují směrem doprava
+  const stierace = PIVOTY.map((zp) => {
+    const osa = new THREE.Group();                              // souřadnice skla: x po šířce (z auta), y po skle nahoru, z = normála
+    osa.position.copy(SK0).add(V(0, 0, zp)).addScaledVector(SKU, 0.03).addScaledVector(SKN, 0.02);
+    osa.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(V(0, 0, 1), SKU, SKN));   // pravotočivá: (0,0,1) × SKU = SKN
+    g.add(osa);
+    const rameno = new THREE.Group(); osa.add(rameno);
+    box(0, 0.5, -0.008, 0.008, -0.01, 0.006, TMAVA, rameno);                       // rameno
+    box(0.05, 0.55, -0.012, 0.012, -0.016, 0.0, lam(0x111113), rameno);              // lišta s gumou
+    return { zp, rameno, uhel: 0.04 };
+  });
+  const DELKA = 0.52, MAXU = 1.95;                               // dosah ramena (m), největší výchylka (rad)
+  const naPlatno = (z, sv) => [(z + SKW) / (2 * SKW) * KW, (1 - sv / SKL) * KH];
+  function setri(st, a0, a1) {                                   // výseč stěrače mezi úhly a0 a a1 pryč z plátna
+    if (!kx) return;
+    const lo = Math.min(a0, a1) - 0.03, hi = Math.max(a0, a1) + 0.03;
+    kx.save(); kx.globalCompositeOperation = 'destination-out'; kx.beginPath();
+    kx.moveTo(...naPlatno(st.zp, 0.03));
+    for (let a = lo; a <= hi + 1e-6; a += (hi - lo) / 6) kx.lineTo(...naPlatno(st.zp + Math.cos(a) * (DELKA + 0.04), 0.03 + Math.sin(a) * (DELKA + 0.04)));
+    kx.closePath(); kx.fill(); kx.restore();
+  }
+  let stF = 0, stPauza = 0, sucho = 0, rezim = 0;               // rezim: 0 automaticky (dešťový senzor), 1 stále, 2 rychle, 3 vypnuto
+  const REZIMY = ['Stěrače: automaticky', 'Stěrače: stále', 'Stěrače: rychle', 'Stěrače: vypnuto'];
+  function kapkyAStierace(dt, dest, snih, v) {
+    const pada = Math.max(dest, snih * 0.6);
+    if (kx) {
+      const n = pada * dt * (480 + Math.abs(v) * 20);                // za jízdy dopadá víc kapek
+      for (let k = 0; k < n || (k === 0 && Math.random() < n); k++) {
+        const x = Math.random() * KW, y = Math.random() * KH, r = (snih > dest ? 4 : 3) + Math.random() * 5;
+        kx.fillStyle = snih > dest ? 'rgba(245,248,255,0.75)' : 'rgba(150,168,186,0.45)';
+        kx.beginPath(); kx.arc(x, y, r, 0, Math.PI * 2); kx.fill();
+        if (snih <= dest) { kx.strokeStyle = 'rgba(40,48,58,0.45)'; kx.lineWidth = 1.2; kx.stroke(); }   // okraj kapky (lom světla)
+        kx.fillStyle = 'rgba(255,255,255,0.65)'; kx.beginPath(); kx.arc(x - r * 0.3, y - r * 0.35, r * 0.3, 0, Math.PI * 2); kx.fill();
+      }
+      if (pada < 0.02 && (sucho += dt) > 0.5) {                   // bez deště kapky pomalu oschnou
+        sucho = 0; kx.save(); kx.globalCompositeOperation = 'destination-out'; kx.fillStyle = 'rgba(0,0,0,0.06)'; kx.fillRect(0, 0, KW, KH); kx.restore();
+      }
+    }
+    // stěrače: dešťový senzor (cyklovač při slabém dešti, rychle při lijáku), jeden cyklus = tam a zpět
+    let T = pada > 0.65 ? 0.9 : pada > 0.25 ? 1.3 : 1.5, pauza = pada > 0.25 ? 0 : pada > 0.03 ? 3.5 : Infinity;
+    if (rezim === 1) { T = 1.3; pauza = 0; } else if (rezim === 2) { T = 0.85; pauza = 0; } else if (rezim === 3) pauza = Infinity;   // ruční volba (O)
+    if (stPauza > 0) stPauza -= dt;
+    else if (stF > 0 || pauza !== Infinity) {
+      stF += dt / T;
+      if (stF >= 1) { stF = 0; stPauza = pauza === Infinity ? 0 : pauza; }
+    }
+    const u = 0.04 + MAXU * (1 - Math.cos(stF * Math.PI * 2)) / 2;
+    for (const st of stierace) { if (Math.abs(u - st.uhel) > 1e-4) setri(st, st.uhel, u); st.uhel = u; st.rameno.rotation.z = u; }
+    if (ktex && (pada > 0.01 || stF > 0 || sucho === 0)) ktex.needsUpdate = true;
+  }
+
   // budíky: plátno s rychloměrem a otáčkoměrem (svítí samo, i v noci)
   const cv = typeof document !== 'undefined' ? document.createElement('canvas') : null;
   let tex = null, ctx = null;
@@ -92,6 +158,7 @@ export function vytvorKokpit(THREE, scene, { jenVeDne = [] } = {}) {
   pridej(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.03, 12), PLAST), toc).rotation.z = Math.PI / 2;
   tyc(V(0.5, 0.92, -0.38), V(0.64, 0.84, -0.38), 0.03, TMAVA);                             // sloupek řízení
   const packa = box(0.035, 0.045, -0.025, -0.015, -0.24, -0.06, TMAVA, sloupek);                    // páčka blinkrů vlevo pod volantem
+  const packaS = box(0.035, 0.045, -0.025, -0.015, 0.06, 0.24, TMAVA, sloupek);                    // páčka stěračů vpravo
   const uchop = [V(0, 0.09, -0.16), V(0, 0.09, 0.16)];                                     // „za deset dvě“ v rovině věnce (y nahoru, z do stran)
   const dlane = uchop.map((p) => { const m = pridej(new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), KUZE), toc); m.position.copy(p); m.scale.set(1.1, 0.9, 1.3); return m; });
   const predlokti = [0, 1].map(() => pridej(new THREE.Mesh(VALEC, RUKAV)));
@@ -100,16 +167,19 @@ export function vytvorKokpit(THREE, scene, { jenVeDne = [] } = {}) {
 
   // pohyb hlavy: pružina vychýlená přetížením (bočním z rychlosti otáčení, podélným ze změny rychlosti)
   const hlava = { x: 0, z: 0, vx: 0, vz: 0, nahl: 0, h0: null, v0: 0 };
-  let tBud = 0, otacky = 900, klak = 0, blink = 0, blinkS = 0;
+  let tBud = 0, otacky = 900, klak = 0, blink = 0, blinkS = 0, strk = 0;
   const cilRuky = new THREE.Vector3();
   return {
     get skupina() { return g; },
+    get sklo() { return skloG; },
+    // klávesa O: další režim stěračů, vrací jeho název
+    dalsiRezimSteracu() { rezim = (rezim + 1) % 4; strk = 0.5; return REZIMY[rezim]; },
     // každý snímek v kabině: c = auto hráče (x, y, h, v, steer), auto = jeho model (poloha, natočení), barva laku
     // st: { troubi (klakson), blinkr (2 vlevo, 4 vpravo, 6 varovky), blik (fáze světla) }
     update(c, auto, dt, kabina, barva, obleceni, st = {}) {
-      g.visible = kabina;
+      g.visible = kabina; skloG.visible = kabina;
       if (!kabina || !(dt > 0)) { hlava.h0 = null; return; }
-      g.position.copy(auto.position); g.quaternion.copy(auto.quaternion);
+      g.position.copy(auto.position); g.quaternion.copy(auto.quaternion); skloG.position.copy(g.position); skloG.quaternion.copy(g.quaternion);
       if (barva) LAK.color.set(barva);
       if (obleceni) RUKAV.color.setHex(obleceni);
       toc.rotation.x = -(c.steer || 0) * 2.6;                // volant: 2,6 rad na plný rejd
@@ -120,7 +190,12 @@ export function vytvorKokpit(THREE, scene, { jenVeDne = [] } = {}) {
       blink = Math.max(0, blink - dt);
       const kB = Math.sin(Math.min(1, (0.45 - blink) / 0.45) * Math.PI) * (blink > 0 ? 1 : 0);
       packa.rotation.x = bs === 2 ? 0.25 : bs === 4 ? -0.25 : 0;
-      dlane[1].position.lerpVectors(uchop[1], cilRuky.set(0.03, 0, 0), klak);
+      // pravá ruka: klakson (dlaň na střed), nebo při ručním přepnutí stěračů krátce k jejich páčce (páčka podle režimu)
+      strk = Math.max(0, strk - dt);
+      const kS = Math.sin(Math.min(1, (0.5 - strk) / 0.5) * Math.PI) * (strk > 0 ? 1 : 0);
+      packaS.rotation.x = [0, 0.18, 0.36, -0.2][rezim];
+      if (klak > 0.02) dlane[1].position.lerpVectors(uchop[1], cilRuky.set(0.03, 0, 0), klak);
+      else { cilRuky.set(0.04, -0.02, 0.2).applyAxisAngle(V(1, 0, 0), -toc.rotation.x); dlane[1].position.lerpVectors(uchop[1], cilRuky, kS); }
       cilRuky.set(0.04, -0.02, -0.2).applyAxisAngle(V(1, 0, 0), -toc.rotation.x);      // páčka v souřadnicích točené části
       dlane[0].position.lerpVectors(uchop[0], cilRuky, kB);
       g.updateMatrixWorld(true);
@@ -140,6 +215,7 @@ export function vytvorKokpit(THREE, scene, { jenVeDne = [] } = {}) {
       const kmh = Math.abs(c.v) * 3.6, stu = kmh < 18 ? 1 : kmh < 34 ? 2 : kmh < 52 ? 3 : kmh < 75 ? 4 : 5, meze = [0, 0, 18, 34, 52, 75];
       const cil = kmh < 2 ? 850 : 1400 + (kmh - meze[stu]) / ([18, 16, 18, 23, 60][stu - 1]) * 3600 + Math.max(0, pod) * 120;
       otacky += (Math.min(6800, cil) - otacky) * Math.min(1, dt * 6);
+      kapkyAStierace(dt, st.dest || 0, st.snih || 0, c.v || 0);
       const sip = st.blik ? (st.blinkr === 2 ? 1 : st.blinkr === 4 ? 2 : st.blinkr === 6 ? 3 : 0) : 0;
       if ((tBud += dt) > 0.1 || sip !== this._sip) { tBud = 0; this._sip = sip; kresliBudiky(kmh, otacky, sip); }
     },

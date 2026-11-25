@@ -312,6 +312,7 @@ button { font: inherit; color: inherit; }
     <dt>mezerník</dt><dd>pěšky skok (i na auto); v autě ruční brzda, v rychlosti se zatočením smyk (drift)</dd>
     <dt>F nebo klik</dt><dd>rána pěstí (do auta před sebou: rozbité okno)</dd>
     <dt>H</dt><dd>v autě klakson</dd>
+    <dt>O</dt><dd>v autě stěrače: automaticky (podle deště) / stále / rychle / vypnuto</dd>
     <dt>T</dt><dd>v autě FSD (autopilot) po trase navigace; bez cíle vybere projížďku. W A S D = převzít řízení</dd>
     <dt>M</dt><dd>mapa: zajímavá místa, klikem navigace</dd>
     <dt>Esc</dt><dd>menu a pauza (uvolní myš)</dd>
@@ -1199,6 +1200,7 @@ hrac.zOci = true; try { hrac.zOci = localStorage.getItem('izo-3d-pohled2') !== '
 // vlastní auto (červené, kola se točí, světla svítí od soumraku)
 const mojeAuto = VOZ.mojeAuto(nactiAuto());                // vzhled z garáže (jizda/garaz.js), výchozí červený hatchback
 const KOKPIT = vytvorKokpit(THREE, scene3, { jenVeDne });   // interiér pro pohled z kabiny
+const SKLO = new THREE.Scene(); SKLO.add(KOKPIT.sklo);       // kapky na čelním skle: až na složený obraz
 jenVeDne.push(...mojeAuto.children.filter((o) => !o.userData.svetlo));
 mojeAuto.visible = false; scene3.add(mojeAuto);
 function volneMisto(x, y, r) {                             // nejbližší místo mimo budovy (spirála)
@@ -1438,6 +1440,7 @@ function prepniPohled() {                                  // z kabiny (auto, m�
 $('pohledBtn').addEventListener('click', (e) => { prepniPohled(); e.currentTarget.blur(); });
 addEventListener('keydown', (e) => {
   if (e.repeat) return; keys.add(e.code);
+  if (e.code === 'KeyO' && hrac.vAuto && hrac.car) toast(KOKPIT.dalsiRezimSteracu(), 'info');
   if (e.code === 'KeyE') { if (SLED.i !== null) konecSled(false); else nastoupit(); }
   if (e.code === 'KeyV' || e.code === 'KeyC') prepniPohled();
   if (e.code === 'KeyT') fsdPrepni();
@@ -2036,6 +2039,7 @@ function vykresli(dt = 0.016) {
     s.uSunScr.value.set(sp.x * 0.5 + 0.5, sp.y * 0.5 + 0.5, sp.z < 1 && k > 0 ? Math.min(1, k * 1.4) * (1 - uN) * (1 - WXI.zat * 0.8) : 0);
   }     // vzhled: telefon a nízká grafika bez záře a zrna
   renderer.setRenderTarget(null); renderer.clear(); renderer.render(slozScena, slozCam);
+  if (KOKPIT.skupina.visible) { KOKPIT.sklo.updateMatrixWorld(true); renderer.autoClear = false; renderer.render(SKLO, camera); renderer.autoClear = true; }
   if (DEST.visible || SNIH.visible) {                       // déšť a sníh až na složený obraz (s hloubkou scény), ztmavené jako noc
     const jas = (1 - 0.82 * uN) * (1 - 0.25 * WXI.zat);
     DEST.material.uniforms.uJas.value = jas; SNIH.material.uniforms.uJas.value = jas;
@@ -2285,7 +2289,7 @@ function frame(now) {
     const c = hrac.car, h = c.h + orbit.yaw, z = mojeAuto.position.y;
     mojeAuto.updateMatrixWorld();
     KOKPIT.update(c, mojeAuto, dt, hrac.kabina, mojeAuto.userData.auto?.b1, ULICE_STAV.on ? 0x5b4a36 : 0x2f5fa8,
-      { troubi: keys.has('KeyH'), blinkr: BL.strana, blik: Math.floor(performance.now() / 380) % 2 === 0 });
+      { troubi: keys.has('KeyH'), blinkr: BL.strana, blik: Math.floor(performance.now() / 380) % 2 === 0, dest: WXI.dest, snih: WXI.snih });
     if (hrac.kabina) {                                      // z kabiny: interiér, ruce na volantu, pohyb hlavy (jizda/kokpit.js)
       mojeAuto.visible = false;
       KOKPIT.kamera(camera, fwd, orbit.yaw, orbit.look);
@@ -2360,7 +2364,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') window.__jizda = { FSD, fsdPrepni, hitBuilding, ramenoVolne, SLUNCE, sunL, UZ, CAM, carPose, MRIZ, GARAZ, KONFIG, KUZELY, BL, OKNA, hodina, ULICE, ZNACKY, nastavGrafiku, parkovana, PARK, DETAIL, KVALITA, rtDen, slozeni, POVRCH, STROMY, HRA, ZVUK, hustota, hrac, orbit, gz, vyska, DOBA, NAV, LIDE, ZAST, busBlizko, cars, roads, DOPR, HRACI, CH, SIG, sigPosts, MHD, RT, keys, camera, scene3, renderer, nastoupit, snimek: (ms = 16) => { last = performance.now() - ms; frame(performance.now()); } };
+if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') window.__jizda = { FSD, fsdPrepni, hitBuilding, ramenoVolne, SLUNCE, sunL, WXI, WX_CIL, KOKPIT, UZ, CAM, carPose, MRIZ, GARAZ, KONFIG, KUZELY, BL, OKNA, hodina, ULICE, ZNACKY, nastavGrafiku, parkovana, PARK, DETAIL, KVALITA, rtDen, slozeni, POVRCH, STROMY, HRA, ZVUK, hustota, hrac, orbit, gz, vyska, DOBA, NAV, LIDE, ZAST, busBlizko, cars, roads, DOPR, HRACI, CH, SIG, sigPosts, MHD, RT, keys, camera, scene3, renderer, nastoupit, snimek: (ms = 16) => { last = performance.now() - ms; frame(performance.now()); } };
 </script>
 </body>
 </html>
