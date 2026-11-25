@@ -840,14 +840,34 @@ def stall(cx, cy, ang, ln=4.8, wd=2.4):
 _aisles = [l for _, g, c, _w, _n in roads if c == 'service' for l in lines(g)]
 _aisle_tree = shapely.STRtree(_aisles) if _aisles else None
 _stani = {}                                     # středy stání v mřížce 3 m: sousední uličky a plochy se nepřekryjí
-def _stani_volne(x, y):
+def _stani_volne(x, y, r=2.0):
     kx, ky = int(x // 3), int(y // 3)
-    for a_ in range(kx - 1, kx + 2):
-        for b_ in range(ky - 1, ky + 2):
+    for a_ in range(kx - 2, kx + 3):
+        for b_ in range(ky - 2, ky + 3):
             for q_ in _stani.get((a_, b_), []):
-                if (q_[0] - x) ** 2 + (q_[1] - y) ** 2 < 4.0: return False
+                if (q_[0] - x) ** 2 + (q_[1] - y) ** 2 < r * r: return False
     _stani.setdefault((kx, ky), []).append((x, y))
     return True
+def _osa_silnice(x, y):
+    """nejbližší vozovka k bodu: (vzdálenost od osy, polovina šířky, čára)"""
+    pt, best = Point(x, y), (1e9, 0.0, None)
+    for i in drive_tree.query(pt.buffer(15)):
+        l, w, c, n = drive_lines[int(i)]
+        d = l.distance(pt)
+        if d < best[0]: best = (d, w / 2, l)
+    return best
+def _smer(l, pt):
+    t = l.project(pt); a, b = l.interpolate(max(0.0, t - 1)), l.interpolate(min(l.length, t + 1))
+    return math.atan2(b.y - a.y, b.x - a.x)
+def _u_krizovatky(x, y, own, ang, r):
+    """auto blíž než r m k jiné vozovce, která vede jiným směrem (křižovatka, výjezd); navazující kus téže ulice nevadí"""
+    pt = Point(x, y)
+    for i in drive_tree.query(pt.buffer(r + 10)):
+        l, w, c, n = drive_lines[int(i)]
+        if l is own or l.distance(pt) > w / 2 + r: continue
+        da = abs((_smer(l, pt) - ang + math.pi / 2) % math.pi - math.pi / 2)
+        if da > math.radians(25): return True
+    return False
 for pid, p, tg in parkings:
     pk, ori = tg.get('parking', ''), tg.get('orientation', '')
     if pk in ('multi-storey', 'underground', 'rooftop', 'carports', 'garage_boxes'): continue
@@ -876,8 +896,11 @@ for pid, p, tg in parkings:
                 if mode != 'par':
                     a = oc[0] + u * (s_ - step / 2); b = a + v * W
                     if loose.contains(Point(*a)) and loose.contains(Point(*b)): cd.line(P([tuple(a), tuple(b)]), fill=C['marking'], width=1)
-                if crng.random() < 0.62:                    # stání v pruhu smí ležet na okraji vozovky
-                    cars.append([float(c[0]), float(c[1]), ang, crng.randrange(8)])
+                if crng.random() < 0.62:                    # stání v pruhu smí ležet na okraji vozovky, ne ale v jízdním pruhu
+                    d_, hw_, l_ = _osa_silnice(float(c[0]), float(c[1]))
+                    if (l_ is None or d_ > hw_ - 1.3) and _stani_volne(float(c[0]), float(c[1]), 2.2 if mode == 'par' else 1.6):
+                        cars.append([float(c[0]), float(c[1]), ang, crng.randrange(8)])
+                    else: crng.randrange(8)
             s_ += step
         continue
     if p.area < 120: continue
@@ -942,7 +965,9 @@ for l, w, c, n in (drive_lines if geo.MESTO.get('auta_u_krajnice', True) else []
             x, y = q.x + math.cos(ang - math.pi / 2) * off, q.y + math.sin(ang - math.pi / 2) * off
             if AREA.contains(Point(x, y)):
                 ci_ = crng.randrange(8)                      # náhoda se volá stejně, ostatní auta zůstanou na místě
-                if not len(_rail_park.query(Point(x, y), predicate='dwithin', distance=8.0)): cars.append([x, y, ang, ci_])
+                # ne u přejezdu, ne do 12 m od křižovatky nebo výjezdu a ne vedle auta na stání z OSM (pak by stála dvě vedle sebe)
+                if (not len(_rail_park.query(Point(x, y), predicate='dwithin', distance=8.0)) and not _u_krizovatky(x, y, l, ang, 12.0)
+                        and _stani_volne(x, y, 5.0)): cars.append([x, y, ang, ci_])
         d += 7
 
 # ---------------- budovy ----------------
@@ -1089,6 +1114,8 @@ def dom_pos(p, at, sp, d, w, side=0.0, t=0.5):
     """poloha věže / komína na půdorysu: světová strana, průčelí k bodu 'face', střed, podél osy, nebo bod dominanty"""
     c = p.centroid
     if at == 'pt': return d['xy'][0], d['xy'][1], 0.0
+    if isinstance(at, (list, tuple)):                       # přesný bod [lat, lon] (volitelně natočení v radiánech)
+        x, y = to_local(at[1], at[0]); return float(x), float(y), float(at[2]) if len(at) > 2 else 0.0
     o = p.minimum_rotated_rectangle; cs = list(o.exterior.coords)[:3]
     e1 = np.subtract(cs[1], cs[0]); e2 = np.subtract(cs[2], cs[1])
     ax = e1 if np.linalg.norm(e1) >= np.linalg.norm(e2) else e2; L = float(np.linalg.norm(ax)); ax = ax / L
