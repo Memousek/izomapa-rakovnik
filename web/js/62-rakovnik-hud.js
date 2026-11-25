@@ -100,3 +100,22 @@
     el.hidden = false;
     document.getElementById('vitejGo').focus({ preventScroll: true });
   }
+
+  // Počasí podle skutečnosti: přepínač místo malého odkazu a pod ním, co teď nad městem je a co se z toho kreslí
+  // (zataženo bez srážek se kreslí jako jasno, mapa nemá mraky přes celé nebe)
+  (() => {
+    const b = $('pocasiRealne');
+    if (!b || b.hidden) return;
+    b.classList.add('prepinac');
+    b.innerHTML = '<span class="pr-kolej" aria-hidden="true"></span>Skutečné počasí';
+    const p = document.createElement('p'); p.className = 'pocasi-ted'; p.id = 'pocasiTed';
+    $('weather').after(p);
+    const POC = { clear: 'jasno', rain: 'déšť', snow: 'sníh', fog: 'mlha' };
+    const obnov = () => {
+      const on = b.getAttribute('aria-pressed') === 'true', ted = ($('predpovedVal') && $('predpovedVal').textContent) || '';
+      p.hidden = !on;
+      if (on) p.textContent = ted ? `Nad městem teď ${ted.replace(/^(-?\d+ °C), /, '$1, ')}. Na mapě: ${POC[state.weather]}.` : 'Čekám na údaje z Open-Meteo…';
+    };
+    obnov(); setInterval(obnov, 2000);
+    b.addEventListener('click', () => setTimeout(obnov, 50));
+  })();

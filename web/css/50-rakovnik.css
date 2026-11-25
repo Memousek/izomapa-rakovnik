@@ -305,3 +305,22 @@ body.noc .places button:hover { background: var(--panel-2); }
 /* čas na mapě: červená tečka jen u skutečného času (ŽIVĚ), jinak prázdný kroužek */
 .stav:not(.ziva) .stav-dot { background: transparent; box-shadow: inset 0 0 0 2px var(--s4); }
 .stav.ziva b::after { content: "živě"; margin-left: 8px; font: 500 .62rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--red); vertical-align: 2px; }
+
+/* přepínač Skutečné počasí (62-rakovnik-hud.js) */
+.odkaz-btn.prepinac { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font: 500 .82rem var(--sans); color: var(--ink);
+  padding: 5px 10px 5px 6px; border-radius: 999px; border: 1px solid var(--edge); background: var(--panel-2); }
+.odkaz-btn.prepinac:hover { border-color: var(--s4); }
+.odkaz-btn.prepinac:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+.pr-kolej { position: relative; width: 30px; height: 18px; border-radius: 999px; background: var(--s2); transition: background .15s; flex: none; }
+.pr-kolej::after { content: ""; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); transition: transform .15s; }
+.prepinac[aria-pressed="true"] .pr-kolej { background: var(--red); }
+.prepinac[aria-pressed="true"] .pr-kolej::after { transform: translateX(12px); }
+.pocasi-ted { margin: 0; font-size: .78rem; color: var(--muted); }
+.pocasi-ted[hidden] { display: none; }
+
+/* užší okno: dok se musí vejít (Dřív a teď jen ikona, 3D bez „Projet ve“) */
+@media (max-width: 1000px) and (min-width: 641px) {
+  .tab, .dok-akce { padding: 10px 10px; }
+  .tabs #histBtn .go3d-long { display: none; }
+  .tabs #jizda3d::before { content: ""; }
+}
