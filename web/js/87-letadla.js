@@ -1,4 +1,15 @@
   // ---------- letadla (ADS-B z adsb.lol přes api/flights, v úrovni mraků a nad nimi) ----------
+  // Typ letadla (ICAO kód z ADS-B) -> kategorie a název podle ICAO Doc 8643 (87-letadla-typy.js, nástroj nastroje/letadla_typy.py).
+  // Model má jen dvě podoby: proudové dopravní ('jet') a malé vrtulové ('light'); turbovrtulové, pístové a vrtulníky se kreslí jako 'light'.
+  const AC_INFO = new Map();
+  for (const [cat, list] of Object.entries(AC_ICAO)) for (const it of list.split(',')) { const i = it.indexOf(':'); AC_INFO.set(it.slice(0, i), [cat, it.slice(i + 1)]); }
+  const JET_CAT = new Set(['jet', 'jetL', 'jetS']);
+  // t = ICAO typ, alt v m, speed v m/s; neznámý typ: odhad podle výšky a rychlosti
+  function acClass(t, alt, speed) {
+    const i = AC_INFO.get(t);
+    if (i) return { cat: JET_CAT.has(i[0]) ? 'jet' : 'light', name: i[1] };
+    return { cat: alt < 3000 && speed < 110 ? 'light' : 'jet', name: '' };
+  }
   const PLANESPR = new Map(), PLANESH = new Map();
   function planeSprite(cat, k) {
     const key = `${cat}|${k}`;
@@ -154,7 +165,7 @@
       if (MHD.follow !== null) MHD.follow = null;
       $('follow').hidden = false;
       const b = document.createElement('b'); b.textContent = `✈️ Let ${p.callsign}`;
-      $('followTxt').replaceChildren(b, ` · ${p.model || (p.cat === 'jet' ? 'Dopravní letadlo' : 'Sportovní letadlo')} · Výška: ${Math.round(p.alt)} m (${Math.round(p.alt * 3.2808)} ft) · Rychlost: ${Math.round(p.speed * 3.6)} km/h`);
+      $('followTxt').replaceChildren(b, ` · ${p.name || p.model || (p.cat === 'jet' ? 'Dopravní letadlo' : 'Sportovní letadlo')} · Výška: ${Math.round(p.alt)} m (${Math.round(p.alt * 3.2808)} ft) · Rychlost: ${Math.round(p.speed * 3.6)} km/h`);
       closeCard();
     } else {
       $('follow').hidden = true;
@@ -164,14 +175,13 @@
   function parseFlightData(d) {
     if (d && Array.isArray(d.states)) {
       return d.states.filter((r) => !r[8] && r[5] != null && r[6] != null).map((r) => {
-        const alt = r[7] ?? r[13] ?? 8000, speed = r[9] || 200;
-        const isLight = alt < 3000 && speed < 110;
+        const alt = r[7] ?? r[13] ?? 8000, speed = r[9] || 200, k = acClass('', alt, speed);
         return {
           id: r[0],
           callsign: (r[1] || '').trim() || r[0].toUpperCase(),
           country: r[2] || '',
           lon: r[5], lat: r[6], alt, speed, track: r[10] || 0,
-          cat: isLight ? 'light' : 'jet',
+          cat: k.cat,
           model: ''
         };
       });
@@ -180,15 +190,14 @@
     if (Array.isArray(ac)) {
       return ac.filter((a) => a.lat != null && a.lon != null && a.alt_baro !== 'ground').map((a) => {
         const alt = (a.alt_geom ?? a.alt_baro ?? 25000) * 0.3048;
-        const speed = (a.gs || 400) * 0.5144;
-        const isLight = alt < 3000 && speed < 110;
+        const speed = (a.gs || 400) * 0.5144, k = acClass(a.t || '', alt, speed);
         return {
           id: a.hex || a.flight,
           callsign: (a.flight || '').trim() || (a.r || a.hex || '').trim(),
           country: '',
           lon: a.lon, lat: a.lat, alt, speed, track: a.track || a.mag_heading || 0,
-          cat: isLight ? 'light' : 'jet',
-          model: a.t || ''
+          cat: k.cat,
+          model: a.t || '', name: k.name
         };
       });
     }
@@ -212,7 +221,7 @@
       } else {
         PLANES.list.set(f.id, {
           id: f.id, callsign: f.callsign, country: f.country,
-          cat: f.cat, model: f.model,
+          cat: f.cat, model: f.model, name: f.name,
           lon: f.lon, lat: f.lat, alt: f.alt, speed: f.speed, track: f.track,
           x: tx, y: ty, trail: [], lastSeen: now
         });
