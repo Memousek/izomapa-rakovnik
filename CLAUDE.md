@@ -235,6 +235,7 @@ Tahle kopie (Rakovník): projekt `izomapa-rakovnik`, https://izomapa-rakovnik.pa
 
 - **Data a úpravy města jsou v gitu** (repo Memousek/izomapa-rakovnik): `mesto.json`, `mista.json`, `obce/` (Lišany, Krupá, Lubná: `index_<obec>.html`),
   `assets/` (i to, co šablona ignoruje). Mimo git jen `build/`, `site/`, `data*/`, fotky a tajemství. Commity pod účtem `Memousek` (lokální `git config` repa).
+  Commity a PR bez zmínky o Claudovi: žádné `Co-Authored-By: Claude`, `Claude-Session`, „Generated with Claude“ ani podobné řádky.
 - **Novinky z hlavního repa:** remote `upstream` = adamklatovsky/izomapa, `git fetch upstream && git merge upstream/main`. Konflikty bývají v `CLAUDE.md`,
   `web/app.html` a `web/js/84-kresleni-vozidel.js`, `89-kresleni.js` (rakovnický ořez chodců po pixelech `drawBehindTrees`): rakovnické úpravy nechat,
   převzít nové z Liberce. Po sloučení vždy kontrola syntaxe JS (dvakrát deklarovaná `const` shodí celou stránku).
