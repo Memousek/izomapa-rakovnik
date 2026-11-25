@@ -504,11 +504,12 @@ const slozeni = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMa
               uFx: { value: 2 }, uCas: { value: 0 }, uSun: { value: null },
               uInvP: { value: new THREE.Matrix4() }, uCamW: { value: new THREE.Matrix4() }, uSunScr: { value: new THREE.Vector3(0.5, 0.5, 0) },
               // stín v koutech (SSAO, Vysoká a Ultra) a odrazy na mokré zemi (uMokro z počasí); uVP a uP11 z kamery každý snímek
-              uAO: { value: GRAF === 'vysoka' || GRAF === 'ultra' ? 1 : 0 }, uP11: { value: 1 }, uMokro: { value: 0 }, uVP: { value: new THREE.Matrix4() } },
+              uAO: { value: GRAF === 'vysoka' || GRAF === 'ultra' ? 1 : 0 }, uP11: { value: 1 }, uMokro: { value: 0 }, uVP: { value: new THREE.Matrix4() },
+              uOdraz: { value: GRAF === 'ultra' ? 2 : GRAF === 'vysoka' ? 1 : 0 } },   // odrazy na mokru: 0 vypnuto, 1 levné (Vysoká), 2 plné (Ultra)
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
   fragmentShader: /* glsl */`
     uniform sampler2D tD, tZ, tL; uniform float uN, uG, uSvetla, uMlha, uZat, uNear, uFar, uAA; uniform vec3 uMlhaC; uniform vec2 uPx; varying vec2 vUv;
-    uniform float uFx, uCas; uniform vec3 uSun, uSunScr; uniform mat4 uInvP, uCamW, uVP; uniform float uAO, uP11, uMokro;
+    uniform float uFx, uCas; uniform vec3 uSun, uSunScr; uniform mat4 uInvP, uCamW, uVP; uniform float uAO, uP11, uMokro, uOdraz;
     float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
     vec3 paprsek(float z){ vec4 v = uInvP * vec4(vUv * 2.0 - 1.0, z * 2.0 - 1.0, 1.0); v /= v.w; return (uCamW * v).xyz; }   // bod ve světě
     vec3 bodUv(vec2 uv, float z){ vec4 v = uInvP * vec4(uv * 2.0 - 1.0, z * 2.0 - 1.0, 1.0); v /= v.w; return (uCamW * v).xyz; }
@@ -530,16 +531,18 @@ const slozeni = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMa
     // odraz na mokré vodorovné ploše: paprsek odražený od země krokuje světem, zásah = barva (a v noci světla) z obrazu
     vec4 odraz(vec3 w, vec3 n, vec3 r){
       vec3 R = reflect(r, n), p = w + n * 0.05; float t = 0.5;
-      for (int i = 0; i < 9; i++) {                             // 9 kroků s rostoucí délkou (dřív 16: déšť sekal hru)
+      int kroku = uOdraz > 1.5 ? 9 : 6;
+      for (int i = 0; i < 9; i++) {                             // 9 (Ultra) nebo 6 kroků s rostoucí délkou (dřív 16: déšť sekal hru)
+        if (i >= kroku) break;
         vec3 q = p + R * t; vec4 s = uVP * vec4(q, 1.0); s.xyz /= s.w; vec2 uv = s.xy * 0.5 + 0.5;
         if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || s.z > 1.0) break;
         float zs = texture2D(tZ, uv).r;
         if (zs < 0.99999) { float ds = hloubka(zs), dq = hloubka(s.z * 0.5 + 0.5);
           if (dq > ds + 0.03 && dq < ds + 1.5 + t * 0.15) {
             vec2 e = min(uv, 1.0 - uv); float okraj = smoothstep(0.0, 0.08, min(e.x, e.y));
-            return vec4(texture2D(tD, uv).rgb + texture2D(tL, uv).rgb * uN * uSvetla * 1.3, okraj * (1.0 - float(i) / 9.0));
+            return vec4(texture2D(tD, uv).rgb + texture2D(tL, uv).rgb * uN * uSvetla * 1.3, okraj * (1.0 - float(i) / float(kroku)));
           } }
-        t *= 1.7;
+        t *= uOdraz > 1.5 ? 1.7 : 2.1;
       }
       return vec4(0.0);
     }
@@ -589,11 +592,11 @@ const slozeni = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMa
       float z = texture2D(tZ, vUv).r, nebe = z > 0.99999 ? 1.0 : 0.0;
       float d = 2.0 * uNear * uFar / (uFar + uNear - (z * 2.0 - 1.0) * (uFar - uNear));   // vzdálenost od kamery (m)
       vec3 kam = (uCamW * vec4(0.0, 0.0, 0.0, 1.0)).xyz, r = normalize(paprsek(min(z, 0.9999)) - kam);
-      if ((uAO > 0.5 || uMokro > 0.02) && nebe < 0.5 && d < 220.0) {
+      if ((uAO > 0.5 || (uMokro > 0.02 && uOdraz > 0.5)) && nebe < 0.5 && d < 220.0) {
         vec3 w = paprsek(z), nw = normalize(cross(dFdx(w), dFdy(w))); if (dot(nw, kam - w) < 0.0) nw = -nw;
         if (uAO > 0.5) c *= mix(ssao(w, nw, d), 1.0, smoothstep(90.0, 160.0, d));
-        float fr = 0.12 + 0.88 * pow(1.0 - max(dot(-r, nw), 0.0), 4.0), sila = fr * uMokro * 0.65 * (1.0 - smoothstep(70.0, 130.0, d));
-        if (sila > 0.04 && nw.y > 0.92 && d > 2.5) {             // mokrá zem: odraz domů, aut a světel (Fresnel); jen kde je znát, do 130 m, ne palubní deska
+        float fr = 0.12 + 0.88 * pow(1.0 - max(dot(-r, nw), 0.0), 4.0), sila = fr * uMokro * 0.65 * (1.0 - smoothstep(uOdraz > 1.5 ? 70.0 : 45.0, uOdraz > 1.5 ? 130.0 : 80.0, d));
+        if (uOdraz > 0.5 && sila > 0.04 && nw.y > 0.92 && d > 2.5) {             // mokrá zem: odraz domů, aut a světel (Fresnel); jen kde je znát, do 130 m, ne palubní deska
           vec4 od = odraz(w, nw, r);
           c = mix(c, od.rgb, od.a * sila);
         }
