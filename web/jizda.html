@@ -403,7 +403,7 @@ let ORTO = GRAF !== 'nizka';
 // textury povrchů (jizda/textury, CC0 ambientCG): jednou pro všechny čtverce, s mipmapami a opakováním; na Nízké grafice ne
 const TEXTURY = GRAF === 'nizka' ? null : (() => {
   const L = new THREE.TextureLoader(), t = {};
-  for (const k of ['asfalt', 'trava', 'dlazba', 'sterk']) {
+  for (const k of ['asfalt', 'trava', 'dlazba', 'sterk', 'omitka', 'cihly', 'beton', 'kamen', 'tasky', 'plech']) {
     t[k] = L.load(`jizda/textury/${k}.webp`); t[k].wrapS = t[k].wrapT = THREE.RepeatWrapping; t[k].anisotropy = 8; t[k].colorSpace = THREE.NoColorSpace;
   }
   return t;

@@ -227,6 +227,37 @@ def svet_js():
       float vid = clamp(0.045 / max(fwidth(u) + fwidth(v), 1e-4), 0.0, 1.0);    // rám užší než pixel se rozplyne
       if (ram) col = mix(col, vec3(0.93, 0.92, 0.89), vid);
     }''')
+    # fasády a střechy (Rakovník): struktura z fotografických textur CC0 (jizda/textury) podle stylu stavby, jen jas
+    # (barva zůstává z dat a ortofota, takže zblízka i zdálky sedí s mapou); do dálky mizí
+    kod = jednou(kod, 'const wallMat = mat(/* glsl */`', 'const wallMat = mat(/* glsl */`\n  uniform sampler2D uTO, uTC, uTB, uTK; uniform float uFas;')
+    kod = jednou(kod, '}`, {}, THREE.DoubleSide);\nconst roofMat', '}`, { uTO: { value: O.textury?.omitka || null }, uTC: { value: O.textury?.cihly || null }, uTB: { value: O.textury?.beton || null }, uTK: { value: O.textury?.kamen || null }, uFas: { value: O.textury?.omitka ? 1 : 0 } }, THREE.DoubleSide);\nconst roofMat')
+    kod = jednou(kod, 'if (door) col = vec3(0.52, 0.52, 0.54);', """if (uFas > 0.5 && !w && !door && v > -50.0) {
+      float fz = 1.0 - smoothstep(35.0, 170.0, length(cameraPosition - vW));
+      if (fz > 0.01) {
+        vec2 tv = vec2(u, v); vec3 W5 = vec3(0.3, 0.59, 0.11);
+        float hb = fract(sin(dot(vec2(len, st), vec2(12.9898, 78.233))) * 43758.5453);   // budova: náhodná volba omítka / cihla
+        float L;
+        if (st > 3.5 && st < 4.5) L = dot(texture2D(uTK, tv * 0.45).rgb, W5) / max(dot(textureLod(uTK, vec2(0.5), 12.0).rgb, W5), 0.05);
+        else if ((st > 0.5 && st < 3.5) || (st > 14.5 && st < 19.5)) L = dot(texture2D(uTB, tv * 0.33).rgb, W5) / max(dot(textureLod(uTB, vec2(0.5), 12.0).rgb, W5), 0.05);
+        else if (st < 0.5 && hb < 0.18) L = dot(texture2D(uTC, tv * 0.55).rgb, W5) / max(dot(textureLod(uTC, vec2(0.5), 12.0).rgb, W5), 0.05);
+        else L = dot(texture2D(uTO, tv * 0.5).rgb, W5) / max(dot(textureLod(uTO, vec2(0.5), 12.0).rgb, W5), 0.05);
+        if (v < 0.75 && st < 12.5) L = dot(texture2D(uTK, tv * 0.6).rgb, W5) / max(dot(textureLod(uTK, vec2(0.5), 12.0).rgb, W5), 0.05);   // kamenný sokl
+        col *= mix(1.0, clamp(L, 0.55, 1.5), fz * 0.85);
+      }
+    }
+    if (door) col = vec3(0.52, 0.52, 0.54);""")
+    kod = jednou(kod, 'const roofMat = mat(/* glsl */`', 'const roofMat = mat(/* glsl */`\n  uniform sampler2D uTT, uTPl, uTSt; uniform float uFas;')
+    kod = jednou(kod, '}`, {}, THREE.DoubleSide);\n// obecný materiál', '}`, { uTT: { value: O.textury?.tasky || null }, uTPl: { value: O.textury?.plech || null }, uTSt: { value: O.textury?.sterk || null }, uFas: { value: O.textury?.tasky ? 1 : 0 } }, THREE.DoubleSide);\n// obecný materiál')
+    kod = jednou(kod, "    if (vA.x > 0.5) {\n      if (fract(vW.y / 0.6) < 0.3) col *= 0.88;", """    if (uFas > 0.5) {                                          // tašky na šikmé střeše, štěrk na ploché (do dálky mizí)
+      float fz = 1.0 - smoothstep(35.0, 170.0, length(cameraPosition - vW)); vec3 W6 = vec3(0.3, 0.59, 0.11);
+      if (fz > 0.01) {
+        float L = vA.x > 0.5 ? dot(texture2D(uTT, vec2(vW.x + vW.z * 0.7, vW.y * 1.7) * 0.42).rgb, W6) / max(dot(textureLod(uTT, vec2(0.5), 12.0).rgb, W6), 0.05)
+                             : dot(texture2D(uTSt, vW.xz * 0.35).rgb, W6) / max(dot(textureLod(uTSt, vec2(0.5), 12.0).rgb, W6), 0.05);
+        col *= mix(1.0, clamp(L, 0.5, 1.5), fz * 0.8);
+      }
+    }
+    if (vA.x > 0.5) {
+      if (fract(vW.y / 0.6) < 0.3) col *= 0.88;""")
     return ('// VYGENEROVÁNO nastroje/jizda.py z render.html – neupravovat ručně (změny patří do render.html)\n'
             'export async function postavCtverec(THREE, renderer, O) {\n'
             "const PARAMS = {}, MPP = 0.2, TILE = 1024, PAD = 4, ALPHA = false, LIGHTS = !!O.svetla, SKIRT = 28;\n"
