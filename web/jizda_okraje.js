@@ -16,10 +16,18 @@ export function vytvorOkraje(THREE, scene, { gz, hitBuilding, obdobi, jenVeDne, 
   }
   tg.setAttribute('position', new THREE.Float32BufferAttribute(tp, 3)); tg.setAttribute('color', new THREE.Float32BufferAttribute(tc, 3));
   const trava = new THREE.InstancedMesh(tg, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, vertexColors: true }), MAX_TRAVA);
-  const ker = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.55, 1), new THREE.MeshLambertMaterial({ flatShading: true }), MAX_KER);
+  // keř: shluk tří chomáčů různé velikosti (jeden hladký mnohostěn vypadal jako kámen)
+  const kg = (() => {
+    const casti = [[0, 0.05, 0, 0.5], [0.38, -0.05, 0.12, 0.36], [-0.3, -0.08, -0.2, 0.4]].map(([x, y, z, r]) => new THREE.IcosahedronGeometry(r, 1).translate(x, y, z).toNonIndexed());
+    const p = [], nn = [];
+    for (const c of casti) { p.push(...c.attributes.position.array); nn.push(...c.attributes.normal.array); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nn, 3));
+    return g;
+  })();
+  const ker = new THREE.InstancedMesh(kg, new THREE.MeshLambertMaterial({ flatShading: true }), MAX_KER);
   for (const m of [trava, ker]) { m.count = 0; m.frustumCulled = false; scene.add(m); if (jenVeDne) jenVeDne.push(m); }
   const BARVY_TRAVA = { spring: [0x7fb04a, 0x92c05a, 0x6fa040], summer: [0x7aa046, 0x8fae4e, 0x9aae58], autumn: [0x8fa04e, 0xa8a858, 0x7f9446], winter: [0x9aa08c, 0xa8ae9a, 0x8d947e] };
-  const BARVY_KER = { spring: [0x5a8f34, 0x6a9a3e], summer: [0x4a7a30, 0x5a8636], autumn: [0x5a7a32, 0x8a7a34, 0x9a6a30], winter: [0x6a665c, 0x5e5a52] };
+  const BARVY_KER = { spring: [0x5f9a3a, 0x6fa646], summer: [0x4f8434, 0x5e903a], autumn: [0x5f8436, 0x6e8a38, 0x8a7a36], winter: [0x6a6a5c, 0x5e5e52] };
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3(), osa = new THREE.Vector3(0, 1, 0), col = new THREE.Color();
   let bx = 1e9, by = 1e9, spinave = false;
 

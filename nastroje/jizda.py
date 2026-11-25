@@ -119,7 +119,7 @@ def svet_js():
         float mag = min(length(gx * tn), length(gy * tn));         // texelů na pixel obrazovky (kratší osa); < 1 = zvětšení
         float bl = 1.0 - smoothstep(0.12, 0.6, mag);
         vec4 d1 = texture2D(uDet, vW.xz * 0.43), d2 = texture2D(uDet, vW.xz * 0.057 + 0.31);
-        vec2 uv = vUv + ((vec2(d1.g, d1.a) - 0.5) * 0.14 + (vec2(d2.a, d2.g) - 0.5) * 0.16) * bl / tn;   // hrana ploch nepatrně rozhozená
+        vec2 uv = vUv + ((vec2(d1.g, d1.a) - 0.5) * 0.05 + (vec2(d2.a, d2.g) - 0.5) * 0.06) * bl / tn;   // hrana ploch jen nepatrně rozhozená (víc vypadalo rozpitě)
         col = textureGrad(uTex, uv, gx, gy).rgb;
         if (bl > 0.01) {                                           // zvětšený podklad: hladký přechod mezi plochami stáhnout na úzkou hranu
           vec2 e = 0.75 / tn;                                      // (vrstevnice bilineárního pole je rovná, schody texelů nevzniknou)
@@ -134,6 +134,17 @@ def svet_js():
             float q = clamp(dot(col - lo, dh) / dd, 0.0, 1.0), sw = mix(0.5, 0.1, bl);
             col = mix(col, mix(lo, hi, smoothstep(0.5 - sw, 0.5 + sw, q)), bl);
           }
+        }
+        {                                                          // vodorovné značení z podkladu pryč: ve 3D se kreslí ostře z dat (jizda/znaceni.js)
+          vec2 e2 = 2.5 / tn; vec3 W3 = vec3(0.3, 0.59, 0.11);
+          vec3 n1 = textureGrad(uTex, uv + vec2(e2.x, 0.0), gx, gy).rgb, n2 = textureGrad(uTex, uv - vec2(e2.x, 0.0), gx, gy).rgb;
+          vec3 n3 = textureGrad(uTex, uv + vec2(0.0, e2.y), gx, gy).rgb, n4 = textureGrad(uTex, uv - vec2(0.0, e2.y), gx, gy).rgb;
+          // jen tenká světlá čára: tmavší z obou protilehlých stran (okraj velké světlé plochy zůstane)
+          float lc = dot(col, W3), sc_ = max(max(col.r, col.g), col.b) - min(min(col.r, col.g), col.b);
+          bool vod = dot(n1, W3) < lc - 0.12 && dot(n2, W3) < lc - 0.12, svi = dot(n3, W3) < lc - 0.12 && dot(n4, W3) < lc - 0.12;
+          vec3 dk = vod ? (n1 + n2) * 0.5 : (n3 + n4) * 0.5;
+          float sd_ = max(max(dk.r, dk.g), dk.b) - min(min(dk.r, dk.g), dk.b);
+          if ((vod || svi) && sc_ < 0.12 && sd_ < 0.1 && dot(dk, W3) < 0.55) col = dk;
         }
         float mx = max(max(col.r, col.g), col.b), sat = mx - min(min(col.r, col.g), col.b);
         float zel = step(col.r, col.g) * step(col.b, col.g) * smoothstep(0.05, 0.14, sat);   // tráva, louka, pole

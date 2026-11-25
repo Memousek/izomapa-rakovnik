@@ -364,6 +364,7 @@ import { vytvorGaraz, nactiAuto } from './jizda/garaz.js';
 import { vytvorPtaky } from './jizda/ptaci.js';
 import { vytvorOkraje } from './jizda/okraje.js';
 import { vytvorEfekty } from './jizda/efekty.js';
+import { vytvorZnaceni } from './jizda/znaceni.js';
 THREE.ColorManagement.enabled = false;
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -1881,6 +1882,8 @@ nastavGrafiku(GRAF);
 const OKRAJE = GRAF === 'nizka' ? null : vytvorOkraje(THREE, scene3, { gz, hitBuilding, obdobi: OBD, jenVeDne, HALF });
 // zorné pole podle rychlosti, chvění kamery, krok pěšky, padající listí na podzim (jizda/efekty.js)
 const EFEKTY = vytvorEfekty(THREE, scene3, camera, { obdobi: OBD, jenVeDne });
+// vodorovné značení ostře z dat silnic (jizda/znaceni.js); podklad terénu je ho zbavený
+const ZNACENI = vytvorZnaceni(THREE, scene3, { roads, gz, hitBuilding, jenVeDne });
 const PTACI = vytvorPtaky(THREE, scene3, { jenVeDne });   // hejna nad městem ve dne (jizda/ptaci.js)
 const ZNACKY = vytvorZnacky(THREE, scene3, { roads, ends, ek, along, jenVeDne, hitBuilding, gz, mesto: document.querySelector('#hud h1')?.firstChild?.textContent.trim() });
 
@@ -2149,6 +2152,7 @@ function frame(now) {
   EFEKTY.update(dt, now / 1000, { veVoze: hrac.vAuto || hrac.bus !== null, pesky: !hrac.vAuto && hrac.bus === null && SLED.i === null, zOci: !!hrac.zOci,
     vitr: Array.isArray(POC.vitr) ? POC.vitr : [0, 0], stromy: (x, y, R) => STROMY.listnate(x, y, R) }, gz, hrac);
   if (OKRAJE) OKRAJE.update(hrac);
+  ZNACENI.update(hrac);
   EFEKTY.pred(); vykresli(); EFEKTY.po();
   fpsN++; if (now - fpsT > 1000) { fps = fpsN; fpsN = 0; fpsT = now; }
   OKNA.value = oknaPodleCasu(hodina());
