@@ -535,6 +535,11 @@ for _k, items in _bg.items():
     for l in lines(shapely.ops.linemerge(shapely.MultiLineString([q for g0, _r in items for q in lines(g0)]))):
         bridge_segs.append((l, max(items, key=lambda it: it[0].intersection(l.buffer(0.5)).length)[1]))
 DECKS = []                                  # (čára, vzdálenosti, výšky mostovky, výšky terénu, šířka, druh, třída, název)
+_BKUSY = [l_ for g_, r_ in bridge_segs for l_ in lines(g_)]   # všechny kusy mostů: konec napojený na jiný kus není konec mostu
+_BSTROM = shapely.STRtree(_BKUSY)
+def _navazuje(l, bod):
+    p_ = Point(bod).buffer(1.5)
+    return any(_BKUSY[j] is not l and not _BKUSY[j].equals(l) and _BKUSY[j].intersects(p_) for j in _BSTROM.query(p_))
 _DMP = None
 def dmp_mostovka(xy):
     """výška povrchu z laseru DMP 1G (build/dmp, třídy terén a budovy) nad HREF v bodech xy; NaN, kde laser nic nemá.
@@ -608,22 +613,34 @@ for g0, r in bridge_segs:
         cross = shapely.unary_union(cross).buffer(w / 2 + 3) if cross else None     # silnice a tratě, které vedou pod mostem
         cross_foot = [_under.geometries[j] for j in _pod if roads[j][2] in FOOT]
         cross_foot = shapely.unary_union(cross_foot).buffer(w / 2 + 2) if cross_foot else None
+        podjezd = np.full(len(xy), -1e9)                  # nad silnicí a tratí: podjezdná výška, pod kterou mostovka nesmí (ani podle laseru)
         for i, (x, y) in enumerate(xy):
             if not span[i]: continue
             pt = Point(x, y)
-            if cross is not None and cross.contains(pt): req[i] = gz[i] + (6.0 if kind == 'rail' else 5.2)
+            if cross is not None and cross.contains(pt): req[i] = gz[i] + (6.0 if kind == 'rail' else 5.2); podjezd[i] = req[i]
             elif _water.contains(pt): req[i] = gz[i] + (1.0 if kind == 'foot' else 1.3)   # i chodník podél potoka pod mostem
             elif cross_foot is not None and cross_foot.contains(pt): req[i] = gz[i] + 2.7    # podchod pro pěší
+        # most jen přes vodu a pěšinu (pod ním žádná silnice ani trať): mostovka v úrovni břehů, ne nad dnem koryta.
+        # Přesný terén (DMR 5G) má dno potoka 2–3 m pod břehem; podle pravidel nad vodou / podchodem by most trčel nad okolí s nájezdy.
+        if cross is None and span.sum() >= 2:
+            si_ = np.where(span)[0]; breh = max(gz[si_[0]], gz[si_[-1]]) + 0.3
+            req[span] = np.minimum(req[span], np.maximum(breh, gz[span] + 0.3))
         # skutečná výška mostovky z laseru: jen když laser mostovku zachytil (0,5–30 m nad terénem) aspoň v polovině rozpětí
         if UP.get('mosty_laser', True) and span.sum() >= 2:
             _lz = dmp_mostovka(xy); _nad = _lz - gz
             _ok = span & np.isfinite(_lz) & (_nad >= 0.5) & (_nad <= 30)
             if _ok.sum() >= 0.5 * span.sum():
                 req[_ok] = _lz[_ok]; _mostu_z_laseru += 1
+        req = np.maximum(req, podjezd)
         G = GRADE[kind]
-        hr = req - gz                                  # požadovaná výška nad terénem; nájezd ji ubírá o G na metr (cesta dál kopíruje svah)
-        hz = np.max(hr[None, :] - G * np.abs(d[:, None] - d[None, :]), axis=1)
-        hz = np.minimum(hz, 0.15 + 0.2 * np.minimum(d, L - d))   # konce vždy na terénu (krátký nájezd = strmější)
+        # požadovaná výška mostovky; nájezd z ní ubírá G na metr v absolutní výšce (sklon cesty), dál cesta kopíruje svah.
+        # (Dřív relativně k terénu: u mostu přes zářez potoka se výška nad dnem koryta přenesla na břehy a most trčel s dlouhými nájezdy.)
+        _src = np.where(span, req, -1e9)                # výšku šíří jen rozpětí mostu; cesta za ním jinak kopíruje terén (žádné přemostění příkopů)
+        hz = np.maximum(np.max(_src[None, :] - G * np.abs(d[:, None] - d[None, :]), axis=1), req) - gz
+        # konce vždy na terénu (krátký nájezd = strmější); ne tam, kde kus navazuje na další kus téhož mostu
+        # (koleje a úseky jednoho mostu bývají v datech zvlášť: na spoji by mostovka spadla až na silnici pod ním)
+        _k0 = np.inf if _navazuje(l, bc[0]) else 0.0; _k1 = np.inf if _navazuje(l, bc[-1]) else 0.0
+        hz = np.minimum(hz, 0.15 + 0.2 * np.minimum(d + _k0, L - d + _k1))
         z = gz + np.maximum(hz, 0.15)
         si = np.where(span)[0]
         hull = []                                      # v rozpětí mostu horní konvexní obálka (bez propadů)
