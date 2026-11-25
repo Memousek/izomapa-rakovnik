@@ -1,0 +1,2 @@
+Textury povrchů pro 3D jízdu: ambientCG (https://ambientcg.com), licence CC0 1.0 (volné dílo).
+asfalt.webp = Asphalt031, trava.webp = Grass004, dlazba.webp = PavingStones150, sterk.webp = Gravel043 (barevná vrstva, 1024 px).

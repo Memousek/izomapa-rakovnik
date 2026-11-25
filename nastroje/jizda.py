@@ -91,8 +91,8 @@ def svet_js():
     kod = jednou(kod, 'l = floor(l * 5.0 + hash(floor(gl_FragCoord.xy)) * 0.9) / 5.0;', 'l = l * 0.92;')
     kod = jednou(kod, '&& hash(floor(gl_FragCoord.xy)) > 0.6) col *= 0.93;', '&& hash(floor(vW.xz * 4.0)) > 0.6) col *= 0.93;')
     # počasí ve 3D na terénu: mokrý asfalt po dešti (tmavší, v ostrém úhlu odráží nebe) a postupně bílá zem při sněžení
-    kod = jednou(kod, '{ uTex: { value: tex }, uLmap: { value: lmap } }', '{ uTex: { value: tex }, uLmap: { value: lmap }, uMokro: O.uMokro || { value: 0 }, uSnih: O.uSnih || { value: 0 }, uTexO: { value: texO }, uOrto: { value: texO ? 1 : 0 } }')
-    kod = jednou(kod, 'uniform sampler2D uTex, uLmap;', 'uniform sampler2D uTex, uLmap, uTexO; uniform float uMokro, uSnih, uOrto;')
+    kod = jednou(kod, '{ uTex: { value: tex }, uLmap: { value: lmap } }', '{ uTex: { value: tex }, uLmap: { value: lmap }, uMokro: O.uMokro || { value: 0 }, uSnih: O.uSnih || { value: 0 }, uTexO: { value: texO }, uOrto: { value: texO ? 1 : 0 }, uTA: { value: O.textury?.asfalt || null }, uTG: { value: O.textury?.trava || null }, uTP: { value: O.textury?.dlazba || null }, uTS: { value: O.textury?.sterk || null }, uSplat: { value: O.textury ? 1 : 0 } }')
+    kod = jednou(kod, 'uniform sampler2D uTex, uLmap;', 'uniform sampler2D uTex, uLmap, uTexO, uTA, uTG, uTP, uTS; uniform float uMokro, uSnih, uOrto, uSplat;')
     # ---- kvalita obrazu zblízka (mapa je kreslená pro pohled shora po 0,2 m na pixel, chodec se dívá z 1,7 m) ----
     # detailní textura (stránka: O.uDet, dlaždicový šum s mipmapami; O.uDetS = 0 vše vypne) pro všechny materiály světa
     kod = jednou(kod, 'uniform float uLights; uniform vec2 uOff;', 'uniform float uLights; uniform vec2 uOff; uniform sampler2D uDet; uniform float uDetS; uniform float uOkna;')
@@ -155,6 +155,21 @@ def svet_js():
                 + zel * (trs * 0.15 + zrno * 0.08 + flek * 0.045)
                 + (1.0 - zpev) * (1.0 - zel) * (zrno * 0.10 + kam * 0.14 + flek * 0.05);     // štěrk, písek, hlína
         col *= 1.0 + k * uDetS;
+        if (uSplat > 0.5) {                                        // skutečné textury povrchů (CC0): jas textury podle druhu plochy, barva zůstává z podkladu
+          float dz = length(cameraPosition - vW), fz = 1.0 - smoothstep(25.0, 90.0, dz);
+          if (fz > 0.01) {
+            vec2 wp = vW.xz; vec3 W4 = vec3(0.3, 0.59, 0.11);
+            float lA = dot(texture2D(uTA, wp * 0.28).rgb, W4) / max(dot(textureLod(uTA, vec2(0.5), 12.0).rgb, W4), 0.05);
+            float lP = dot(texture2D(uTP, wp * 0.42).rgb, W4) / max(dot(textureLod(uTP, vec2(0.5), 12.0).rgb, W4), 0.05);
+            vec3 tg = texture2D(uTG, wp * 0.55).rgb, tgm = textureLod(uTG, vec2(0.5), 12.0).rgb;
+            float lS = dot(texture2D(uTS, wp * 0.4).rgb, W4) / max(dot(textureLod(uTS, vec2(0.5), 12.0).rgb, W4), 0.05);
+            float sv = smoothstep(0.42, 0.55, dot(col, W4));             // světlá zpevněná plocha = dlažba, tmavá = asfalt
+            float wA = zpev * (1.0 - sv), wP = zpev * sv, wS = (1.0 - zpev) * (1.0 - zel);
+            float lum = wA * mix(1.0, lA, 0.9) + wP * mix(1.0, lP, 0.95) + wS * mix(1.0, lS, 0.9) + (1.0 - wA - wP - wS);
+            vec3 trv = col * mix(vec3(1.0), tg / max(tgm, vec3(0.05)), 0.8);   // tráva: i odstín stébel
+            col = mix(col, mix(col * lum, trv, zel * (1.0 - snih)), fz);
+          }
+        }
         col.rg += zel * trs * vec2(0.012, 0.02) * uDetS;                                       // tráva: trsy i v odstínu
       } else col = texture2D(uTex, vUv).rgb;
       if (uOrto > 0.5) {                                         // letecký snímek ČÚZK: zblízka ostrá kresba, do dálky skutečný povrch (pole, louky, plochy)
@@ -219,6 +234,7 @@ def main():
         if f.startswith('jizda_') and f.endswith('.js'): shutil.copy(f'web/{f}', f'{OUT}/{f[6:]}')
     # hotové modely aut do garáže (glTF, jizda/vozidla.js HOTOVE) a jejich načítání (GLTFLoader z three, cesty jako v examples/jsm)
     shutil.copytree('web/jizda_modely', f'{OUT}/modely', dirs_exist_ok=True)
+    if os.path.isdir('web/jizda_textury'): shutil.copytree('web/jizda_textury', f'{OUT}/textury', dirs_exist_ok=True)   # textury povrchů (CC0, ambientCG)
     for f in ('loaders/GLTFLoader.js', 'utils/BufferGeometryUtils.js'):
         os.makedirs(os.path.dirname(f'{OUT}/three/{f}'), exist_ok=True)
         shutil.copy(f'node_modules/three/examples/jsm/{f}', f'{OUT}/three/{f}')
