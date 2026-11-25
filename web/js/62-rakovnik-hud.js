@@ -17,8 +17,9 @@
       document.addEventListener('pointerdown', (e) => { if (!ul.hidden && !e.target.closest('#obceList, #obceBtn')) prepni(false); });
     }
     // 3D jízda a srovnání s 50. lety patří do doku hned za záložky
-    const dok = $('tabs');
-    for (const id of ['histBtn', 'jizda3d']) { const a = $(id); if (a) { a.classList.add('dok-akce'); dok.append(a); } }
+    // (na telefonu 3D nahoru do sloupce ovládání: v doku by ho schovalo backdrop-filter, Dřív a teď se nevejde)
+    const dok = isMobile() ? document.querySelector('.controls') : $('tabs');
+    for (const id of ['histBtn', 'jizda3d']) { const a = $(id); if (a) { a.classList.add('dok-akce'); if (isMobile()) dok.prepend(a); else dok.append(a); } }
     // stavový pruh: hodiny a počasí z předpovědi (00-zaklad.js píše do #predpovedVal)
     const stav = $('stav');
     const obnov = () => {

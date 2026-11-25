@@ -276,10 +276,9 @@ body.noc .places button:hover { background: var(--panel-2); }
   .stav, .zpravy-radek, .minimap { display: none !important; }
   .tabs { left: 8px; right: 8px; transform: none; bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); justify-content: space-between; }
   .tab { flex: 1; flex-direction: column; gap: 3px; padding: 8px 0; font-size: .7rem; justify-content: center; }
-  .tabs #histBtn { display: none; }
-  .tabs #jizda3d:not([hidden]) { position: fixed; right: 10px; top: calc(env(safe-area-inset-top, 0px) + 70px); margin: 0; padding: 0 12px; height: 44px;
-    border-radius: 14px; box-shadow: var(--stin); font-size: .8rem; }
-  .tabs #jizda3d::before { content: ""; }
+  .controls #histBtn { display: none; }
+  .controls #jizda3d:not([hidden]) { width: 38px; height: 38px; padding: 0; justify-content: center; border-radius: 10px; background: var(--red); color: #fff; font: 700 .78rem var(--sans); margin: 0 0 4px; box-shadow: none; }
+  .controls #jizda3d .ico, .controls #jizda3d .go3d-long { display: none; }
   body:has(.pane:not([hidden])) .controls, body:has(.card:not([hidden])) .controls { display: none; }
   .pane { left: 0; right: 0; width: auto; transform: none; bottom: 0; max-height: 70vh; border-radius: 22px 22px 0 0;
     padding: 18px 18px calc(env(safe-area-inset-bottom, 0px) + 84px); z-index: 3; animation: vyjedM .2s ease-out; }
