@@ -33,7 +33,7 @@ export function vytvorLidi(THREE, scene, api) {
     m.count = 0; m.frustumCulled = false; m.castShadow = false;
     scene.add(m); telesa.push(m); return m;
   }
-  const mNohaA = cast(true), mNohaB = cast(true), mRukaA = cast(true), mRukaB = cast(true), mTorzo = cast(false), mHlava = cast(false), mVlasy = cast(false);
+  const mNohaA = cast(true), mNohaB = cast(true), mRukaA = cast(true), mRukaB = cast(true), mTorzo = cast(false), mHlava = cast(false), mVlasy = cast(false), mTel = cast(false);   // mTel: mobil v ruce (kdo nekouká do mobilu, má ho nulové velikosti)
   // deštníky (za deště), psi na vodítku: vlastní instance s vlastním počtem
   const ostatni = [];
   function inst(geo, mat, n) {
@@ -58,6 +58,7 @@ export function vytvorLidi(THREE, scene, api) {
     barva.setHex(p.cKalh); mNohaA.setColorAt(i, barva); mNohaB.setColorAt(i, barva);
     barva.setHex(p.cKoze); mHlava.setColorAt(i, barva);
     barva.setHex(p.cVlasy); mVlasy.setColorAt(i, barva);
+    barva.setHex(0x1b1d22); mTel.setColorAt(i, barva);
     for (const m of telesa) m.instanceColor.needsUpdate = true;
   };
 
@@ -498,10 +499,15 @@ export function vytvorLidi(THREE, scene, api) {
       if (p.uder > 0) {                                      // úder: pravá ruka natažená dopředu
         const u = 1.45 * Math.sin(Math.PI * p.uder / 0.3);
         dej(mRukaA, i, X + s * zr, Y0 + 1.40 * sc, Z + c * zr, c, s, Math.cos(u), Math.sin(u), 0.11 * sc, 0.6 * sc, 0.11 * sc);
-      } else if (p.tel && !p.stav) {                         // telefonuje: ruka u ucha
-        dej(mRukaA, i, X + s * zr, Y0 + 1.40 * sc, Z + c * zr, c, s, Math.cos(2.55), Math.sin(2.55), 0.11 * sc, 0.42 * sc, 0.11 * sc);
+      } else if (p.tel && !p.stav) {                         // kouká do mobilu: ruka předpažená před hrudí, v dlani telefon
+        // (dřív ruka u ucha: ruka je z jednoho dílu bez lokte, takže trčela šikmo nad hlavu jako při hlášení)
+        const u = 1.15, ru = 0.46 * sc, rx = X + s * zr * 0.55, rz = Z + c * zr * 0.55;   // rameno kousek ke středu těla
+        dej(mRukaA, i, rx, Y0 + 1.40 * sc, rz, c, s, Math.cos(u), Math.sin(u), 0.11 * sc, ru, 0.11 * sc);
+        const hx = rx + c * Math.sin(u) * ru, hy = Y0 + 1.40 * sc - Math.cos(u) * ru, hz = rz - s * Math.sin(u) * ru;
+        dej(mTel, i, hx + c * 0.03 * sc, hy + 0.02 * sc, hz - s * 0.03 * sc, c, s, Math.cos(1.1), Math.sin(1.1), 0.075 * sc, 0.14 * sc, 0.02 * sc);
       } else
       dej(mRukaA, i, X + s * zr, Y0 + 1.40 * sc, Z + c * zr, c, s, cr, -sr, 0.11 * sc, 0.6 * sc, 0.11 * sc);
+      if (!(p.tel && !p.stav) || p.uder > 0) dej(mTel, i, X, Y0, Z, c, s, 1, 0, 0, 0, 0);
       dej(mRukaB, i, X - s * zr, Y0 + 1.40 * sc, Z - c * zr, c, s, cr, sr, 0.11 * sc, 0.6 * sc, 0.11 * sc);
       dej(mTorzo, i, X, Y0 + 1.13 * sc, Z, c, s, 1, 0, 0.24 * sc, 0.58 * sc, 0.42 * sc);
       const hs = 0.22 * sc * p.hl;
