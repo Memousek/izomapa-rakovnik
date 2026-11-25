@@ -473,11 +473,11 @@ const slozeni = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMa
               uSvetla: { value: 0 }, uMlha: { value: 1 / GRAFIKA[GRAF].opar }, uMlhaC: { value: new THREE.Color(0.74, 0.78, 0.83) }, uZat: { value: 0 }, uNear: { value: 0.1 }, uFar: { value: 3000 }, uPx: { value: new THREE.Vector2(1, 1) }, uAA: { value: KVALITA > 0 ? 1 : 0 },
               // vzhled (Rakovník): obloha, záře světel, blikání, filmové tónování; uFx 0 = vypnuto, 1 = bez záře a zrna, 2 = vše
               uFx: { value: 2 }, uCas: { value: 0 }, uSun: { value: new THREE.Vector3(0.38, 0.62, 0.68).normalize() },
-              uInvP: { value: new THREE.Matrix4() }, uCamW: { value: new THREE.Matrix4() } },
+              uInvP: { value: new THREE.Matrix4() }, uCamW: { value: new THREE.Matrix4() }, uSunScr: { value: new THREE.Vector3(0.5, 0.5, 0) } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
   fragmentShader: /* glsl */`
     uniform sampler2D tD, tZ, tL; uniform float uN, uG, uSvetla, uMlha, uZat, uNear, uFar, uAA; uniform vec3 uMlhaC; uniform vec2 uPx; varying vec2 vUv;
-    uniform float uFx, uCas; uniform vec3 uSun; uniform mat4 uInvP, uCamW;
+    uniform float uFx, uCas; uniform vec3 uSun, uSunScr; uniform mat4 uInvP, uCamW;
     float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
     vec3 paprsek(float z){ vec4 v = uInvP * vec4(vUv * 2.0 - 1.0, z * 2.0 - 1.0, 1.0); v /= v.w; return (uCamW * v).xyz; }   // bod ve světě
     vec3 obloha(vec3 r){                                         // gradient nebe podle denní doby, slunce, hvězdy v noci, zataženo šedé
@@ -537,7 +537,12 @@ const slozeni = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMa
         c = mix(c, c * vec3(0.13, 0.17, 0.31), uN);              // noc: tmavě modrá
         c = mix(c, mlhaC, f);                                    // opar a nebe až po tónu: barvy nebe jsou hotové
         if (nebe > 0.5) c = nb;
-        c += mix(vec3(1.0, 0.9, 0.75), vec3(1.0, 0.6, 0.3), uG) * pow(max(dot(r, uSun), 0.0), 5.0) * 0.16 * (1.0 - uN) * (1.0 - uZat);   // oslnění proti slunci
+        c += mix(vec3(1.0, 0.9, 0.75), vec3(1.0, 0.6, 0.3), uG) * pow(max(dot(r, uSun), 0.0), 8.0) * 0.08 * (1.0 - uN) * (1.0 - uZat);   // oslnění proti slunci
+      }
+      if (uFx > 1.5 && uSunScr.z > 0.01) {                       // paprsky slunce mezi domy a stromy: nebe podél čáry ke slunci
+        vec2 st = (uSunScr.xy - vUv) / 18.0, uv = vUv; float acc = 0.0, w = 1.0;
+        for (int i = 0; i < 18; i++) { uv += st; acc += (texture2D(tZ, uv).r > 0.99999 ? 1.0 : 0.0) * w; w *= 0.93; }
+        c += mix(vec3(1.0, 0.92, 0.78), vec3(1.0, 0.62, 0.32), uG) * acc / 18.0 * 0.2 * uSunScr.z * (1.0 - nebe * 0.6);
       }
       if (uSvetla > 0.5) {
         vec3 L = texture2D(tL, vUv).rgb;
@@ -1823,7 +1828,11 @@ function vykresli() {
   const s = slozeni.material.uniforms;
   s.uN.value = uN; s.uG.value = uG; s.uSvetla.value = uN > 0.005 ? 1 : 0; s.uNear.value = camera.near; s.uFar.value = camera.far;
   s.uCas.value = performance.now() / 1000; s.uInvP.value.copy(camera.projectionMatrixInverse); s.uCamW.value.copy(camera.matrixWorld);
-  s.uFx.value = KVALITA === 0 ? 0 : GRAF === 'nizka' || DOTYK ? 1 : 2;     // vzhled: telefon a nízká grafika bez záře a zrna
+  s.uFx.value = KVALITA === 0 ? 0 : GRAF === 'nizka' || DOTYK ? 1 : 2;
+  {                                                           // poloha slunce na obrazovce pro paprsky; síla podle toho, jak moc se díváme ke slunci
+    const sp = camera.position.clone().add(s.uSun.value.clone().multiplyScalar(1000)).project(camera), k = fwd.dot(s.uSun.value);
+    s.uSunScr.value.set(sp.x * 0.5 + 0.5, sp.y * 0.5 + 0.5, sp.z < 1 && k > 0 ? Math.min(1, k * 1.4) * (1 - uN) * (1 - WXI.zat * 0.8) : 0);
+  }     // vzhled: telefon a nízká grafika bez záře a zrna
   renderer.setRenderTarget(null); renderer.clear(); renderer.render(slozScena, slozCam);
   if (DEST.visible || SNIH.visible) {                       // déšť a sníh až na složený obraz (s hloubkou scény), ztmavené jako noc
     const jas = (1 - 0.82 * uN) * (1 - 0.25 * WXI.zat);
