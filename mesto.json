@@ -1,0 +1,152 @@
+{
+ "nazev": "Rakovník",
+ "titulek": "Izometrický Rakovník",
+ "h1": [
+  "Izometrický",
+  "Rakovník"
+ ],
+ "podtitul": "Rakovník, Lišany, Krupá a Lubná z otevřených dat, ve stylu SimCity 2000.",
+ "popis": "Izometrická pixel-art mapa: Rakovník s Lišany, Krupou a Lubnou ve stylu SimCity 2000. Roční období, den a noc, počasí, semafory a MHD.",
+ "url": "https://izomapa-rakovnik.pages.dev",
+ "stred": [
+  13.71703,
+  50.096491
+ ],
+ "polovina": 1150.0,
+ "ctverce": [
+  [
+   0,
+   4
+  ],
+  [
+   1,
+   4
+  ],
+  [
+   0,
+   3
+  ],
+  [
+   1,
+   3
+  ],
+  [
+   0,
+   2
+  ],
+  [
+   1,
+   2
+  ],
+  [
+   -1,
+   1
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   1,
+   1
+  ],
+  [
+   -1,
+   0
+  ],
+  [
+   0,
+   0
+  ],
+  [
+   1,
+   0
+  ],
+  [
+   -1,
+   -1
+  ],
+  [
+   0,
+   -1
+  ]
+ ],
+ "href": 349.4,
+ "dno": -71,
+ "rozliseni": "zakladni",
+ "mhd": {
+  "gtfs": "https://data.pid.cz/PID_GTFS.zip",
+  "zdroj": "PID (ROPID, Golemio)",
+  "zdroj_url": "https://pid.cz/o-systemu/opendata/"
+ },
+ "vlak": {
+  "vychozi": "regioshark",
+  "linky": {
+   "R24": "arriva628",
+   "U12": "dlb654",
+   "U14": "dlb654"
+  }
+ },
+ "autobus": "pid",
+ "vanocni_strom": [
+  50.10423,
+  13.73021
+ ],
+ "namesti_sektor": [
+  -45,
+  35
+ ],
+ "zvuky_mista": {
+  "zvon": [
+   50.103978,
+   13.733153
+  ],
+  "nadrazi": [
+   50.09915,
+   13.73611
+  ]
+ },
+ "letadla": true,
+ "pluhy": true,
+ "pocasi": true,
+ "vitr": true,
+ "jizda": true,
+ "historie": true,
+ "potoky": true,
+ "multiplayer": "wss://izomapa-mp.izomapa-rakovnik.workers.dev/mistnost/rakovnik",
+ "doprava": {
+  "kraj": "Středočeský kraj"
+ },
+ "vystrahy_oblasti": [
+  "Rakovník",
+  "Středočeský kraj"
+ ],
+ "hydro": {
+  "stanice": [
+   "0-203-1-191800"
+  ]
+ },
+ "zpravy_web": {
+  "url": "https://www.mesto-rakovnik.cz/aktualne/aktuality/",
+  "zdroj": "Město Rakovník"
+ },
+ "kalendar_web": {
+  "url": "https://www.infocentrum-rakovnik.cz/infocentrum/kalendar-akci/",
+  "zdroj": "Infocentrum Rakovník"
+ },
+ "uzavirky_web": {
+  "url": "https://www.mesto-rakovnik.cz/aktualne/uzavirky-komunikaci/",
+  "zdroj": "Město Rakovník"
+ },
+ "uzavirky_geojson": [
+  {
+   "url": "http://stavby.ksus.cz/public/useky.json",
+   "zdroj": "KSÚS Středočeského kraje",
+   "odkaz": "http://stavby.ksus.cz"
+  }
+ ],
+ "prejmenuj_casti": {
+  "Rakovník-střed": "Rakovník"
+ },
+ "sousedi": []
+}

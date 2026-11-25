@@ -10,46 +10,14 @@ site/
 # podklady, které nepatří do veřejného repa (fotky, screenshoty map)
 fotky/
 podklady/
-# vygenerovaná data ČÚZK (python dmp_vysky.py, nastroje/zabaged.py)
-assets/zabaged.json
-assets/dmp_vysky.json
-assets/strechy_orto.json
-assets/hrebeny.json
-
-# vlastní modely památek tvého města a jejich výběr (sdílené jsou jen nástroje, stavebnice a návody v pamatky/)
-/pamatky/*.json
-/pamatky/*.js
-/pamatky/*.tmp
-!/pamatky/_kit.js
-!/pamatky/_ukazka.js
-!/pamatky/_drobne.js
-
-# konfigurace tvého města (python novy_mesto.py); ukázka je v priklady/mesto.json
-/mesto.json
-/mista.json
-/obce/
-
-# vlastní úpravy konkrétního města (ukázky jsou v priklady/)
-assets/custom_prep.py
-assets/custom_models.js
-assets/upresneni.json
-assets/dominanty.json
-assets/oblasti.json
-assets/doplnky.json
-assets/doplnky/
+# Data a úpravy města Rakovník jsou v gitu schválně (sdílí se mezi počítači):
+# mesto.json, mista.json, obce/, assets/* (custom_prep.py, custom_models.js, dominanty, upresneni, data ČÚZK a OSM),
+# pamatky/*.js|json. Tajemství, fotky a vygenerované build/ a site/ zůstávají mimo.
 
 # hlášení: vlastní konfigurace a hesla serveru
 /wrangler.jsonc
 .dev.vars
 .wrangler/
-assets/ruian_budovy.json
-assets/kominy.json
-assets/prejezdy.json
-assets/znacky.json
-assets/potrubi.json
-assets/semafory.json
-assets/trasy.json
-assets/letiste.json
 # lokální spouštění náhledu (absolutní cesty tohoto počítače)
 .claude/launch.json
 
