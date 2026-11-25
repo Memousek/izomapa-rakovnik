@@ -70,16 +70,17 @@ export function vytvorKokpit(THREE, scene, { jenVeDne = [] } = {}) {
   function kresliBudiky(kmh, ot, sipky) {
     if (!ctx) return;
     ctx.fillStyle = '#0b0c0e'; ctx.fillRect(0, 0, 256, 96);
-    const sipka = (x, d) => { ctx.fillStyle = '#35e06a'; ctx.beginPath(); ctx.moveTo(x + d * 14, 16); ctx.lineTo(x, 6); ctx.lineTo(x, 26); ctx.closePath(); ctx.fill(); ctx.fillRect(d > 0 ? x - 10 : x, 12, 10, 8); };
-    if (sipky & 1) sipka(112, -1); if (sipky & 2) sipka(144, 1);   // kontrolky blinkrů
+    // kontrolky blinkrů: mezi budíky ve výšce jejich středu (nahoře je zakrývala stříška)
+    const sipka = (x, d) => { ctx.fillStyle = '#35e06a'; ctx.beginPath(); ctx.moveTo(x + d * 16, 58); ctx.lineTo(x, 46); ctx.lineTo(x, 70); ctx.closePath(); ctx.fill(); ctx.fillRect(d > 0 ? x - 9 : x, 53, 9, 10); };
+    if (sipky & 1) sipka(118, -1); if (sipky & 2) sipka(138, 1);
     const oblouk = (cx, f, barva) => {
       ctx.lineWidth = 6; ctx.strokeStyle = '#26282c'; ctx.beginPath(); ctx.arc(cx, 58, 34, Math.PI * 0.8, Math.PI * 2.2); ctx.stroke();
       ctx.strokeStyle = barva; ctx.beginPath(); ctx.arc(cx, 58, 34, Math.PI * 0.8, Math.PI * (0.8 + 1.4 * Math.min(1, f))); ctx.stroke();
     };
-    oblouk(64, kmh / 200, '#e8f0ff'); oblouk(192, ot / 7000, ot > 5800 ? '#ff4a3a' : '#ffb000');
-    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 26px Arial, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(String(Math.round(kmh)), 64, 66);
-    ctx.font = '10px Arial, sans-serif'; ctx.fillStyle = '#8a9099'; ctx.fillText('km/h', 64, 82); ctx.fillText('×1000 ot/min', 192, 82);
-    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 20px Arial, sans-serif'; ctx.fillText((ot / 1000).toFixed(1), 192, 64);
+    oblouk(64, ot / 7000, ot > 5800 ? '#ff4a3a' : '#ffb000'); oblouk(192, kmh / 200, '#e8f0ff');   // vlevo otáčky, vpravo rychlost
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 26px Arial, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(String(Math.round(kmh)), 192, 66);
+    ctx.font = '10px Arial, sans-serif'; ctx.fillStyle = '#8a9099'; ctx.fillText('km/h', 192, 82); ctx.fillText('×1000 ot/min', 64, 82);
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 20px Arial, sans-serif'; ctx.fillText((ot / 1000).toFixed(1), 64, 64);
     tex.needsUpdate = true;
   }
 
