@@ -76,6 +76,7 @@ body.noc .chip:has(input:checked) { background: var(--ink); color: var(--s9); bo
 .panel > .head h1 { flex: none; }
 .head-btns .px-btn:hover, .obce-btn:hover { color: var(--ink); }
 .head-btns .help-btn { width: auto; font: 700 1rem var(--serif); }
+.obce-btn { display: flex; align-items: center; gap: 4px; }
 .obce-btn[hidden] { display: none; }
 .obce-btn::after { content: " ▾"; }
 .obce-btn[aria-expanded="true"]::after { content: " ▴"; }
@@ -267,13 +268,19 @@ body.noc .places button:hover { background: var(--panel-2); }
   .panel > .head h1 { font-size: 1.1rem; }
   .panel > .head h1 small { display: none; }
   .znak { width: 40px; }
-  .search { top: calc(env(safe-area-inset-top, 0px) + 10px); left: auto; right: 10px; transform: none; width: auto; min-width: 0; flex: 1; max-width: calc(100vw - 230px); }
-  .search:focus-within { left: 10px; max-width: none; z-index: 6; }
-  .search input { padding: 11px 10px 11px 34px; background-position: 11px 50%; }
+  /* hledání jako ikona vpravo nahoře, po klepnutí přes celou šířku */
+  .search { top: calc(env(safe-area-inset-top, 0px) + 10px); left: auto; right: 10px; transform: none; width: 50px; min-width: 0; }
+  .search input { height: 50px; padding: 0 10px 0 40px; background-position: 17px 50%; }
+  .search:not(:focus-within) input::placeholder { color: transparent; }
+  .search:focus-within { left: 10px; width: auto; z-index: 6; }
   .stav, .zpravy-radek, .minimap { display: none !important; }
   .tabs { left: 8px; right: 8px; transform: none; bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); justify-content: space-between; }
   .tab { flex: 1; flex-direction: column; gap: 3px; padding: 8px 0; font-size: .7rem; justify-content: center; }
-  .tabs .dok-akce { display: none; }
+  .tabs #histBtn { display: none; }
+  .tabs #jizda3d:not([hidden]) { position: fixed; right: 10px; top: calc(env(safe-area-inset-top, 0px) + 70px); margin: 0; padding: 0 12px; height: 44px;
+    border-radius: 14px; box-shadow: var(--stin); font-size: .8rem; }
+  .tabs #jizda3d::before { content: ""; }
+  body:has(.pane:not([hidden])) .controls, body:has(.card:not([hidden])) .controls { display: none; }
   .pane { left: 0; right: 0; width: auto; transform: none; bottom: 0; max-height: 70vh; border-radius: 22px 22px 0 0;
     padding: 18px 18px calc(env(safe-area-inset-bottom, 0px) + 84px); z-index: 3; animation: vyjedM .2s ease-out; }
   @keyframes vyjedM { from { transform: translateY(30px); opacity: 0; } }
