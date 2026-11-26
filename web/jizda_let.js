@@ -217,12 +217,17 @@ export function vytvorLetani(api) {
   // ---------- pilotování ----------
   let aktivni = null, cam = null, kamO = new THREE.Vector3(), okrajT = 0, varovani = '';
   const vlevo = (h) => [-Math.sin(h), Math.cos(h)];
+  // havárie: výbuch (jizda/vybuchy.js), stroj zmizí a vrak na místě hoří; za 4 s je pilot zpátky na stání v novém stroji
   function havarie(ac, proc) {
     if (ac.hav > 0) return;
-    ac.hav = 2; ac.V = 0; ac.vx = ac.vy = ac.vz = 0; ac.thr = 0;
-    zvuk('naraz'); toast('Havárie' + (proc ? ': ' + proc : ''), 'chyba');
+    const V = Math.hypot(ac.vx || 0, ac.vy || 0, ac.vz || 0) || ac.V || 0;
+    ac.hav = 4; ac.V = 0; ac.vx = ac.vy = ac.vz = 0; ac.thr = 0;
+    if (api.VYBUCHY) { api.VYBUCHY.vybuch(ac.x, ac.y, Math.max(ac.z, gz(ac.x, ac.y)), V > 20 || ac.heli ? 1.6 : 1.1); ac.d.g.visible = false; }
+    else zvuk('naraz');
+    toast('Havárie' + (proc ? ': ' + proc : '') + '. Zpátky na stání za chvíli…', 'pokuta');
   }
   function zpetNaStani(ac) {
+    ac.d.g.visible = true;
     Object.assign(ac, { x: ac.st.x, y: ac.st.y, h: ac.st.h, th: 0, fi: 0, ga: 0, V: 0, vx: 0, vy: 0, vz: 0, thr: 0, zem: true, hav: 0 });
     ac.z = gz(ac.x, ac.y); if (ac.heli) ac.rpm = Math.min(ac.rpm, 0.3); poloz(ac);
   }

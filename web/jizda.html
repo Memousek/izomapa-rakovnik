@@ -363,6 +363,7 @@ import { vytvorKenney } from './jizda/kenney.js';
 import { vytvorProfil } from './jizda/profil.js';
 import { vytvorLetani } from './jizda/let.js';
 import { vytvorMotorky } from './jizda/motorka.js';
+import { vytvorVybuchy } from './jizda/vybuchy.js';
 THREE.ColorManagement.enabled = false;
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -1833,7 +1834,7 @@ function krokAuto(dt) {
   const G = ULICE_STAV.on, smyk = k('Space') && Math.abs(c.v) > 6;
   hrac.brzdi = (bb > 0 && c.v > 0.3) || k('Space') || Math.abs(c.v) < 0.2;   // brzdová světla   // ruční brzda v rychlosti = smyk (v obou režimech); pouliční režim: arkádové řízení
   let a = 0;
-  const stav = G && c.hp !== undefined ? clamp(c.hp / 100, 0, 1) : 1;   // poškozené auto táhne hůř, zničené nejede
+  const stav = c.hp !== undefined ? clamp(c.hp / 100, 0, 1) : 1;   // poškozené auto táhne hůř, zničené nejede (i v běžné jízdě)
   if (plyn) a = stav <= 0 ? 0 : c.v < -0.3 ? 9 * pp : (turbo ? (G ? 8 : 5.5) : (G ? 4.8 : 3.2)) * pp * (0.45 + 0.55 * stav) * (1 - Math.max(0, c.v) / ((turbo ? (G ? 58 : 45) : (G ? 38 : 28)) * (0.5 + 0.5 * stav)));
   if (brzda) a = c.v > 0.3 ? -9 * bb : -2.5 * bb * (1 + Math.min(0, c.v) / 7);
   if (k('Space')) a = -Math.sign(c.v) * (smyk ? 3.5 : 12);
@@ -1849,7 +1850,9 @@ function krokAuto(dt) {
   const nv = vyska(nx, ny, c.z), predni = [[2.1, 0.85], [2.1, -0.85]].map(([l, w]) => vyska(nx + Math.cos(nh) * l - Math.sin(nh) * w, ny + Math.sin(nh) * l + Math.cos(nh) * w, c.z));
   const pres = c.most && [nv, ...predni].some((v) => zabradli(c.z, v));
   const auta = ULICE.kolizeAuta(c, nx, ny, nh);              // do aut se nedá projet (v běžné mapě bez poškození)
-  if (roh(nx, ny, nh) || !inMap(nx, ny) || pres || auta) { if (G && !auta) ULICE.naraz(Math.abs(c.v)); c.v = -c.v * 0.25; c.vh = c.h; if (Math.abs(c.v) > 2) $('stav').textContent = pres ? 'Zábradlí mostu!' : 'Bum! Pozor na zdi.'; }
+  if (roh(nx, ny, nh) || !inMap(nx, ny) || pres || auta) { if (G && !auta) ULICE.naraz(Math.abs(c.v));
+    if (!G && Math.abs(c.v) > 3) c.hp = (c.hp ?? 100) - (Math.abs(c.v) - 3) * 2.2;   // opotřebení: náraz v 50 km/h ubere ~25 %
+    c.v = -c.v * 0.25; c.vh = c.h; if (Math.abs(c.v) > 2) $('stav').textContent = pres ? 'Zábradlí mostu!' : 'Bum! Pozor na zdi.'; }
   else { c.x = nx; c.y = ny; c.h = nh; c.z = nv.z; c.most = nv.most; }
   hrac.x = c.x; hrac.y = c.y;
   $('tacho').firstChild.nodeValue = Math.round(Math.abs(c.v) * 3.6) + ' ';
@@ -1881,6 +1884,25 @@ function kameraKolem(x, y, z, h0, vyskaCile, dist, dt) {
   const kTer = Math.hypot(camera.position.x - x, camera.position.z + y), kChce = Math.hypot(px - x, py - y);
   if (orbit.snap || (tb < 1 && kChce < kTer - 0.05)) { camera.position.copy(want); orbit.snap = false; } else camera.position.lerp(want, 1 - Math.exp(-dt * 10));
   camera.lookAt(T); fwd.copy(T).sub(camera.position).normalize();
+}
+// opotřebované auto v běžné jízdě (pouliční režim má vlastní, jizda/ulice.js): pod 50 % kouř z motoru, pod 25 % černý,
+// na nule hoří a za 6 s vybuchne (VYBUCHY); hráč vypadne ven, nové auto se přistaví klávesou E
+function poskozeniAuta(dt) {
+  const c = hrac.car; if (!c || c.hp === undefined || !(dt > 0)) return;
+  const z = mojeAuto.position.y || gz(c.x, c.y), hx = c.x + Math.cos(c.h) * 1.6, hy = c.y + Math.sin(c.h) * 1.6;
+  if (c.hp < 50) {
+    if (!c.kourHlaseno) { c.kourHlaseno = true; toast('Z motoru se kouří. Ještě pár nárazů a auto chytne.', 'info'); }
+    VYBUCHY.kour(hx, hy, z + 1.0, c.hp < 25 ? 12 : 4, dt, c.hp < 25 ? 0x2f2c2a : 0x9a9794);
+  }
+  if (c.hp > 0) return;
+  c.hori = (c.hori || 0) + dt;
+  VYBUCHY.ohen(hx, hy, z + 0.8, 26, dt);
+  if (c.hori <= dt) toast('Auto hoří! Vystup (E), za chvíli bouchne!', 'pokuta');
+  if (c.hori < 6) return;
+  VYBUCHY.vybuch(c.x, c.y, z, 1);
+  if (hrac.vAuto && hrac.car === c) nastoupit();             // výbuch tě vyhodí ven (vlevo od auta)
+  hrac.car = null; mojeAuto.visible = false;
+  toast('Auto shořelo. Nové si přistavíš klávesou E.', 'info');
 }
 function polohaAuta() {                                     // auto po terénu nebo mostovce: sklon z přední a zadní nápravy
   const c = hrac.car, fz = vyska(c.x + Math.cos(c.h) * 1.4, c.y + Math.sin(c.h) * 1.4, c.z).z, bz = vyska(c.x - Math.cos(c.h) * 1.4, c.y - Math.sin(c.h) * 1.4, c.z).z;
@@ -2211,7 +2233,9 @@ const ULICE = vytvorUlici(THREE, scene3, { hrac, cars, roads, carPose, along, LI
 // Režim: { nazev, blizko(x, y) -> text nápovědy | null, nastup() -> bool, krok(dt, vstup), kamera(camera, fwd, orbit, dt),
 //   vystup() -> {x, y, z, yaw} | null (null = teď nejde, např. ve vzduchu), stav() -> text do lišty, vzduch() -> bool, update(dt, now) }
 // vstup = { k, keys, JOY }: k('KeyW', …) je stisknutá klávesa, JOY joystick na dotyku. Režim si sám hlídá hrac.x, y, z.
-const REZIM_API = { THREE, scene3, gz, vyska, hitBuilding, inMap, zabradli, CAM, toast, hrac, jenVeDne, roads, along, cars, carPose, nah, LETISTE,
+// výbuchy, oheň a dým (jizda/vybuchy.js): havárie letadla a vrtulníku, zničené auto
+const VYBUCHY = vytvorVybuchy(THREE, scene3, { zvuk: (n, x, y, z) => ZVUK.hraj?.(n, x !== undefined ? [x, y, z] : undefined), jenVeDne, gz });
+const REZIM_API = { VYBUCHY, THREE, scene3, gz, vyska, hitBuilding, inMap, zabradli, CAM, toast, hrac, jenVeDne, roads, along, cars, carPose, nah, LETISTE,
   doba: () => DOBA.n, pocasi: () => WXI, obdobi: OBD, zvuk: (n) => ZVUK.hraj?.(n), dotyk: DOTYK, stromy: STROMY,
   postavy: POSTAVY, postava: () => KONFIG.auto().p || 'character-male-a', parkovana, vrsekBudovy, ramenoVolne,
   konec: () => { if (rezim) nastoupit(); } };   // konec: modul sám ukončí režim (po pádu z motorky vstaneš jako pěší); postavy: jezdec a pilot
@@ -2341,6 +2365,8 @@ function frame(now) {
   HRA.update(dt, now);
   HRACI.update(dt, now, camera);
   for (const r of REZIMY) r.update(dt, now);
+  VYBUCHY.update(dt);
+  if (hrac.car && !ULICE_STAV.on) poskozeniAuta(dt);   // kouř, oheň a výbuch opotřebovaného auta (pouliční režim má vlastní)
   ZVUK.update(dt);
   // kamera
   zamerStav();
