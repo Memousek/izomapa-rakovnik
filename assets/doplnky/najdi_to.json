@@ -1,0 +1,47 @@
+{
+  "_pozn": "Rakovník: hra Najdeš to? Místa z assets/dominanty.json, mista.json a assets/firmy.json (polohy budov ověřené na mapě).",
+  "enabled": true,
+  "title": "Najdeš to v Rakovníku?",
+  "difficulties": {
+    "easy": { "name": "Lehká (den)", "time": 0.0, "weather": "clear" },
+    "medium": { "name": "Střední (déšť a šero)", "time": 0.5, "weather": "rain" },
+    "hard": { "name": "Těžká (noc)", "time": 1.0, "weather": "clear" }
+  },
+  "levels": [
+    {
+      "lvl": 1,
+      "text": "Historické centrum kolem Husova náměstí.",
+      "camera": [50.1045, 13.7310, 0.9],
+      "questions": [
+        { "id": "radnice", "text": "Najdeš radnici?", "lat": 50.104187, "lon": 13.728714, "radius": 30, "answer": "Radnice na Husově náměstí" },
+        { "id": "vysoka_brana", "text": "Najdeš Vysokou bránu?", "lat": 50.10589, "lon": 13.731880, "radius": 25, "answer": "Vysoká brána, zbytek městského opevnění" },
+        { "id": "prazska_brana", "text": "Najdeš Pražskou bránu?", "lat": 50.103645, "lon": 13.734372, "radius": 25, "answer": "Pražská brána" },
+        { "id": "sloup", "text": "Najdeš Mariánský sloup?", "lat": 50.104033, "lon": 13.731105, "radius": 20, "answer": "Mariánský sloup na Husově náměstí" },
+        { "id": "synagoga", "text": "Najdeš synagogu (Rabasovu galerii)?", "lat": 50.106059, "lon": 13.729968, "radius": 25, "answer": "Synagoga, dnes Rabasova galerie" }
+      ]
+    },
+    {
+      "lvl": 2,
+      "text": "Kostely, zvonice a muzeum.",
+      "camera": [50.1050, 13.7290, 1.4],
+      "questions": [
+        { "id": "bartolomej", "text": "Najdeš kostel sv. Bartoloměje?", "lat": 50.103718, "lon": 13.733177, "radius": 30, "answer": "Kostel sv. Bartoloměje" },
+        { "id": "velka_zvonice", "text": "Najdeš Velkou zvonici?", "lat": 50.103978, "lon": 13.733152, "radius": 18, "answer": "Velká zvonice u kostela sv. Bartoloměje" },
+        { "id": "trojice", "text": "Najdeš kostel Nejsvětější Trojice?", "lat": 50.107036, "lon": 13.724225, "radius": 30, "answer": "Kostel Nejsvětější Trojice" },
+        { "id": "muzeum", "text": "Najdeš Muzeum T. G. Masaryka?", "lat": 50.103484, "lon": 13.733986, "radius": 25, "answer": "Muzeum T. G. Masaryka" },
+        { "id": "pivovar", "text": "Najdeš pivovar Bakalář?", "lat": 50.105916, "lon": 13.726777, "radius": 40, "answer": "Pivovar Bakalář" }
+      ]
+    },
+    {
+      "lvl": 3,
+      "text": "Doprava a okolí města.",
+      "camera": [50.1000, 13.7250, 3.0],
+      "questions": [
+        { "id": "nadrazi", "text": "Najdeš nádraží Rakovník?", "lat": 50.099357, "lon": 13.736294, "radius": 40, "answer": "Nádraží Rakovník" },
+        { "id": "bus", "text": "Najdeš autobusové nádraží?", "lat": 50.100943, "lon": 13.733654, "radius": 40, "answer": "Autobusové nádraží" },
+        { "id": "hangar", "text": "Najdeš hangár na letišti?", "lat": 50.096803, "lon": 13.690206, "radius": 40, "answer": "Letecký hangár na letišti Rakovník" },
+        { "id": "krupa", "text": "Najdeš nádraží v Krupé?", "lat": 50.169894, "lon": 13.722956, "radius": 40, "answer": "Nádraží Krupá" }
+      ]
+    }
+  ]
+}
