@@ -2213,7 +2213,8 @@ const ULICE = vytvorUlici(THREE, scene3, { hrac, cars, roads, carPose, along, LI
 // vstup = { k, keys, JOY }: k('KeyW', …) je stisknutá klávesa, JOY joystick na dotyku. Režim si sám hlídá hrac.x, y, z.
 const REZIM_API = { THREE, scene3, gz, vyska, hitBuilding, inMap, zabradli, CAM, toast, hrac, jenVeDne, roads, along, cars, carPose, nah, LETISTE,
   doba: () => DOBA.n, pocasi: () => WXI, obdobi: OBD, zvuk: (n) => ZVUK.hraj?.(n), dotyk: DOTYK, stromy: STROMY,
-  postavy: POSTAVY, postava: () => KONFIG.auto().p || 'character-male-a', parkovana, vrsekBudovy, ramenoVolne };   // postavička hráče (jizda/kenney.js) jako jezdec nebo pilot
+  postavy: POSTAVY, postava: () => KONFIG.auto().p || 'character-male-a', parkovana, vrsekBudovy, ramenoVolne,
+  konec: () => { if (rezim) nastoupit(); } };   // konec: modul sám ukončí režim (po pádu z motorky vstaneš jako pěší); postavy: jezdec a pilot
 const REZIMY = [vytvorLetani(REZIM_API), vytvorMotorky(REZIM_API)].filter(Boolean);
 let rezim = null;
 // ostatní hráči: posílá se poloha (auto: i světla, brzda, blinkry, klakson), v autobuse nebo při sledování spoje jen místo

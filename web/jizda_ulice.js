@@ -853,6 +853,10 @@ export function vytvorUlici(THREE, scene, api) {
       if (prekryv(c.x, c.y, c.h, 2.15, 0.9, p.x, p.y, p.h, a.T.len / 2, a.T.wid / 2) && Math.hypot(p.x - nx, p.y - ny) >= Math.hypot(p.x - c.x, p.y - c.y)) continue;
       const rel = Math.abs(c.v);
       if (rel > 2 && !s.on) { zvuk('naraz', p.x, p.y, p.z); a.cekej = Math.max(a.cekej || 0, 1.5); }
+      if (rel > 30 / 3.6 && !s.on && !a.nehoda) {             // bouračka: auto zůstane stát s výstražnými světly (30 s), pak odjede
+        a.nehoda = true; a.cekej = 1e4; api.toast('Bouračka! Druhé auto zůstalo stát.', 'info');
+        setTimeout(() => { a.nehoda = false; a.cekej = 0; }, 30000);
+      }
       if (rel > 2 && s.on) {
         poskodAuto(rel * 1.4); zvuk('naraz', p.x, p.y, p.z);
         a.cekej = 2 + Math.random() * 3;

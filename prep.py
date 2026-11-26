@@ -1087,6 +1087,7 @@ addr_tree = shapely.STRtree(addr_pts)
 addr_txt = [f"{s} {n}" if isinstance(s, str) else f"{c} {n}" if isinstance(c, str) else str(n) for s, n, c in zip(addr.street, addr.number, addr.postal_city)]
 
 buildings, binfo, chimneys = [], [], []
+VEDLEJSI = {'shed': 0, 'garage': 0, 'farm_auxiliary': 0}         # vedlejší stavby u domů (výpis na konci)
 bmask = Image.new('L', (TWE, TWE), 0); bmd = ImageDraw.Draw(bmask)
 # centrum a další městské čtverce: činžáky v sevřených blocích (dům sdílí zeď se sousedem) mají šikmé střechy;
 # rozhoduje čtverec, kterému budova patří (těžiště), aby vypadala stejně i v sousedním čtverci
@@ -1372,6 +1373,14 @@ for _, r in bld.iterrows():
             # třída apartments znamená plochou střechu, ale bytový dům může mít šikmou: bez potvrzení laserem zůstane obytný
             c = 'residential' if _ru[0] == 'apartments' and not (r.id in DMP and DMP[r.id][1] - DMP[r.id][0] < 0.4) else _ru[0]
         if not c and area < 45 and garage_row(p): c = 'garages'
+        # vedlejší stavba u domu: bez třídy v datech, mimo RÚIAN (drobné stavby nemají číslo popisné) a bez adresního bodu,
+        # do 40 m od adresy (dvůr statku) = stodola, kůlna nebo garáž na dvoře, ne další dům (jinak by dostala okna a střechu domu).
+        # Do 9 m výšky (laser); vyšší bez adresy bývá činžák nebo hala.
+        if not c and not _ru and 8 <= area <= 400 and not (r.id in DMP and DMP[r.id][0] > 9) and not DOM_BY_ID.get(r.id):
+            _pb = p.buffer(1.5)
+            if not any(_pb.contains(addr_pts[i]) for i in addr_tree.query(_pb)) and len(addr_tree.query(p.buffer(40))):
+                c = 'shed' if area < 40 else 'garage' if area < 90 and density(cen) >= 0.12 else 'farm_auxiliary'
+                VEDLEJSI[c] += 1
         floors = r.num_floors if r.num_floors == r.num_floors and r.num_floors else None
         if not floors and _ru and _ru[1] and r.id not in DMP: floors = _ru[1]      # laser má přednost
         hgt = r.height if r.height == r.height and r.height else None
@@ -1778,7 +1787,7 @@ if os.path.exists('assets/parcely.json') and geo.MESTO.get('ploty_z_katastru', T
         if _g.geom_type != 'Polygon' or not _g.intersects(_ext) or _g.area < 40: continue
         _pp.append((_g, _druh))
     _domy = [Polygon(b_['p']) for b_ in buildings if b_.get('s') in (0, 11) and not b_.get('lm')]
-    _stodoly = [Polygon(b_['p']) for b_ in buildings if b_.get('s') == 16]
+    _stodoly = [g_ for b_ in buildings if b_.get('s') == 16 for g_ in [Polygon(b_['p'])] if g_.area >= 120]   # statek = velká stodola na pozemku (zeď do ulice)
     _vsechny = shapely.STRtree([Polygon(b_['p']).buffer(0.6) for b_ in buildings] or [Point(1e9, 1e9)])
     _vsechny_g = [Polygon(b_['p']).buffer(0.6) for b_ in buildings]
     _dt = shapely.STRtree(_domy) if _domy else None
@@ -1843,6 +1852,7 @@ if os.path.exists('assets/parcely.json') and geo.MESTO.get('ploty_z_katastru', T
             okoli = shapely.union_all([_domy[d].buffer(30) for d in _dt.query(spol.buffer(30))]) if _dt is not None else None
             if okoli is None or okoli.is_empty: continue
             _plot(_bez_prekazek(spol.intersection(okoli)), 'plot_pletivo', 6.0)
+    print('vedlejší stavby u domů (kůlna, garáž, hospodářská):', VEDLEJSI['shed'], VEDLEJSI['garage'], VEDLEJSI['farm_auxiliary'])
     print('ploty z katastru: dřevo', len(lines_out['plot_drevo']), 'kov', len(lines_out['plot_kov']), 'pletivo', len(lines_out['plot_pletivo']))
 for k in props: props[k] = [[round(v, 3) for v in q] for q in props[k]]
 # žádné zaparkované auto v jízdním pruhu: střed auta dál než 1 m do vozovky kterékoli silnice (i příčné u křižovatky) -> pryč

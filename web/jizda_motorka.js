@@ -6,7 +6,7 @@
 
 const G = 9.81, ROZVOR = 1.45, R_KOLA = 0.31, VMAX = 140 / 3.6, VTURBO = 160 / 3.6, NAKLON_MAX = 45 * Math.PI / 180;
 const RIDITKA_MAX = Math.atan(ROZVOR / 2.8);               // plný rejd: otočka na ~3 m při chůzi
-const ROZESTUP = 900, DOSAH = 200, MAX_STOJICICH = 5, BLIZKO = 3, PAD = 1.5, NARAZ = 25 / 3.6;
+const ROZESTUP = 900, DOSAH = 200, MAX_STOJICICH = 5, BLIZKO = 3, PAD = 1.5, NARAZ = 25 / 3.6, VYLET = 30 / 3.6;   // od VYLET jezdec při nárazu vyletí
 const RAKE = Math.atan2(0.23, 0.69), VIDLICE = Math.hypot(0.23, 0.69);
 const BARVY = [0xb8201a, 0x1d1e22, 0x1f4fa0, 0xe8701a, 0x3d9a2a, 0xe8e8e4, 0xe2b41c];
 const KRAJNICE = { residential: 3.1, tertiary: 3.8, unclassified: 2.9, living_street: 2.5 };   // osa silnice -> krajnice (m)
@@ -209,6 +209,15 @@ export function vytvorMotorky(api) {
   const SEDLO = { x: -0.3, y: 0.99, z: 0 };                 // počátek postavičky: v póze 'ridi' jsou kyčle ~0,33 m nad ním, tj. na sedle
   let loutka = null;
   function jezdecHrace(dt) {
+    if (m?.let) {                                            // let a dopad: postava ve scéně, kotrmelce, pak leží
+      for (const o of PROC) o.visible = false;
+      if (loutka) {
+        const L = m.let; loutka.poloha(L.x, L.y, L.z, m.h);
+        loutka.g.rotation.order = 'YXZ'; loutka.g.rotation.x = L.zem ? 0 : L.rot;
+        loutka.nastav(L.zem ? 'die' : 'fall', 0, dt);
+      }
+      return;
+    }
     const P = api.postavy, model = api.postava?.();
     if (loutka && loutka.model !== model && model) { loutka.zrus(); loutka = null; }
     if (!loutka && P) { if (P.pripraveno) loutka = P.nova({ model, bez: true }, J.jezdec); else P.nacti?.(); }
@@ -236,7 +245,33 @@ export function vytvorMotorky(api) {
     }
     return null;
   }
-  function pad(duvod) {                                     // pád: motorka s jezdcem leží PAD s, pak znovu na kolech o kus zpátky
+  // náraz od VYLET: jezdec vyletí dopředu (setrvačnost ~75 % rychlosti, nahoru podle rychlosti, kotrmelce), přeletí auto,
+  // dopadne, klouže a chvíli leží; pak vstane jako pěší a motorka zůstane ležet na místě nehody (api.konec ukončí režim)
+  function vylet(av) {
+    const ch = Math.cos(m.h), sh = Math.sin(m.h), k = Math.min(av, 40) * 0.75;
+    m.let = { x: m.x + ch * 0.6, y: m.y + sh * 0.6, z: m.z + 1.1, vx: ch * k, vy: sh * k, vz: 2.5 + Math.min(av, 40) * 0.16, rot: 0, zem: false, lezi: 0 };
+    if (loutka) { loutka.g.removeFromParent(); api.scene3.add(loutka.g); }
+    rekni('Letíííš!');
+  }
+  function krokLetu(dt) {
+    const L = m.let;
+    if (!L.zem) {
+      L.vz -= G * dt; L.x += L.vx * dt; L.y += L.vy * dt; L.z += L.vz * dt; L.rot += dt * 6;
+      if (api.hitBuilding(L.x, L.y, 0.3)) { L.x -= L.vx * dt; L.y -= L.vy * dt; L.vx *= -0.15; L.vy *= -0.15; }   // do zdi: odrazí se
+      const zg = api.vyska(L.x, L.y, L.z).z;
+      if (L.z <= zg && L.vz < 0) { L.z = zg; L.zem = true; L.rot = 0; api.zvuk?.('naraz'); rekni('Au.'); }
+    } else {
+      const f = Math.exp(-dt * 2.8), nx = L.x + L.vx * dt, ny = L.y + L.vy * dt;   // klouže po zemi a zastaví se
+      L.vx *= f; L.vy *= f;
+      if (!api.hitBuilding(nx, ny, 0.3) && api.inMap(nx, ny)) { L.x = nx; L.y = ny; } else { L.vx = L.vy = 0; }
+      L.z = api.vyska(L.x, L.y, L.z).z; L.lezi += dt;
+      if (L.lezi > 2.6) api.konec?.();
+    }
+    hrac.x = L.x; hrac.y = L.y; hrac.z = L.z;
+  }
+  function pad(duvod, av = 0, auto = null) {                // pád: motorka s jezdcem leží PAD s, pak znovu na kolech o kus zpátky
+    if (auto) { auto.nehoda = true; auto.cekej = 1e4; setTimeout(() => { auto.nehoda = false; auto.cekej = 0; }, 30000); }   // auto stojí s výstražnými světly
+    if (av > VYLET && api.scene3) vylet(av);
     m.pad = PAD; m.padT = 0; m.padStrana = vis.lean >= 0 ? 1 : -1; m.v = 0;
     for (let d = 0.4; d <= 2; d += 0.4) {
       const x = m.x - Math.cos(m.h) * d, y = m.y - Math.sin(m.h) * d;
@@ -301,6 +336,7 @@ export function vytvorMotorky(api) {
       if (!m) return;
       hlaskaT -= dt; if (hlaskaT <= 0) hlaska = '';
       let a = 0;
+      if (m.let) { m.padT += dt; krokLetu(dt); kresli(dt, 0); return; }   // jezdec letí nebo leží, motorka leží
       if (m.pad) {
         m.padT += dt; m.pad -= dt; m.brzdi = false;
         if (m.pad <= 0) { m.pad = 0; m.lean = 0; m.steer = 0; vis.lean = 0; rekni('Zase na kolech'); }
@@ -334,7 +370,7 @@ export function vytvorMotorky(api) {
         const pres = m.most && [nv, pv].some((q) => api.zabradli(m.z, q));
         const auto = !zed && srazkaAuto(nx, ny, nh);
         if (zed || auto || pres || !api.inMap(nx, ny)) {
-          if ((zed || auto) && av > NARAZ) pad(zed ? 'Motorka narazila do zdi.' : 'Srážka s autem.');
+          if ((zed || auto) && av > NARAZ) pad(zed ? 'Motorka narazila do zdi.' : 'Srážka s autem.', av, auto);
           else { if (av > 2) { rekni(pres ? 'Zábradlí mostu!' : auto ? 'Pozor, auto!' : 'Bum! Pozor na zdi.'); api.zvuk?.('uder'); } m.v = -m.v * 0.2; m.vh = m.h; }
         } else { m.x = nx; m.y = ny; m.h = nh; m.z = nv.z; m.most = nv.most; }
       }
@@ -344,8 +380,9 @@ export function vytvorMotorky(api) {
     },
     kamera(camera, fwd, orbit, dt) {
       if (!m) return;
-      const lean = J.telo.rotation.x * -1;
-      if (hrac.kabina) {                                    // z helmy: oko jezdce, pohled myší (orbit.yaw, orbit.look), obraz nakloněný s motorkou
+      const lean = m.let ? 0 : J.telo.rotation.x * -1;
+      const c = m.let ? { x: m.let.x, y: m.let.y, z: m.let.z - 0.3, h: m.h } : m;   // při letu kamera sleduje jezdce
+      if (hrac.kabina && !m.let) {                                    // z helmy: oko jezdce, pohled myší (orbit.yaw, orbit.look), obraz nakloněný s motorkou
         J.helma.visible = false; J.hledi.visible = false;   // (postavička: hlavu schová prvniOsoba)
         J.koren.updateMatrixWorld(true);
         const oko = J.jezdec.localToWorld(_g.set(0.08, 1.66, 0));
@@ -358,23 +395,31 @@ export function vytvorMotorky(api) {
       }
       J.helma.visible = !loutka; J.hledi.visible = !loutka;
       // zezadu: rameno ~5,5 m (kolečko myši u auta mění orbit.dist, tady v poměru), dům ani strom mezi kamerou a motorkou
-      const d = clamp(orbit.dist * 0.65, 4, 14), h = m.h + orbit.yaw, cp = Math.cos(orbit.pitch), tz = m.z + 1.0;
-      let px = m.x - Math.cos(h) * cp * d, py = m.y - Math.sin(h) * cp * d, pz = Math.max(tz + Math.sin(orbit.pitch) * d, api.gz(px, py) + 0.8);
+      const d = clamp(orbit.dist * 0.65, 4, 14), h = c.h + orbit.yaw, cp = Math.cos(orbit.pitch), tz = c.z + 1.0;
+      let px = c.x - Math.cos(h) * cp * d, py = c.y - Math.sin(h) * cp * d, pz = Math.max(tz + Math.sin(orbit.pitch) * d, api.gz(px, py) + 0.8);
       let f = 1;
-      for (let i = 1; i <= 14; i++) { const q = i / 14; if (api.hitBuilding(m.x + (px - m.x) * q, m.y + (py - m.y) * q, 0.35)) { f = Math.max(0.15, q - 0.12); break; } }
-      const tt = api.stromy?.prekazka?.(m.x, m.y, tz, px, py, pz) ?? 1;
+      for (let i = 1; i <= 14; i++) { const q = i / 14; if (api.hitBuilding(c.x + (px - c.x) * q, c.y + (py - c.y) * q, 0.35)) { f = Math.max(0.15, q - 0.12); break; } }
+      const tt = api.stromy?.prekazka?.(c.x, c.y, tz, px, py, pz) ?? 1;
       if (tt < 1) f = Math.min(f, Math.max(3 / d, tt * 0.92));
       // zkrácení ramene plynule: k překážce rychle, zpátky pomalu (stromy podél ulice by jinak kamerou cukaly tam a zpět)
       kamF = orbit.snap ? f : kamF + (f - kamF) * Math.min(1, dt * (f < kamF ? 14 : 2.5));
-      px = m.x + (px - m.x) * kamF; py = m.y + (py - m.y) * kamF; pz = Math.max(tz + (pz - tz) * kamF, api.gz(px, py) + 0.6);
+      px = c.x + (px - c.x) * kamF; py = c.y + (py - c.y) * kamF; pz = Math.max(tz + (pz - tz) * kamF, api.gz(px, py) + 0.6);
       // kamera jako posun vůči motorce (ne bod ve světě): při rychlosti nezaostává a necuká
-      const T = _c.set(m.x, tz, -m.y), off = _k.set(px, pz, -py).sub(T);
+      const T = _c.set(c.x, tz, -c.y), off = _k.set(px, pz, -py).sub(T);
       if (orbit.snap) { kamO.copy(off); orbit.snap = false; } else kamO.lerp(off, 1 - Math.exp(-dt * 8));
       camera.position.copy(T).add(kamO);
       camera.lookAt(T); fwd.copy(T).sub(camera.position).normalize();
       camera.rotateZ(lean * 0.2);
     },
     vystup() {
+      if (m?.let) {                                          // po letu: vstane, kde dopadl; motorka zůstane ležet
+        if (!m.let.zem) return null;
+        const L = m.let, p = { x: L.x, y: L.y, z: L.z, yaw: m.h };
+        vlastni.push({ key: 'v' + (++idM), x: m.x, y: m.y, z: m.z, h: m.h, var: m.var }); if (vlastni.length > 3) vlastni.shift();
+        if (loutka) { loutka.zrus(); loutka = null; }      // nový jezdec se vytvoří na motorce při příštím nasednutí
+        J.koren.visible = false; m = null; obnovaT = -1e9; delete hrac.rezim;
+        return p;
+      }
       if (!m || m.pad || Math.abs(m.v) > 1.5) return null;
       const ch = Math.cos(m.h), sh = Math.sin(m.h);
       let p = null;
@@ -394,6 +439,7 @@ export function vytvorMotorky(api) {
     },
     stav() {
       if (!m) return '';
+      if (m.let) return m.let.zem ? 'Motorka · ' + (hlaska || 'ležíš na zemi…') : 'Motorka · letíš!';
       if (m.pad) return 'Motorka leží…';
       return `Motorka · ${Math.round(Math.abs(m.v) * 3.6)} km/h` + (Math.abs(m.v) < 0.5 ? ' · E – sesednout' : '') + (hlaska ? ' · ' + hlaska : '');
     },
