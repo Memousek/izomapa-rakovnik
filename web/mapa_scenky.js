@@ -103,11 +103,30 @@ export async function spust() {
       const sila = Math.min(vitr.ms, 12), delka = 16 + sila * 1.5, kyv = (0.12 + sila * 0.03) * Math.sin(t * (0.4 + sila * 0.08) + k);
       const ex = vitr.e * Math.cos(kyv) - vitr.n * Math.sin(kyv), ny = vitr.e * Math.sin(kyv) + vitr.n * Math.cos(kyv);
       const vx = x + ex * delka, vy = y + ny * delka, vz = 12 + sila * 1.6 + Math.sin(t * (0.6 + sila * 0.1) + k) * (1 + sila * 0.25);
+      if (u < 0.3) return;                                        // drak jen tam, kde jsou vidět i lidé
       kresli(() => {
-        cara(ctx, v, [x, y, 1.0], [vx, vy, vz], 'rgba(240,240,240,.7)', 1);
-        const [X, Y] = v.toScreen(...I.toImg(vx, vy, I.gz(vx, vy) + vz)), s = Math.max(6, u * 12), c = ['#e0302a', '#f0c030', '#2a7fd0', '#2fa060'][k % 4];
-        ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(X, Y - s); ctx.lineTo(X + s * 0.7, Y); ctx.lineTo(X, Y + s * 1.2); ctx.lineTo(X - s * 0.7, Y); ctx.closePath(); ctx.fill();
-        for (let j = 1; j <= 4; j++) { ctx.fillStyle = j % 2 ? '#f4f2ea' : c; ctx.fillRect(X - s * 0.15 + Math.sin(t * (2 + sila * 0.5) + j) * s * (0.15 + sila * 0.04), Y + s * (1.2 + j * 0.45), s * 0.3, s * 0.25); }
+        const [X, Y] = v.toScreen(...I.toImg(vx, vy, I.gz(vx, vy) + vz)), [X0, Y0] = v.toScreen(...I.toImg(x, y, I.gz(x, y) + 1.0));
+        // provázek: průvěs (víc při slabém větru), lehce se chvěje
+        const pr = (1.2 - sila / 12) * Math.hypot(X - X0, Y - Y0) * 0.12, cvx = (X + X0) / 2 + Math.sin(t * 1.3 + k) * 2, cvy = (Y + Y0) / 2 + pr;
+        ctx.strokeStyle = 'rgba(240,240,240,.75)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X0, Y0); ctx.quadraticCurveTo(cvx, cvy, X, Y); ctx.stroke();
+        // drak: kosočtverec, kolébá se podle síly větru
+        const s = Math.max(5, u * 12), c = ['#e0302a', '#f0c030', '#2a7fd0', '#2fa060'][k % 4], na = Math.sin(t * (1.1 + sila * 0.25) + k) * (0.12 + sila * 0.03);
+        ctx.save(); ctx.translate(X, Y); ctx.rotate(na);
+        ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(0, -s); ctx.lineTo(s * 0.7, 0); ctx.lineTo(0, s * 1.2); ctx.lineTo(-s * 0.7, 0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.moveTo(0, -s); ctx.lineTo(s * 0.7, 0); ctx.lineTo(0, s * 1.2); ctx.closePath(); ctx.fill();
+        ctx.restore();
+        // ocas: vlnitá stužka po větru (vlna běží od draka), mašle po 1/5 délky
+        const ox = -Math.sin(na) * s * 1.2 + X, oy = Math.cos(na) * s * 1.2 + Y, dw = v.wind ? Math.hypot(v.wind.dx, v.wind.dy) || 1 : 1;
+        const wx = v.wind ? v.wind.dx / dw : 0.7, wy = v.wind ? v.wind.dy / dw : 0.3, del = s * (4 + sila * 0.3), A = s * (0.35 - sila * 0.015);
+        let px = ox, py = oy;
+        ctx.strokeStyle = c; ctx.lineWidth = Math.max(1, s * 0.14);
+        for (let j = 1; j <= 16; j++) {
+          const q = j / 16, vl = Math.sin(q * 9 - t * (5 + sila * 0.6) + k) * A * q;
+          const qx = ox + (wx * 0.6) * del * q - wy * vl, qy = oy + (0.8 + wy * 0.6) * del * q * 0.6 + wx * vl;   // ocas visí dolů a po větru
+          ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(qx, qy); ctx.stroke();
+          if (j % 4 === 0) { ctx.fillStyle = '#f4f2ea'; ctx.fillRect(qx - s * 0.18, qy - s * 0.1, s * 0.36, s * 0.2); }
+          px = qx; py = qy;
+        }
       }, 'nad');
     });
     // pikniky: červen–srpen o víkendu 11–18 h bez deště
@@ -145,20 +164,29 @@ export async function spust() {
     for (const [f, kde] of P) if (kde === 'nad') f();
   }, { layer: 'world', priority: -2 });
 
-  // ---------- nebe: čáry větru při silném větru (od 6 m/s) jen při oddálení, letí po větru, víc a delší podle síly ----------
-  const cary = Array.from({ length: 40 }, (_, i) => ({ x: rnd(i + 1) * 2 - 1, y: rnd(i + 2) * 2 - 1, f: rnd(i + 3), d: 0.6 + rnd(i + 4) * 0.8 }));
+  // ---------- nebe: proudy větru při silném větru (od 6 m/s), jen při oddálení (jako mraky) ----------
+  // Dlouhé tenké vlnité stužky: vlna běží po stužce po větru, stužka pomalu pluje a na koncích se ztrácí.
+  const proudy = Array.from({ length: 18 }, (_, i) => ({ x: rnd(i + 1), y: rnd(i + 2), f: rnd(i + 3), d: 0.7 + rnd(i + 4) * 0.6, a: 0.6 + rnd(i + 5) * 0.8 }));
   I.onFrame((ctx, v) => {
-    const w = v.wind, fade = Math.max(0, Math.min(1, (0.45 - v.sx) / 0.25)); if (!w || !(w.ms >= 6) || fade <= 0) return;   // jen při oddálení (jako mraky)
-    const sila = Math.min(1, (w.ms - 6) / 8), n = Math.round((12 + sila * 28) * (v.eco ? 0.5 : 1)), t = v.now / 1000;
-    const L = Math.hypot(w.dx, w.dy) || 1, ux = w.dx / L, uy = w.dy / L, dl = (40 + sila * 60) * Math.max(0.6, Math.min(1.6, v.sx * 3));
-    ctx.lineWidth = Math.max(1.5, Math.min(3, v.sx * 3)); ctx.lineCap = 'round';
+    const w = v.wind, fade = Math.max(0, Math.min(1, (0.45 - v.sx) / 0.25)); if (!w || !(w.ms >= 6) || fade <= 0) return;
+    const sila = Math.min(1, (w.ms - 6) / 8), n = Math.round((8 + sila * 10) * (v.eco ? 0.5 : 1)), t = v.now / 1000;
+    const L = Math.hypot(w.dx, w.dy) || 1, ux = w.dx / L, uy = w.dy / L, D = Math.hypot(v.cw, v.ch);
+    const dl = 160 + sila * 140, A = 7 + sila * 6, K = 6.283 / (70 + sila * 30), SEG = 24;   // délka stužky, výška a délka vlny (px)
+    ctx.lineCap = 'round'; ctx.lineWidth = 1.5;
     for (let i = 0; i < n; i++) {
-      const c = cary[i], fz = (t * (0.18 + sila * 0.25) * c.d + c.f) % 1;   // fáze průletu přes obrazovku
-      const X = ((c.x * 0.5 + 0.5) * v.cw + ux * (fz - 0.5) * v.cw * 1.2 + v.cw) % v.cw, Y = ((c.y * 0.5 + 0.5) * v.ch + uy * (fz - 0.5) * v.cw * 1.2 + v.ch) % v.ch;
-      const a = Math.sin(fz * Math.PI) * (0.38 + sila * 0.32) * fade;
-      ctx.strokeStyle = `rgba(255,255,255,${a.toFixed(2)})`; ctx.beginPath();
-      const zv = Math.sin(t * 2 + i) * 6;                          // lehké zvlnění
-      ctx.moveTo(X - ux * dl, Y - uy * dl); ctx.quadraticCurveTo(X - ux * dl * 0.4 - uy * zv, Y - uy * dl * 0.4 + ux * zv, X, Y); ctx.stroke();
+      const c = proudy[i], fz = (t * (0.025 + sila * 0.03) * c.d + c.f) % 1;   // pomalý průlet přes obrazovku
+      const cx = c.x * v.cw + ux * (fz - 0.5) * D, cy = c.y * v.ch + uy * (fz - 0.5) * D;
+      const zjev = Math.sin(fz * Math.PI);                          // na začátku a konci průletu se ztrácí
+      let px = null, py = null;
+      for (let k = 0; k <= SEG; k++) {
+        const q = k / SEG, s_ = (q - 0.5) * dl, vl = Math.sin(s_ * K - t * (1.6 + sila) + i) * A * c.a * Math.sin(q * Math.PI);
+        const X = cx + ux * s_ - uy * vl, Y = cy + uy * s_ + ux * vl;
+        if (px !== null) {
+          const al = (0.28 + sila * 0.25) * fade * zjev * Math.sin(q * Math.PI);   // stužka se ke koncům ztenčuje do ztracena
+          ctx.strokeStyle = `rgba(255,255,255,${al.toFixed(3)})`; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(X, Y); ctx.stroke();
+        }
+        px = X; py = Y;
+      }
     }
   }, { layer: 'sky', priority: -3 });
 
