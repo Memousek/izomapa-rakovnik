@@ -431,7 +431,7 @@ for _, r in seg.iterrows():
                     portals.append((p0.x, p0.y, math.atan2(p1.y - p0.y, p1.x - p0.x)))
 seg = pd.DataFrame(_rows).reset_index(drop=True)
 # mosty a lávky: úsek označený is_bridge se nekreslí do terénu, ale postaví se jako mostovka (scene.bridges)
-BRIDGE_MIN = UP.get('bridge_min', 8.0)      # kratší „most“ (propustek nad potokem) zůstane obyčejnou cestou
+BRIDGE_MIN = UP.get('bridge_min', 4.0)      # kratší „most“ (propustek nad potokem) zůstane obyčejnou cestou; od 4 m mostek se zídkou
 def bridge_parts(r):
     fl = seg_flags(r)
     br = [f.get('between') for f in fl if 'is_bridge' in list(f.get('values'))]
@@ -997,7 +997,17 @@ PANEL = [(232, 226, 208), (213, 217, 222), (236, 236, 230), (222, 224, 222), (22
 ROOF_P = [(168, 68, 47), (150, 60, 44), (142, 58, 42), (107, 59, 47), (74, 74, 82), (63, 74, 90), (156, 90, 60), (128, 52, 40)]
 ROOF_F = [(141, 141, 141), (122, 122, 122), (156, 154, 146), (110, 112, 116)]
 PITCHED_CLS = {'church', 'house', 'detached', 'semidetached_house', 'residential', 'terrace', 'farm', 'chapel', 'bungalow',
-               'villa', 'cabin', 'religious', 'civic', 'hut', 'barn', 'farm_auxiliary', 'kindergarten', 'allotment_house'}
+               'villa', 'cabin', 'religious', 'civic', 'hut', 'barn', 'farm_auxiliary', 'kindergarten', 'allotment_house',
+               'cowshed', 'stable', 'sty', 'shed', 'garden_house'}
+AGRI_CLS = {'barn', 'farm_auxiliary', 'cowshed', 'stable', 'sty', 'livestock', 'silo_building'}   # zemědělské stavby (styl 16)
+SHED_CLS = {'shed', 'hut', 'allotment_house', 'garden_house'}                                       # kůlny, zahradní domky (styl 17)
+# palety (stěna, střecha) zemědělských a drobných staveb: dřevo, omítka, cihla; střechy tašky, eternit, plech
+STYL_BARVY = {
+    16: ([(128, 94, 64), (146, 108, 72), (110, 82, 58), (176, 164, 146), (166, 96, 72)], [(150, 72, 52), (122, 124, 126), (100, 102, 104), (162, 88, 62), (136, 80, 60)]),
+    17: ([(138, 102, 68), (118, 88, 60), (156, 120, 82), (172, 162, 142)], [(78, 78, 80), (60, 62, 64), (132, 66, 48), (102, 84, 66)]),
+    18: ([(170, 196, 186)], [(206, 222, 216)]),
+    19: ([(196, 190, 176), (182, 178, 170), (170, 98, 74)], [(112, 112, 114), (96, 98, 100)]),
+}
 FLAT_CLS = {'garage', 'garages', 'apartments', 'industrial', 'warehouse', 'commercial', 'retail', 'school',
             'university', 'hospital', 'office', 'carport', 'parking', 'service', 'transportation', 'sports_hall',
             'sports_centre', 'greenhouse', 'roof'}
@@ -1405,6 +1415,8 @@ for _, r in bld.iterrows():
         if not lm and not panel and so.get('rs') == 'pitched' and rs in (None, 'flat') and area < 700 and c not in FLAT_CLS \
                 and not (floors and floors >= 6) and not (hgt and hgt >= 18):
             rs = 'hipped' if h01(key + 't') < 0.6 else 'gabled'
+        zem = c in AGRI_CLS or (not c and str(r.get('subtype')) == 'agricultural')   # stodola, hospodářská budova
+        if rs is None and zem and area <= 2500: rs = 'gabled'                           # i velké stodoly a kravíny mají sedlovou střechu
         if rs is None:
             if c in FLAT_CLS or area > 650: rs = 'flat'
             elif c in PITCHED_CLS or (not c and 25 < area < 400): rs = 'gabled' if h01(key) < 0.62 else 'hipped'
@@ -1438,7 +1450,7 @@ for _, r in bld.iterrows():
         xs_, ys_ = np.array(p.exterior.coords).T
         zs = ground(xs_, ys_)
         base, gnd = float(zs.min()) - 0.6, float(zs.mean())
-        if c in ('garage', 'garages', 'carport', 'shed'): style = 2
+        if c in ('garage', 'garages'): style = 2
         elif c == 'apartments' or (floors and floors >= 4) or total > 11: style = 1
         elif c in ('industrial', 'warehouse', 'commercial', 'retail'): style = 3
         else: style = 0
@@ -1449,14 +1461,22 @@ for _, r in bld.iterrows():
             if panel: med = group_med(p.buffer(0.8), med)   # sekce jednoho paneláku stejně vysoké
             if rs == 'flat': total = eave = med
             else: total = max(top, med + 1); eave = max(2.2, total - roofh)
-        if c in ('roof', 'shelter'):                     # přístřešek (nástupiště, zastávka): střecha na sloupech, bez stěn
-            style = 12; total = hgt if hgt and hgt < 12 else 4.5 if c == 'roof' else 3.2; eave = total
+        if c in ('roof', 'shelter', 'carport'):          # přístřešek, kryté stání: střecha na sloupech, bez stěn
+            style = 12; total = hgt if hgt and hgt < 12 else 4.5 if c == 'roof' and area > 60 else 3.2 if c == 'shelter' else 2.6; eave = total
+        elif zem: style = 16                              # stodola: svislá prkna, podezdívka, velká vrata
+        elif c in SHED_CLS or (c == 'cabin' and area < 60) or (str(r.get('subtype')) == 'outbuilding' and area < 40): style = 17   # kůlna, chatka
+        elif c == 'greenhouse': style = 18; total = eave = min(total, 3.2) if rs == 'flat' else total
+        elif c in ('transformer_tower', 'guardhouse') or (c == 'service' and area < 60): style = 19   # trafostanice, strážnice
         if c in ('retail', 'commercial') and area > 1500 and not tenement: style = 3     # obchodní centra: pásy oken
         pal = TEN_WALLS if style == 11 else PANEL if style == 1 else WALLS
         wc = hexcol(r.facade_color, pal[int(h01((group_key(p.buffer(0.8)) if panel else key) + 'w') * 1000) % len(pal)])
         if style == 2: wc = (196, 190, 178)
         rp = ROOF_F if rs == 'flat' else TEN_ROOFS if tenement else ROOF_P
         rc = hexcol(r.roof_color, rp[int(h01(key + 'r') * 1000) % len(rp)])
+        if style in STYL_BARVY:                           # zemědělské a drobné stavby: vlastní paleta stěn a střech (ortofoto má u střechy přednost)
+            pw, pr = STYL_BARVY[style]
+            if not isinstance(r.facade_color, str): wc = pw[int(h01(key + 'w') * 1000) % len(pw)]
+            if not isinstance(r.roof_color, str): rc = pr[int(h01(key + 'r') * 1000) % len(pr)]
         if 'rc' in so and not lm: rc = tuple(so['rc'])
         if 'wc' in so and not lm: wc = tuple(so['wc'])
         if dsp:
@@ -1500,7 +1520,7 @@ for _, r in bld.iterrows():
             tw = min(31.0, 10 + L * 0.5)
             b['cht'] = [round(min(11.0, 5 + L * 0.15), 1), round(tw, 1), round(tw + min(16.0, 4 + L * 0.3), 1)]
         # technologie a světlíky na velkých plochých střechách (jen městské čtverce)
-        if URBAN and rs == 'flat' and style != 2 and area > 300 and not lm:
+        if URBAN and rs == 'flat' and style not in (2, 12, 16, 17, 18, 19) and area > 300 and not lm:   # ne na stodolách a drobných stavbách
             inner = p.buffer(-2.0)
             if not inner.is_empty:
                 trng = random.Random(key)
@@ -1739,6 +1759,75 @@ for _, r in inf.iterrows():
         l = l.segmentize(4.0)
         xs_, ys_ = np.array(l.coords).T
         lines_out[kk].append([[round(x, 2), round(y, 2), round(float(zz), 2)] for x, y, zz in zip(xs_, ys_, ground(xs_, ys_))])
+# ---------------- ploty dopočítané z katastru (nastroje/parcely.py -> assets/parcely.json) ----------------
+# Katastr neříká, kde plot stojí, jen kde jsou pozemky domů (zahrada, zastavěná plocha). Plot se proto odhaduje:
+#  - do ulice: hranice pozemku do 7 m od okraje vozovky, mezi domem a ulicí mezera na vjezd (3,5 m), u budov žádný;
+#    ve městě kovový na podezdívce, na vsi dřevěný laťkový nebo pletivo, u statku (pozemek se stodolou) zeď
+#  - mezi sousedy: společná hranice dvou pozemků domů, asi u 60 % hranic pletivo
+#  - jen pozemky, kde do 25 m stojí dům; kde je plot, zeď nebo živý plot z OSM (do 2 m), se nepřidává
+#  "ploty_z_katastru": false v mesto.json je vypne
+for _k in ('plot_drevo', 'plot_kov', 'plot_pletivo'): lines_out[_k] = []
+if os.path.exists('assets/parcely.json') and geo.MESTO.get('ploty_z_katastru', True):
+    _ext = EXT.buffer(10)
+    _pp = []
+    for _druh, _ring in json.load(open('assets/parcely.json', encoding='utf-8')):
+        _xy = [to_local(lo, la) for la, lo in _ring]
+        if len(_xy) < 3: continue
+        _g = shapely.make_valid(Polygon(_xy))
+        if _g.geom_type != 'Polygon' or not _g.intersects(_ext) or _g.area < 40: continue
+        _pp.append((_g, _druh))
+    _domy = [Polygon(b_['p']) for b_ in buildings if b_.get('s') in (0, 11) and not b_.get('lm')]
+    _stodoly = [Polygon(b_['p']) for b_ in buildings if b_.get('s') == 16]
+    _vsechny = shapely.STRtree([Polygon(b_['p']).buffer(0.6) for b_ in buildings] or [Point(1e9, 1e9)])
+    _vsechny_g = [Polygon(b_['p']).buffer(0.6) for b_ in buildings]
+    _dt = shapely.STRtree(_domy) if _domy else None
+    _st = shapely.STRtree(_stodoly) if _stodoly else None
+    _osm = [l_ for k_ in ('fence', 'hedge', 'wall') for pl in lines_out[k_] for l_ in [LineString([(q[0], q[1]) for q in pl])] if len(pl) > 1]
+    _osm_g = shapely.union_all([l_.buffer(2.0) for l_ in _osm]) if _osm else None
+    _ulice_okraj = shapely.union_all([l.buffer(w / 2 + 7) for l, w, c, n in drive_lines if c != 'service']) if drive_lines else None
+    _vjezdy = shapely.union_all([l.buffer(2.2) for l, w, c, n in drive_lines if c == 'service']) if drive_lines else None
+    _pst = shapely.STRtree([g_ for g_, _d in _pp]) if _pp else None
+    _hustota = len(_domy) / max(1.0, AREA.area / 1e6)             # domů na km² (město x vesnice)
+    def _plot(geom_, druh_):
+        for l_ in lines(geom_.intersection(AREA)):
+            if l_.length < 2.5: continue
+            l_ = l_.segmentize(4.0); xs_, ys_ = np.array(l_.coords).T
+            lines_out[druh_].append([[round(x, 2), round(y, 2), round(float(zz), 2)] for x, y, zz in zip(xs_, ys_, ground(xs_, ys_))])
+    def _bez_prekazek(g_):
+        if g_.is_empty: return g_
+        for j_ in _vsechny.query(g_): g_ = g_.difference(_vsechny_g[int(j_)])
+        g_ = g_.difference(DRIVE_GEOM)
+        if _vjezdy is not None: g_ = g_.difference(_vjezdy)
+        if _osm_g is not None: g_ = g_.difference(_osm_g)
+        return g_
+    _sousede_hotovo = set()
+    for i_, (g_, druh_) in enumerate(_pp):
+        if not g_.intersects(AREA) or _dt is None: continue
+        dum = [int(j) for j in _dt.query(g_.buffer(25))]
+        if not dum: continue
+        klic = f'plot{g_.centroid.x:.0f}_{g_.centroid.y:.0f}'
+        statek = _st is not None and len(_st.query(g_, predicate='intersects')) > 0
+        # do ulice
+        if _ulice_okraj is not None:
+            ul = g_.exterior.intersection(_ulice_okraj)
+            if not ul.is_empty:
+                d0 = min(dum, key=lambda j: _domy[j].distance(g_.centroid))
+                c_ = _domy[d0].centroid
+                vj = shapely.ops.nearest_points(ul, c_)[0].buffer(1.75)               # vjezd naproti domu
+                ul = _bez_prekazek(ul.difference(vj))
+                h_ = h01(klic + 'typ')
+                typ = 'wall' if statek else 'plot_kov' if (_hustota > 900 and h_ < 0.7) or h_ < 0.25 else 'plot_drevo' if h_ < 0.7 else 'plot_pletivo'
+                _plot(ul, typ)
+        # mezi sousedy (každá dvojice jednou)
+        for j_ in _pst.query(g_.buffer(0.3)):
+            j_ = int(j_)
+            if j_ == i_ or (min(i_, j_), max(i_, j_)) in _sousede_hotovo: continue
+            _sousede_hotovo.add((min(i_, j_), max(i_, j_)))
+            if h01(f'{klic}s{j_}') > 0.6: continue
+            spol = g_.exterior.intersection(_pp[j_][0].buffer(0.3))
+            if spol.length < 3: continue
+            _plot(_bez_prekazek(spol), 'plot_pletivo')
+    print('ploty z katastru: dřevo', len(lines_out['plot_drevo']), 'kov', len(lines_out['plot_kov']), 'pletivo', len(lines_out['plot_pletivo']))
 for k in props: props[k] = [[round(v, 3) for v in q] for q in props[k]]
 # žádné zaparkované auto v jízdním pruhu: střed auta dál než 1 m do vozovky kterékoli silnice (i příčné u křižovatky) -> pryč
 def _v_pruhu(x, y):
