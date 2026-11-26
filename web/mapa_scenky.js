@@ -25,8 +25,21 @@ export async function spust() {
   const cam = I.getCam();
   const vMape = (x, y) => cam.grounds.some((g) => Math.abs(x - g.cx) <= cam.half && Math.abs(y - g.cy) <= cam.half);
   const pripravit = (k) => (S[k] || []).map((q) => ({ q, w: W(q) })).filter((o) => vMape(...o.w));
-  const M = Object.fromEntries(['rybar', 'otuzilci', 'brusleni', 'koupani', 'louka', 'park', 'houbar', 'carodejnice', 'hrbitov'].map((k) => [k, pripravit(k)]));
+  const M = Object.fromEntries(['rybar', 'otuzilci', 'brusleni', 'koupani', 'louka', 'park', 'houbar', 'carodejnice', 'hrbitov', 'ulice', 'advent'].map((k) => [k, pripravit(k)]));
   const hpx = Math.abs(I.toImg(0, 0, 1)[1] - I.toImg(0, 0, 0)[1]);   // obrazové body na 1 m výšky
+  // svahy pro sáňkování: louky a parky se sklonem nad 6 % (terén z mapy), směr dolů
+  const KOPCE = [...M.louka, ...M.park].map(({ w: [x, y] }) => {
+    const dx = (I.gz(x + 6, y) - I.gz(x - 6, y)) / 12, dy = (I.gz(x, y + 6) - I.gz(x, y - 6)) / 12, sk = Math.hypot(dx, dy);
+    return { x, y, sk, a: Math.atan2(-dy, -dx) };
+  }).filter((k) => k.sk > 0.06);
+  const KOSTYM = {
+    duch: { top: 'dress', topC: '#f4f2ea', bot: 'none', hair: '#f4f2ea', hairStyle: 'long', shoes: '#f4f2ea', skin: '#f4f2ea' },
+    carodejnice: { top: 'dress', topC: '#2a1f2e', bot: 'none', hair: '#5a8a3a', hairStyle: 'long', shoes: '#1a1a1a' },
+    dyne: { top: 'hoodie', topC: '#e07020', bot: 'trousers', botC: '#2a2a2e', hair: '#3a6a2a', shoes: '#1a1a1a' },
+    kostlivec: { top: 'hoodie', topC: '#1a1a1e', bot: 'trousers', botC: '#1a1a1e', shoes: '#1a1a1a', skin: '#e8e6df' },
+  };
+  const md = (d) => `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const vObdobi = (d, od, do_) => { const x = md(d); return od <= do_ ? x >= od && x <= do_ : x >= od || x <= do_; };
   const den = (d) => Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 864e5) + d.getFullYear() * 400;
 
   // čára mezi dvěma body světa (s výškou nad terénem)
@@ -98,7 +111,7 @@ export async function spust() {
     // draci: září–říjen 14–18 h, o víkendu skoro vždy, ve všední den občas; dítě a dospělý, drak 25 m nad loukou
     // drak letí po větru (v.wind z Open-Meteo: e, n = kam fouká, ms = m/s); za bezvětří (pod 1,5 m/s) nelétá
     const vitr = v.wind && Number.isFinite(v.wind.ms) ? v.wind : { e: 0.8, n: 0.6, ms: 4 };
-    if ((m === 8 || m === 9) && !dest && h >= 14 && h < 18 && vitr.ms >= 1.5) M.louka.forEach(({ w: [x, y] }, k) => {
+    if ((m === 8 || m === 9 || (m === 10 && dd <= 15)) && !dest && h >= (m === 10 ? 13 : 14) && h < (m === 10 ? 16.5 : 18) && vitr.ms >= 1.5) M.louka.forEach(({ w: [x, y] }, k) => {
       if (rnd(D * 7 + k) > (vikend ? 0.6 : 0.2)) return;
       const sm = otoc(x, y, Math.atan2(vitr.n, vitr.e));          // lidé koukají za drakem
       pridej(x, y, { oi: 800 + k, kid: true, ...sm });
@@ -161,6 +174,77 @@ export async function spust() {
       if (h < 19) for (let j = 0; j < 8; j++) { const a = rnd(j + 7 + k) * 6.283, r = Math.sqrt(rnd(j + 8 + k)) * R * 0.8, px = x + Math.cos(a) * r, py = y + Math.sin(a) * r; pridej(px, py, { oi: 1100 + j, ...otoc(px, py, a) }); }
     });
 
+    // ---------- zima a podzim ----------
+    // sáňkování: zima se sněhem, o víkendu 9–16 h, ve všední den 13–16 h (po škole); děti sjíždějí svah a jdou nahoru
+    if (zima && v.snowy && !dest && h >= (vikend ? 9 : 13) && h < 16) KOPCE.forEach((kp, k) => {
+      if (rnd(D * 19 + k) > (vikend ? 0.8 : 0.45)) return;
+      for (let j = 0; j < 4; j++) {
+        const f = (t / (14 + j * 3) + rnd(j + k)) % 1, dolu = f < 0.35, q = dolu ? f / 0.35 : 1 - (f - 0.35) / 0.65, L = 22;   // sjezd rychle, výstup pomalu
+        const bo = (j - 1.5) * 2.2, px = kp.x + Math.cos(kp.a) * (q - 0.5) * L - Math.sin(kp.a) * bo, py = kp.y + Math.sin(kp.a) * (q - 0.5) * L + Math.cos(kp.a) * bo;
+        pridej(px, py, { outfit: BRUSLAR(j + k), kid: true, ...otoc(px, py, dolu ? kp.a : kp.a + Math.PI), frame: dolu ? 0 : Math.floor(t * 3 + j) % 4 });
+        const sa = kp.a, sx_ = px + Math.cos(sa) * (dolu ? 0.1 : -0.7), sy_ = py + Math.sin(sa) * (dolu ? 0.1 : -0.7);
+        kresli(() => deka(ctx, v, sx_, sy_, 0.5, 0.22, sa, '#8a4a2a'));   // sáňky (pod dítětem, při výstupu za ním)
+      }
+    });
+    // sněhuláci: zima se sněhem, v parcích a na loukách, každý týden jinde
+    if (zima && v.snowy && u >= 0.3) [...M.park, ...M.louka.slice(0, 10)].forEach(({ w: [x, y] }, k) => {
+      if (rnd(Math.floor(D / 7) * 23 + k) > 0.45) return;
+      const sx2 = x + 3, sy2 = y - 2;
+      kresli(() => {
+        const g = I.gz(sx2, sy2), Z = (h_) => v.toScreen(...I.toImg(sx2, sy2, g + h_)), R = hpx * v.sx;
+        for (const [hh, r] of [[0.32, 0.34], [0.82, 0.25], [1.18, 0.18]]) { const [X, Y] = Z(hh); ctx.fillStyle = '#f6f7fa'; ctx.beginPath(); ctx.arc(X, Y, r * R, 0, 6.283); ctx.fill(); ctx.fillStyle = 'rgba(120,130,150,.25)'; ctx.beginPath(); ctx.arc(X + r * R * 0.3, Y + r * R * 0.2, r * R * 0.8, 0, 6.283); ctx.fill(); }
+        const [X, Y] = Z(1.2), r = 0.18 * R;
+        ctx.fillStyle = '#1a1a1e'; ctx.fillRect(X - r * 0.5, Y - r * 0.3, Math.max(1, r * 0.2), Math.max(1, r * 0.2)); ctx.fillRect(X + r * 0.2, Y - r * 0.3, Math.max(1, r * 0.2), Math.max(1, r * 0.2));
+        ctx.fillStyle = '#e8701a'; ctx.fillRect(X - r * 0.1, Y, r * 0.9, Math.max(1, r * 0.22));                            // mrkev
+        ctx.fillStyle = '#2a2a30'; ctx.fillRect(X - r * 0.7, Y - r * 1.1, r * 1.4, Math.max(1, r * 0.25)); ctx.fillRect(X - r * 0.45, Y - r * 1.9, r * 0.9, r * 0.8);   // hrnec
+      }, 'nad');
+    });
+    // krmení kachen: o víkendu 10–16 h u rybníků (ne zamrzlých), rodič s dítětem a kachny ve vodě
+    if (vikend && !dest && !(zima && v.snowy) && h >= 10 && h < 16 && u >= 0.3) M.rybar.forEach(({ q, w: [x, y] }, k) => {
+      if (rnd(D * 29 + k) > 0.3) return;
+      const a = q[3] ?? 0, sm = otoc(x, y, a), bx = x - Math.sin(a) * 1.5, by = y + Math.cos(a) * 1.5;
+      pridej(bx, by, { oi: 1200 + k, ...sm });
+      pridej(bx + Math.cos(a) * 0.4 - Math.sin(a) * 0.9, by + Math.sin(a) * 0.4 + Math.cos(a) * 0.9, { oi: 1210 + k, kid: true, ...sm, frame: Math.floor(t * 2) % 2 });
+      kresli(() => {
+        for (let j = 0; j < 6; j++) {
+          const r = 2.2 + rnd(j + k) * 3 + Math.sin(t * 0.4 + j) * 0.6, o = a + (rnd(j + 40 + k) - 0.5) * 1.2, px = bx + Math.cos(o) * r, py = by + Math.sin(o) * r;
+          const [X, Y] = v.toScreen(...I.toImg(px, py, I.gz(px, py) + 0.05 + Math.sin(t * 2 + j) * 0.02)), s = Math.max(1, u * 1.1);
+          ctx.fillStyle = '#7a5a3a'; ctx.fillRect(Math.round(X - s * 2), Math.round(Y - s), Math.round(s * 4), Math.round(s * 2));   // tělo
+          ctx.fillStyle = j % 2 ? '#2f6a3a' : '#8a6a4a'; ctx.fillRect(Math.round(X + s * 1.2), Math.round(Y - s * 2.2), Math.round(s * 1.6), Math.round(s * 1.6));   // hlava (kačer zelená)
+          ctx.fillStyle = '#e8a020'; ctx.fillRect(Math.round(X + s * 2.8), Math.round(Y - s * 1.6), Math.max(1, Math.round(s * 0.9)), Math.max(1, Math.round(s * 0.6)));
+        }
+      });
+    });
+    // advent: lidé u vánočních stánků (období z assets/vanoce.json), 15–21 h, o víkendu víc; v zimě pára z hrnků
+    if (h >= 15 && h < 21) M.advent.forEach(({ q, w: [x, y] }, k) => {
+      if (!vObdobi(d, q[6] || '11-15', q[7] || '01-06')) return;
+      const a = (q[2] || 0) * Math.PI / 180, n = q[3] || 6, sw = (q[4] || 3) + (q[5] || 1.2), na = Math.atan2(-Math.cos(a), Math.sin(a));   // na: strana pultu (−t)
+      for (let i = 0; i < n; i++) {
+        const lidi = (vikend ? 3 : 1) + Math.floor(rnd(i + D) * 2);
+        for (let j = 0; j < lidi; j++) {
+          const o = (i - (n - 1) / 2) * sw + (rnd(i * 7 + j) - 0.5) * 2, r = 2.3 + rnd(i * 5 + j) * 1.6;
+          const px = x + Math.cos(a) * o + Math.cos(na) * r, py = y + Math.sin(a) * o + Math.sin(na) * r;
+          pridej(px, py, { oi: 1300 + i * 4 + j, kid: j === 2, ...otoc(px, py, na + Math.PI) });
+          if (v.season === 'winter' || v.night > 0.3) kresli(() => { const [X, Y] = v.toScreen(...I.toImg(px, py, I.gz(px, py) + 1.45)), f = (t * 0.6 + j * 0.3 + i) % 1; ctx.fillStyle = `rgba(255,255,255,${(0.5 * (1 - f)).toFixed(2)})`; ctx.fillRect(Math.round(X + u * 3), Math.round(Y - f * u * 8), Math.max(1, u), Math.max(1, u)); }, 'nad');
+        }
+      }
+    });
+    // Halloween 31. 10. 17–20:30: děti v kostýmech s rodiči chodí po ulicích, u domů svítí dýně
+    if (m === 9 && dd === 31 && h >= 17 && h < 20.5) M.ulice.forEach(({ q, w: [x, y] }, k) => {
+      if (rnd(k * 3 + 7) > 0.35) return;
+      const a = q[2] || 0, f = Math.sin(t / 18 + k) * 12, sm = otoc(x, y, Math.cos(t / 18 + k) > 0 ? a : a + Math.PI), kr = Math.floor(t * 3 + k) % 4;
+      const kost = Object.values(KOSTYM), dx = Math.cos(a), dy = Math.sin(a);
+      for (let j = 0; j < 3; j++) {
+        const px = x + dx * (f + j * 0.9) - dy * (j % 2 ? 0.7 : -0.3), py = y + dy * (f + j * 0.9) + dx * (j % 2 ? 0.7 : -0.3), c = kost[Math.floor(rnd(k + j * 11) * kost.length)];
+        pridej(px, py, { outfit: c, kid: true, ...sm, frame: kr });
+        if (c === KOSTYM.carodejnice) kresli(() => { const [X, Y] = v.toScreen(...I.toImg(px, py, I.gz(px, py) + 1.3)), s = Math.max(2, u * 4); ctx.fillStyle = '#1a1420'; ctx.beginPath(); ctx.moveTo(X - s, Y); ctx.lineTo(X + s, Y); ctx.lineTo(X + s * 0.2, Y - s * 1.8); ctx.closePath(); ctx.fill(); }, 'nad');
+      }
+      const px = x + dx * (f - 1.2) - dy * 0.3, py = y + dy * (f - 1.2) + dx * 0.3;
+      pridej(px, py, { oi: 1400 + k, ...sm, frame: kr });
+      const dx2 = x - dy * 5, dy2 = y + dx * 5;                     // dýně u domu
+      kresli(() => { const [X, Y] = bod(ctx, v, dx2, dy2, 0.2, '#e8701a', Math.max(3, u * 4)); if (v.night > 0.2) { const g = ctx.createRadialGradient(X, Y, 0, X, Y, u * 14 + 4); g.addColorStop(0, `rgba(255,160,40,${(0.45 * v.night).toFixed(2)})`); g.addColorStop(1, 'rgba(255,160,40,0)'); ctx.fillStyle = g; ctx.fillRect(X - u * 14 - 4, Y - u * 14 - 4, u * 28 + 8, u * 28 + 8); } }, 'nad');
+    });
+
     for (const [f, kde] of P) if (kde !== 'nad') f();
     L.sort((p, q) => p[3] - q[3]);
     for (const [x, y, q] of L) I.postava(v, x, y, q);
@@ -168,24 +252,32 @@ export async function spust() {
   }, { layer: 'world', priority: -2 });
 
   // ---------- nebe: proudy větru při silném větru (od 6 m/s), jen při oddálení (jako mraky) ----------
-  // Dlouhé tenké vlnité stužky: vlna běží po stužce po větru, stužka pomalu pluje a na koncích se ztrácí.
-  const proudy = Array.from({ length: 18 }, (_, i) => ({ x: rnd(i + 1), y: rnd(i + 2), f: rnd(i + 3), d: 0.7 + rnd(i + 4) * 0.6, a: 0.6 + rnd(i + 5) * 0.8 }));
+  // Stužky leží v souřadnicích obrázku mapy jako mraky: s pohledem se posouvají a zvětšují, samy plují po větru.
+  // Vlna běží po stužce, ke koncům se stužka ztrácí.
+  let PR = null;
+  const obrys = () => { const b = I.obrysMapy().flat(); return [Math.min(...b.map((p) => p[0])), Math.min(...b.map((p) => p[1])), Math.max(...b.map((p) => p[0])), Math.max(...b.map((p) => p[1]))]; };
   I.onFrame((ctx, v) => {
-    const w = v.wind, fade = Math.max(0, Math.min(1, (0.45 - v.sx) / 0.25)); if (!w || !(w.ms >= 6) || fade <= 0) return;
-    const sila = Math.min(1, (w.ms - 6) / 8), n = Math.round((8 + sila * 10) * (v.eco ? 0.5 : 1)), t = v.now / 1000;
-    const L = Math.hypot(w.dx, w.dy) || 1, ux = w.dx / L, uy = w.dy / L, D = Math.hypot(v.cw, v.ch);
-    const dl = 160 + sila * 140, A = 7 + sila * 6, K = 6.283 / (70 + sila * 30), SEG = 24;   // délka stužky, výška a délka vlny (px)
+    const w = v.wind, fade = Math.max(0, Math.min(1, (0.45 - v.sx) / 0.25)); if (!w || !(w.ms >= 6)) return;
+    const dt = Math.min(0.1, v.dt > 1 ? v.dt / 1000 : v.dt || 0.016), t = v.now / 1000, sila = Math.min(1, (w.ms - 6) / 8);
+    if (!PR) { const [x0, y0, x1, y1] = obrys(); PR = { x0, y0, x1, y1, p: Array.from({ length: 30 }, (_, i) => ({ x: x0 + rnd(i + 1) * (x1 - x0), y: y0 + rnd(i + 2) * (y1 - y0), a: 0.6 + rnd(i + 5) * 0.8, f: rnd(i + 9) * 6.283 })) }; }
+    const L = Math.hypot(w.dx, w.dy) || 1, ux = w.dx / L, uy = w.dy / L, rv = Math.max(6, Math.min(60, w.ms * 4));   // stejná rychlost jako mraky
+    for (const c of PR.p) {                                        // pohyb i mimo obraz, ať po oddálení nejsou na stejném místě
+      c.x += ux * rv * dt; c.y += uy * rv * dt;
+      if (c.x > PR.x1 + 1500) c.x = PR.x0 - 1500; else if (c.x < PR.x0 - 1500) c.x = PR.x1 + 1500;
+      if (c.y > PR.y1 + 900) c.y = PR.y0 - 900; else if (c.y < PR.y0 - 900) c.y = PR.y1 + 900;
+    }
+    if (fade <= 0) return;
+    const n = Math.round((16 + sila * 14) * (v.eco ? 0.5 : 1)), dl = 1400 + sila * 900, A = 70 + sila * 50, K = 6.283 / (520 + sila * 200), SEG = 22;   // obrazové body mapy
     ctx.lineCap = 'round'; ctx.lineWidth = 1.5;
     for (let i = 0; i < n; i++) {
-      const c = proudy[i], fz = (t * (0.025 + sila * 0.03) * c.d + c.f) % 1;   // pomalý průlet přes obrazovku
-      const cx = c.x * v.cw + ux * (fz - 0.5) * D, cy = c.y * v.ch + uy * (fz - 0.5) * D;
-      const zjev = Math.sin(fz * Math.PI);                          // na začátku a konci průletu se ztrácí
+      const c = PR.p[i];
+      if (!v.vis(c.x, c.y, dl * v.sx)) continue;
       let px = null, py = null;
       for (let k = 0; k <= SEG; k++) {
-        const q = k / SEG, s_ = (q - 0.5) * dl, vl = Math.sin(s_ * K - t * (1.6 + sila) + i) * A * c.a * Math.sin(q * Math.PI);
-        const X = cx + ux * s_ - uy * vl, Y = cy + uy * s_ + ux * vl;
+        const q = k / SEG, s_ = (q - 0.5) * dl, vl = Math.sin(s_ * K - t * (1.2 + sila * 0.8) + c.f) * A * c.a * Math.sin(q * Math.PI);
+        const [X, Y] = v.toScreen(c.x + ux * s_ - uy * vl, c.y + uy * s_ + ux * vl);
         if (px !== null) {
-          const al = (0.28 + sila * 0.25) * fade * zjev * Math.sin(q * Math.PI);   // stužka se ke koncům ztenčuje do ztracena
+          const al = (0.3 + sila * 0.25) * fade * Math.sin(q * Math.PI);
           ctx.strokeStyle = `rgba(255,255,255,${al.toFixed(3)})`; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(X, Y); ctx.stroke();
         }
         px = X; py = Y;

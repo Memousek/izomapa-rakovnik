@@ -7,9 +7,11 @@ const KLAVESY = { ArrowUp: 'w', ArrowDown: 's', ArrowLeft: 'a', ArrowRight: 'd',
 export function spust() {
   const I = window.Izomapa; if (!I) return;
   const pane = document.getElementById('pane-objevuj'); if (!pane) return;
-  const sec = document.createElement('div'); sec.className = 'sec';
-  sec.innerHTML = '<p style="margin:6px 0"><button class="px-btn app-btn" type="button" id="vrtulnikBtn">🚁 Řídit vrtulník</button></p>';
-  pane.appendChild(sec);
+  // tlačítko s pixelovou ikonou 9 × 9 (jako záložky); do skupiny her, když ji stránka má (#hryBox), jinak na konec záložky
+  const btn = document.createElement('button'); btn.className = 'px-btn hra-btn'; btn.type = 'button'; btn.id = 'vrtulnikBtn';
+  btn.innerHTML = '<svg class="ico px" viewBox="0 0 9 9" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" fill-rule="evenodd" d="M0 0h9v1H0zM4 1h1v1H4zM2 2h4v1H2zM1 3h6v1H1zM1 4h7v1H1zM0 4h1v1H0zM2 5h4v1H2zM8 2h1v3H8zM2 7h5v1H2zM3 6h1v1H3zM5 6h1v1H5z"/></svg><span>Vrtulník</span>';
+  const skupina = pane.querySelector('.hry-btns');
+  if (skupina) skupina.appendChild(btn); else { const p = document.createElement('p'); p.appendChild(btn); pane.appendChild(p); }
   const hud = document.createElement('div');
   hud.id = 'vrtulnikHud'; hud.hidden = true;
   hud.setAttribute('role', 'region'); hud.setAttribute('aria-label', 'Řízení vrtulníku');

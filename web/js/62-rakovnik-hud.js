@@ -119,3 +119,17 @@
     obnov(); setInterval(obnov, 2000);
     b.addEventListener('click', () => setTimeout(obnov, 50));
   })();
+  // hry a zábava v záložce Objevuj: hra Najdeš to (doplněk najdi_to má vlastní ouško u kraje obrazovky, to je schované)
+  // a vrtulník (mapa_vrtulnik.js přidá své tlačítko sem). Ikony 9 × 9 bodů jako záložky.
+  (() => {
+    const pane = $('pane-objevuj'); if (!pane) return;
+    const box = document.createElement('div'); box.className = 'hry'; box.id = 'hryBox';
+    box.innerHTML = '<p class="label">Hry</p><div class="hry-btns"><button class="px-btn hra-btn" type="button" id="najdiBtn" hidden>'
+      + '<svg class="ico px" viewBox="0 0 9 9" aria-hidden="true" shape-rendering="crispEdges"><path fill="currentColor" fill-rule="evenodd" d="M3 0h3v1H3zM1 1h2v1H1zM6 1h2v1H6zM1 2h1v1H1zM7 2h1v1H7zM0 3h1v3H0zM8 3h1v3H8zM4 3h1v1H4zM3 4h3v1H3zM4 5h1v1H4zM1 6h1v1H1zM7 6h1v1H7zM1 7h2v1H1zM6 7h2v1H6zM3 8h3v1H3z"/></svg>'
+      + '<span>Najdeš to?</span></button></div>';
+    pane.prepend(box);
+    const najdi = $('najdiBtn');
+    najdi.addEventListener('click', () => document.querySelector('.game-fold')?.click());
+    const ukaz = () => { const f = document.querySelector('.game-fold'); if (f) { najdi.hidden = false; najdi.title = f.title || 'Hledací hra na mapě'; } return !!f; };
+    if (!ukaz()) { const mo = new MutationObserver(() => { if (ukaz()) mo.disconnect(); }); mo.observe(document.body, { childList: true, subtree: true }); }
+  })();

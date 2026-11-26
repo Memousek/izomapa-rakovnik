@@ -366,3 +366,11 @@ html body .cert-score-row:last-child { color: var(--red); border-top-color: var(
 html body .cert-date { color: var(--red); font-family: var(--mono); }
 html body .cert-author { color: var(--muted); }
 html body .najdi-hit-marker { border: 3px solid var(--red); background: rgba(196, 0, 6, .18); box-shadow: 0 0 0 4px rgba(255, 255, 255, .7); }
+
+/* hry v záložce Objevuj (62-rakovnik-hud.js): ouško doplňku najdi_to schované, tlačítka s pixelovou ikonou */
+html body .game-fold { display: none !important; }
+.hry { margin: 0 0 10px; }
+.hry-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.hra-btn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; font-size: .88rem; }
+.hra-btn .ico { width: 14px; height: 14px; flex: none; color: var(--red); }
+body.noc .hra-btn .ico { color: var(--lamp); }

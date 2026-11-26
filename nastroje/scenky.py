@@ -64,7 +64,7 @@ def uvnitr(p, k, seed):
     return out
 
 
-S = {k: [] for k in ('rybar', 'otuzilci', 'brusleni', 'koupani', 'louka', 'park', 'houbar', 'carodejnice', 'hrbitov')}
+S = {k: [] for k in ('rybar', 'otuzilci', 'brusleni', 'koupani', 'louka', 'park', 'houbar', 'carodejnice', 'hrbitov', 'ulice', 'advent')}
 for r, g, nm in nacti('water'):
     for p in polys(g):
         c = p.centroid
@@ -101,6 +101,20 @@ for r, g, nm in nacti('land_cover'):
             c = p.centroid; dx, dy = c.x - q.x, c.y - q.y; d = math.hypot(dx, dy) or 1
             x, y = q.x + dx / d * 8, q.y + dy / d * 8
             if v_mape(x, y) and p.contains(Point(x, y)): S['houbar'].append(ll(x, y))
+# ulice pro chodící skupinky (Halloween): obytné ulice a chodníky do 1,8 km od středu, bod a směr ulice, po 60 m
+for r, g, nm in nacti('segment'):
+    if r['class'] not in ('residential', 'living_street', 'footway', 'pedestrian'): continue
+    for l in ([g] if g.geom_type == 'LineString' else list(getattr(g, 'geoms', []))):
+        d = 20.0
+        while d < l.length - 20:
+            q = l.interpolate(d); q2 = l.interpolate(d + 2)
+            if math.hypot(q.x, q.y) < 1800 and v_mape(q.x, q.y): S['ulice'].append(ll(q.x, q.y) + [round(math.atan2(q2.y - q.y, q2.x - q.x), 3)])
+            d += 60
+S['ulice'] = S['ulice'][::max(1, len(S['ulice']) // 120)][:120]
+# advent: lidé před vánočními stánky (assets/vanoce.json), střed řady a směr (stánky mají pult na straně -t)
+if os.path.exists('assets/vanoce.json'):
+    V = json.load(open('assets/vanoce.json', encoding='utf-8'))
+    for st in V.get('stanky', []): S['advent'].append([st['lat'], st['lon'], st.get('a', 0), st.get('n', 6), st.get('w', 3.0), st.get('m', 1.2), V.get('od', '11-15'), V.get('do', '01-06')])
 # čarodějnice: největší louka blízko středu města
 if S['louka']:
     S['carodejnice'] = sorted(S['louka'], key=lambda q: math.hypot(*geo.to_local(q[1], q[0])))[:1]
