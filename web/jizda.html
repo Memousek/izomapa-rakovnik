@@ -1010,6 +1010,7 @@ const zabradli = (zPred, v) => zPred - v.z > 1.0;           // sjet nebo sejít 
 // simulace je v jizda/doprava.js (bez kreslení); tady jen napojení na hráče, denní dobu, uzavírky, značky a 3D semafory
 const DOPR = vytvorDopravu({
   HALF, hrac: () => hrac, doba: () => DOBA.n, hustota: () => hustotaProvozu(), gz: (x, y) => gz(x, y),
+  mnozstvi: () => ({ nizka: 0.55, stredni: 0.8, vysoka: 1, ultra: 1.15 })[GRAF] ?? 1,   // počet aut podle předvolby grafiky
   silnice: (i0) => { oznacUzavirky(i0); ZNACKY.zmena(); }, hotovo: () => stavSignaly(),
 });
 const { roads, ends, cars, LOADED, ULICE_STAV, ek, along, SIG, sigPosts, sigState, XC, xc3, blocked, TRAILER, TAH,

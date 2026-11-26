@@ -24,7 +24,7 @@ export function nah(o) {
 // silnice(i0) (nové silnice od indexu i0 jsou v roads, ještě bez aut), hotovo(i0) (auta čtverce jsou v cars)
 export function vytvorDopravu(api) {
   api = { ted: () => Date.now(), nacti: (key) => fetch(`overlay/${key}.json`).then((r) => r.json()).catch(() => null),
-    silnice: () => {}, hotovo: () => {}, hustota: () => 1, doba: () => 0, ...api };
+    silnice: () => {}, hotovo: () => {}, hustota: () => 1, mnozstvi: () => 1, doba: () => 0, ...api };
   const HALF = api.HALF;
   const silniceId = new Map();                              // uid silnice -> index v roads
   const roads = [], ends = new Map(), cars = [], LOADED = [];
@@ -184,7 +184,9 @@ export function vytvorDopravu(api) {
     // auta podle intenzity (ve 3D o něco hustší než v mapě, ať je ulice živá)
     const main = []; for (let i = i0; i < roads.length; i++) if (roads[i].c !== 'service' && !roads[i].uz) main.push(i);
     const weights = main.map((i) => (roads[i].v || 300) * roads[i].L), wsum = weights.reduce((a, b) => a + b, 0);
-    const n = Math.min(260, Math.round(wsum / 450 / 1000 * 0.7));
+    // ve špičce ~1,6 × intenzita / 450 na km (silnice s 10 000 auty za den: ~36 aut na km, ve městě se jede pomalu a v kolonách);
+    // mimo špičku část aut zajede do garáže (provozPodleTmy). api.mnozstvi: podíl podle grafiky (slabší zařízení méně aut)
+    const n = Math.min(Math.round(520 * api.mnozstvi()), Math.round(wsum / 450 / 1000 * 1.6 * api.mnozstvi()));
     const pick = (u) => { let x = u * wsum; for (let k = 0; k < main.length; k++) { x -= weights[k]; if (x <= 0) return main[k]; } return main[main.length - 1]; };
     for (let j = 0; j < n && main.length; j++) {
       // vlastnosti z semínka auta: u všech hráčů stejné auto (typ, barva, povaha řidiče), v libovolném pořadí čtverců

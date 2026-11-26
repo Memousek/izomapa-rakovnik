@@ -115,7 +115,7 @@
  "potoky": true,
  "multiplayer": "wss://izomapa-mp.izomapa-rakovnik.workers.dev/mistnost/rakovnik",
  "doprava": {
-  "kraj": "Středočeský kraj"
+  "kraj": "Středočeský"
  },
  "vystrahy_oblasti": [
   "Rakovník",
