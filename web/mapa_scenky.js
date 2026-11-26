@@ -6,10 +6,13 @@
 //   draci na loukách (září–říjen odpoledne), pikniky v parcích (léto o víkendu), pálení čarodějnic (30. 4. večer),
 //   svíčky na hřbitovech o Dušičkách (31. 10.–2. 11. večer) a horkovzdušný balón nad městem (jaro a léto za úsvitu a večer).
 // Zkouška jiného data: ?zivot=2026-04-30T21:00 (jako web/mapa_zivot.js)
-const praha = () => {
-  const p = new URLSearchParams(location.search).get('zivot'), d = p ? new Date(p) : new Date();
-  return isNaN(d) ? new Date() : (p ? d : new Date(d.toLocaleString('en-US', { timeZone: 'Europe/Prague' })));
-};
+// pražský čas jako místní Date; posun se spočítá jednou, takže čas běží plynule (i s ?zivot=, kde začne v zadaném okamžiku)
+const POSUN = (() => {
+  const p = new URLSearchParams(location.search).get('zivot'), d = p ? new Date(p) : null, ted = new Date();
+  if (d && !isNaN(d)) return d - ted;
+  return new Date(ted.toLocaleString('en-US', { timeZone: 'Europe/Prague' })) - ted + ted.getMilliseconds();
+})();
+const praha = () => new Date(Date.now() + POSUN);
 const rnd = (s) => { const x = Math.sin(s * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 const PLAVKY = (k) => ({ top: 'tank', topC: ['#2a6fb0', '#c8343c', '#2f8f5b', '#e0a020'][k % 4], bot: 'shorts', botC: ['#1d3e70', '#2a2a2e', '#c8343c'][k % 3], shoes: '#e8c4a0' });
 const BRUSLAR = (k) => ({ top: 'coat', topC: ['#c8343c', '#2a6fb0', '#3a3a40', '#e0a020'][k % 4], bot: 'trousers', botC: '#2a2a2e', hat: { t: 'beanie', c: ['#f4f2ea', '#c8343c', '#2a6fb0'][k % 3] }, shoes: '#e8e8ec', gloves: '#2a2a2e' });

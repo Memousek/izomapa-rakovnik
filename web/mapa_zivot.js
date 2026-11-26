@@ -4,10 +4,13 @@
 //   v sobotu od května do září dopoledne svatba před radnicí, o adventních víkendech večer lidé u vánočního stromu,
 //   při akci z programu města (web/mapa_akce.js) dav na náměstí. Postavy schované za stromem, domem nebo výzdobou se nekreslí.
 // Kreslí přes window.Izomapa.onFrame (web/js/90-doplnky-api.js). Zkouška jiného data: ?zivot=2026-12-05T17:30
-const praha = () => {
-  const p = new URLSearchParams(location.search).get('zivot'), d = p ? new Date(p) : new Date();
-  return isNaN(d) ? new Date() : (p ? d : new Date(d.toLocaleString('en-US', { timeZone: 'Europe/Prague' })));
-};
+// pražský čas jako místní Date; posun se spočítá jednou, takže čas běží plynule (i s ?zivot=, kde začne v zadaném okamžiku)
+const POSUN = (() => {
+  const p = new URLSearchParams(location.search).get('zivot'), d = p ? new Date(p) : null, ted = new Date();
+  if (d && !isNaN(d)) return d - ted;
+  return new Date(ted.toLocaleString('en-US', { timeZone: 'Europe/Prague' })) - ted + ted.getMilliseconds();
+})();
+const praha = () => new Date(Date.now() + POSUN);
 const rnd = (s) => { const x = Math.sin(s * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
 export function spust({ namesti, radnice, akce, namestiSektor }) {

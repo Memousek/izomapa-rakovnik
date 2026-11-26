@@ -324,3 +324,45 @@ body.noc .places button:hover { background: var(--panel-2); }
   .tabs #histBtn .go3d-long { display: none; }
   .tabs #jizda3d::before { content: ""; }
 }
+
+/* hra Najdeš to? (doplnky/najdi_to): papír, kamenné šedé, rakovnická červená místo žluté pixelové */
+html body .panel.game-panel { display: grid; background: var(--sklo); color: var(--ink); border: 0 !important; border-radius: var(--r); box-shadow: var(--stin);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); font-family: var(--sans); }
+html body .game-fold { background: var(--sklo); color: var(--ink); border: 0; border-radius: 0 12px 12px 0; box-shadow: var(--stin); font-family: var(--sans); }
+html body .game-fold:hover, html body .game-fold:focus-visible { background: var(--panel-2); color: var(--red); }
+html body .game-fold.active { background: var(--s8); color: #fff; border: 0; }
+html body .game-head { border-bottom: 1px solid var(--edge); }
+html body .game-head h2 { font-family: var(--serif); font-weight: 600; font-size: 1.2rem; color: var(--ink); letter-spacing: -.01em; }
+html body .game-lvl-box label, html body .game-diff-box label, html body .game-season-box label { font-family: var(--mono); font-weight: 500; font-size: .7rem; letter-spacing: .08em; color: var(--muted); }
+html body .game-lvl-select { border: 1px solid var(--edge); border-radius: 10px; background: var(--panel-2); color: var(--ink); padding: 7px 9px; }
+html body .game-diff-btn.active, html body .game-season-group button.active, html body .lb-tab-btn.active { background: var(--s8); color: #fff; border-color: var(--s8); font-weight: 600; }
+html body.noc .game-diff-btn.active, html body.noc .game-season-group button.active, html body.noc .lb-tab-btn.active { background: var(--ink); color: var(--s9); border-color: var(--ink); }
+html body .game-start-btn { font-family: var(--sans); font-weight: 600; background: var(--red); color: #fff; border: 0; border-radius: 12px; }
+html body .game-start-btn:hover { background: var(--red-d); }
+html body .game-status-bar { border: 1px solid var(--edge); border-radius: 12px; background: var(--panel-2); }
+html body .game-timer { font-family: var(--mono); color: var(--red); font-weight: 500; }
+html body .game-q-item { border: 1px solid var(--edge); border-radius: 10px; background: var(--panel-2); }
+html body .game-q-item.q-done { border-color: #2f7d4f; background: #e7f3ec; color: #1f5c39; }
+html body .game-q-item.q-done .q-ico { color: #2f7d4f; }
+html body .game-q-item.q-active { border-color: var(--red); background: var(--red-t); color: var(--ink); box-shadow: none; }
+html body.noc .game-q-item.q-done { background: rgba(47, 125, 79, .25); color: #bfe3cc; }
+html body.noc .game-q-item.q-active { background: rgba(196, 0, 6, .22); color: var(--ink); }
+html body .game-hint { background: var(--s1); border-left: 3px solid var(--red); border-radius: 0 8px 8px 0; color: var(--muted); }
+html body.noc .game-hint { background: rgba(255, 255, 255, .05); }
+html body .game-link-btn { color: var(--red); }
+html body .game-link-btn:hover, html body .game-link-btn:focus-visible { color: var(--red-d); }
+html body.noc .game-link-btn { color: var(--lamp); }
+html body .game-share-callout { background: var(--s1); border: 1px solid var(--edge); border-radius: 10px; }
+html body .game-cert-card { background: var(--p2); border: 1px solid var(--edge); border-radius: var(--r); box-shadow: var(--stin); color: var(--ink); }
+html body .cert-inner { border: 1px solid var(--s2); border-radius: 12px; background: #fff; }
+html body .cert-badge { font-family: var(--mono); color: var(--red); background: var(--red-t); border: 0; border-radius: 999px; }
+html body .cert-title { font-family: var(--serif); color: var(--ink); text-shadow: none; letter-spacing: 0; }
+html body .cert-loc { color: var(--muted); }
+html body .cert-divider { background: linear-gradient(90deg, transparent, var(--red), transparent); }
+html body .cert-text { color: var(--s7); }
+html body .cert-scores { background: var(--s1); border: 1px solid var(--edge); border-radius: 10px; }
+html body .cert-score-row { border-bottom-color: var(--s2); }
+html body .cert-score-row:last-child { color: var(--red); border-top-color: var(--s2); }
+html body .cert-date { color: var(--red); font-family: var(--mono); }
+html body .cert-author { color: var(--muted); }
+html body .najdi-hit-marker { border: 3px solid var(--red); background: rgba(196, 0, 6, .18); box-shadow: 0 0 0 4px rgba(255, 255, 255, .7); }
