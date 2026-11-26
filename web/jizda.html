@@ -2403,7 +2403,7 @@ function frame(now) {
   camW.copy(fwd).multiplyScalar(-1);
   STROMY.update(camera.position.x, -camera.position.z, camera.position.y);
   PTACI.update(dt, now / 1000, hrac, DOBA.n, WXI.zat, WXI.dest);
-  EFEKTY.update(dt, now / 1000, { veVoze: hrac.vAuto || hrac.bus !== null, pesky: !hrac.vAuto && hrac.bus === null && SLED.i === null, zOci: !!hrac.zOci,
+  EFEKTY.update(dt, now / 1000, { veVoze: hrac.vAuto || hrac.bus !== null, pesky: !hrac.vAuto && hrac.bus === null && SLED.i === null && !rezim, zOci: !!hrac.zOci,   // na motorce a v letadle bez houpání kroku (klepalo by kamerou)
     fov0: NAST.fov, fovRychlost: smiPohyb(NAST, 'fovRychlost'), houpani: smiPohyb(NAST, 'houpani'), chveni: smiPohyb(NAST, 'chveni'),
     vitr: Array.isArray(POC.vitr) ? POC.vitr : [0, 0], stromy: (x, y, R) => STROMY.listnate(x, y, R) }, gz, hrac);
   if (OKRAJE) OKRAJE.update(hrac);

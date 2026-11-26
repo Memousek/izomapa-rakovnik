@@ -226,6 +226,7 @@ export function vytvorLetani(api) {
     Object.assign(ac, { x: ac.st.x, y: ac.st.y, h: ac.st.h, th: 0, fi: 0, ga: 0, V: 0, vx: 0, vy: 0, vz: 0, thr: 0, zem: true, hav: 0 });
     ac.z = gz(ac.x, ac.y); if (ac.heli) ac.rpm = Math.min(ac.rpm, 0.3); poloz(ac);
   }
+  let kamF = 1;                                                 // zkrácení ramene kamery u hangáru (plynule)
   const vyskaDomu = (x, y) => (typeof api.vrsekBudovy === 'function' ? api.vrsekBudovy(x, y) : null);   // když stránka umí výšku domů
   function narazDum(ac, body, agl) {                            // body [x, y] trupu, křídel, rotoru
     for (const [x, y, r] of body) {
@@ -420,9 +421,10 @@ export function vytvorLetani(api) {
       tmpV.set(ox, oz, -oy);
       if (orbit.snap || kamO.lengthSq() === 0) { kamO.copy(tmpV); orbit.snap = false; } else kamO.lerp(tmpV, 1 - Math.exp(-dt * 5));
       camera.position.copy(tmpT).add(kamO);
-      if (api.ramenoVolne) {                                  // dům (hangár) mezi letadlem a kamerou: kamera před zeď
-        const p = camera.position, tb = api.ramenoVolne(tmpT.x, -tmpT.z, tmpT.y, p.x, -p.z, p.y);
-        if (tb < 1) { const f = Math.max(0.25, tb - 0.4 / vzd); p.set(tmpT.x + (p.x - tmpT.x) * f, tmpT.y + (p.y - tmpT.y) * f, tmpT.z + (p.z - tmpT.z) * f); }
+      if (api.ramenoVolne) {                                  // dům (hangár) mezi letadlem a kamerou: kamera před zeď, plynule (k zdi rychle, zpět pomalu)
+        const p = camera.position, tb = api.ramenoVolne(tmpT.x, -tmpT.z, tmpT.y, p.x, -p.z, p.y), f = tb < 1 ? Math.max(0.25, tb - 0.4 / vzd) : 1;
+        kamF += (f - kamF) * Math.min(1, dt * (f < kamF ? 14 : 2.5));
+        p.set(tmpT.x + (p.x - tmpT.x) * kamF, tmpT.y + (p.y - tmpT.y) * kamF, tmpT.z + (p.z - tmpT.z) * kamF);
       }
       const zMin = gz(camera.position.x, -camera.position.z) + 1.2; if (camera.position.y < zMin) camera.position.y = zMin;
       camera.lookAt(tmpT); fwd.copy(tmpT).sub(camera.position).normalize();

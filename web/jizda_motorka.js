@@ -280,6 +280,7 @@ export function vytvorMotorky(api) {
     if (!loutka) koncetiny();
   }
 
+  let kamF = 1; const kamO = new api.THREE.Vector3();          // rameno kamery: zkrácení a posun vůči motorce
   return {
     nazev: () => 'na motorce',
     blizko(x, y) { return !m && nejblizsi(x, y, BLIZKO) ? 'E – nasednout: motorka' : null; },
@@ -363,10 +364,13 @@ export function vytvorMotorky(api) {
       for (let i = 1; i <= 14; i++) { const q = i / 14; if (api.hitBuilding(m.x + (px - m.x) * q, m.y + (py - m.y) * q, 0.35)) { f = Math.max(0.15, q - 0.12); break; } }
       const tt = api.stromy?.prekazka?.(m.x, m.y, tz, px, py, pz) ?? 1;
       if (tt < 1) f = Math.min(f, Math.max(3 / d, tt * 0.92));
-      if (f < 1) { px = m.x + (px - m.x) * f; py = m.y + (py - m.y) * f; pz = Math.max(tz + (pz - tz) * f, api.gz(px, py) + 0.6); }
-      const want = _k.set(px, pz, -py);
-      if (orbit.snap || f < 1) { camera.position.copy(want); orbit.snap = false; } else camera.position.lerp(want, 1 - Math.exp(-dt * 10));
-      const T = _c.set(m.x, tz, -m.y);
+      // zkrácení ramene plynule: k překážce rychle, zpátky pomalu (stromy podél ulice by jinak kamerou cukaly tam a zpět)
+      kamF = orbit.snap ? f : kamF + (f - kamF) * Math.min(1, dt * (f < kamF ? 14 : 2.5));
+      px = m.x + (px - m.x) * kamF; py = m.y + (py - m.y) * kamF; pz = Math.max(tz + (pz - tz) * kamF, api.gz(px, py) + 0.6);
+      // kamera jako posun vůči motorce (ne bod ve světě): při rychlosti nezaostává a necuká
+      const T = _c.set(m.x, tz, -m.y), off = _k.set(px, pz, -py).sub(T);
+      if (orbit.snap) { kamO.copy(off); orbit.snap = false; } else kamO.lerp(off, 1 - Math.exp(-dt * 8));
+      camera.position.copy(T).add(kamO);
       camera.lookAt(T); fwd.copy(T).sub(camera.position).normalize();
       camera.rotateZ(lean * 0.2);
     },
