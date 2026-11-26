@@ -28,10 +28,15 @@ export async function spust() {
   const M = Object.fromEntries(['rybar', 'otuzilci', 'brusleni', 'koupani', 'louka', 'park', 'houbar', 'carodejnice', 'hrbitov', 'ulice', 'advent'].map((k) => [k, pripravit(k)]));
   const hpx = Math.abs(I.toImg(0, 0, 1)[1] - I.toImg(0, 0, 0)[1]);   // obrazové body na 1 m výšky
   // svahy pro sáňkování: louky a parky se sklonem nad 6 % (terén z mapy), směr dolů
-  const KOPCE = [...M.louka, ...M.park].map(({ w: [x, y] }) => {
-    const dx = (I.gz(x + 6, y) - I.gz(x - 6, y)) / 12, dy = (I.gz(x, y + 6) - I.gz(x, y - 6)) / 12, sk = Math.hypot(dx, dy);
-    return { x, y, sk, a: Math.atan2(-dy, -dx) };
-  }).filter((k) => k.sk > 0.06);
+  // sklon se počítá až při kreslení: terén čtverce se načítá s jeho dlaždicemi (dřív by vyšel plochý)
+  const KOPCE = [...M.louka, ...M.park].map(({ w: [x, y] }) => ({ x, y, sk: null, a: 0 }));
+  const sklon = (kp) => {
+    if (kp.sk === null || kp.sk === 0) {
+      const dx = (I.gz(kp.x + 6, kp.y) - I.gz(kp.x - 6, kp.y)) / 12, dy = (I.gz(kp.x, kp.y + 6) - I.gz(kp.x, kp.y - 6)) / 12;
+      kp.sk = Math.hypot(dx, dy); kp.a = Math.atan2(-dy, -dx);
+    }
+    return kp.sk;
+  };
   const KOSTYM = {
     duch: { top: 'dress', topC: '#f4f2ea', bot: 'none', hair: '#f4f2ea', hairStyle: 'long', shoes: '#f4f2ea', skin: '#f4f2ea' },
     carodejnice: { top: 'dress', topC: '#2a1f2e', bot: 'none', hair: '#5a8a3a', hairStyle: 'long', shoes: '#1a1a1a' },
@@ -177,7 +182,7 @@ export async function spust() {
     // ---------- zima a podzim ----------
     // sáňkování: zima se sněhem, o víkendu 9–16 h, ve všední den 13–16 h (po škole); děti sjíždějí svah a jdou nahoru
     if (zima && v.snowy && !dest && h >= (vikend ? 9 : 13) && h < 16) KOPCE.forEach((kp, k) => {
-      if (rnd(D * 19 + k) > (vikend ? 0.8 : 0.45)) return;
+      if (sklon(kp) <= 0.06 || rnd(D * 19 + k) > (vikend ? 0.8 : 0.45) || I.zakryto(kp.x, kp.y) || I.zakryto(kp.x + Math.cos(kp.a) * 9, kp.y + Math.sin(kp.a) * 9)) return;   // ne v lese ani za domem
       for (let j = 0; j < 4; j++) {
         const f = (t / (14 + j * 3) + rnd(j + k)) % 1, dolu = f < 0.35, q = dolu ? f / 0.35 : 1 - (f - 0.35) / 0.65, L = 22;   // sjezd rychle, výstup pomalu
         const bo = (j - 1.5) * 2.2, px = kp.x + Math.cos(kp.a) * (q - 0.5) * L - Math.sin(kp.a) * bo, py = kp.y + Math.sin(kp.a) * (q - 0.5) * L + Math.cos(kp.a) * bo;
@@ -187,9 +192,9 @@ export async function spust() {
       }
     });
     // sněhuláci: zima se sněhem, v parcích a na loukách, každý týden jinde
-    if (zima && v.snowy && u >= 0.3) [...M.park, ...M.louka.slice(0, 10)].forEach(({ w: [x, y] }, k) => {
+    if (zima && v.snowy && u >= 0.3) [...M.park.filter((o) => o.q[2]), ...M.louka.slice(0, 12)].forEach(({ w: [x, y] }, k) => {
       if (rnd(Math.floor(D / 7) * 23 + k) > 0.45) return;
-      const sx2 = x + 3, sy2 = y - 2;
+      const sx2 = x + 3, sy2 = y - 2; if (I.zakryto(sx2, sy2)) return;
       kresli(() => {
         const g = I.gz(sx2, sy2), Z = (h_) => v.toScreen(...I.toImg(sx2, sy2, g + h_)), R = hpx * v.sx;
         for (const [hh, r] of [[0.32, 0.34], [0.82, 0.25], [1.18, 0.18]]) { const [X, Y] = Z(hh); ctx.fillStyle = '#f6f7fa'; ctx.beginPath(); ctx.arc(X, Y, r * R, 0, 6.283); ctx.fill(); ctx.fillStyle = 'rgba(120,130,150,.25)'; ctx.beginPath(); ctx.arc(X + r * R * 0.3, Y + r * R * 0.2, r * R * 0.8, 0, 6.283); ctx.fill(); }
@@ -250,40 +255,6 @@ export async function spust() {
     for (const [x, y, q] of L) I.postava(v, x, y, q);
     for (const [f, kde] of P) if (kde === 'nad') f();
   }, { layer: 'world', priority: -2 });
-
-  // ---------- nebe: proudy větru při silném větru (od 6 m/s), jen při oddálení (jako mraky) ----------
-  // Stužky leží v souřadnicích obrázku mapy jako mraky: s pohledem se posouvají a zvětšují, samy plují po větru.
-  // Vlna běží po stužce, ke koncům se stužka ztrácí.
-  let PR = null;
-  const obrys = () => { const b = I.obrysMapy().flat(); return [Math.min(...b.map((p) => p[0])), Math.min(...b.map((p) => p[1])), Math.max(...b.map((p) => p[0])), Math.max(...b.map((p) => p[1]))]; };
-  I.onFrame((ctx, v) => {
-    const w = v.wind, fade = Math.max(0, Math.min(1, (0.45 - v.sx) / 0.25)); if (!w || !(w.ms >= 6)) return;
-    const dt = Math.min(0.1, v.dt > 1 ? v.dt / 1000 : v.dt || 0.016), t = v.now / 1000, sila = Math.min(1, (w.ms - 6) / 8);
-    if (!PR) { const [x0, y0, x1, y1] = obrys(); PR = { x0, y0, x1, y1, p: Array.from({ length: 30 }, (_, i) => ({ x: x0 + rnd(i + 1) * (x1 - x0), y: y0 + rnd(i + 2) * (y1 - y0), a: 0.6 + rnd(i + 5) * 0.8, f: rnd(i + 9) * 6.283 })) }; }
-    const L = Math.hypot(w.dx, w.dy) || 1, ux = w.dx / L, uy = w.dy / L, rv = Math.max(6, Math.min(60, w.ms * 4));   // stejná rychlost jako mraky
-    for (const c of PR.p) {                                        // pohyb i mimo obraz, ať po oddálení nejsou na stejném místě
-      c.x += ux * rv * dt; c.y += uy * rv * dt;
-      if (c.x > PR.x1 + 1500) c.x = PR.x0 - 1500; else if (c.x < PR.x0 - 1500) c.x = PR.x1 + 1500;
-      if (c.y > PR.y1 + 900) c.y = PR.y0 - 900; else if (c.y < PR.y0 - 900) c.y = PR.y1 + 900;
-    }
-    if (fade <= 0) return;
-    const n = Math.round((16 + sila * 14) * (v.eco ? 0.5 : 1)), dl = 1400 + sila * 900, A = 70 + sila * 50, K = 6.283 / (520 + sila * 200), SEG = 22;   // obrazové body mapy
-    ctx.lineCap = 'round'; ctx.lineWidth = 1.5;
-    for (let i = 0; i < n; i++) {
-      const c = PR.p[i];
-      if (!v.vis(c.x, c.y, dl * v.sx)) continue;
-      let px = null, py = null;
-      for (let k = 0; k <= SEG; k++) {
-        const q = k / SEG, s_ = (q - 0.5) * dl, vl = Math.sin(s_ * K - t * (1.2 + sila * 0.8) + c.f) * A * c.a * Math.sin(q * Math.PI);
-        const [X, Y] = v.toScreen(c.x + ux * s_ - uy * vl, c.y + uy * s_ + ux * vl);
-        if (px !== null) {
-          const al = (0.3 + sila * 0.25) * fade * Math.sin(q * Math.PI);
-          ctx.strokeStyle = `rgba(255,255,255,${al.toFixed(3)})`; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(X, Y); ctx.stroke();
-        }
-        px = X; py = Y;
-      }
-    }
-  }, { layer: 'sky', priority: -3 });
 
   // ---------- nebe: horkovzdušný balón (duben–září, za úsvitu 6–8:30 a večer 18–20:30, ne každý den, bez deště) ----------
   const stred = I.latLonToWorld(...I.worldToLatLon(0, 0));

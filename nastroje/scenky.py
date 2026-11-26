@@ -115,6 +115,17 @@ S['ulice'] = S['ulice'][::max(1, len(S['ulice']) // 120)][:120]
 if os.path.exists('assets/vanoce.json'):
     V = json.load(open('assets/vanoce.json', encoding='utf-8'))
     for st in V.get('stanky', []): S['advent'].append([st['lat'], st['lon'], st.get('a', 0), st.get('n', 6), st.get('w', 3.0), st.get('m', 1.2), V.get('od', '11-15'), V.get('do', '01-06')])
+# louky a parky pod korunami stromů (maska lesa z ortofota, nastroje/les.py) vynechat: scénka by byla schovaná za stromy
+if os.path.exists('build/les_maska.png'):
+    import numpy as np
+    from PIL import Image
+    Image.MAX_IMAGE_PIXELS = None
+    LM = np.asarray(Image.open('build/les_maska.png')) > 0; LX0, LY1, LMM = json.load(open('build/les_maska.json'))['x0y1m']
+    def stromy(q, r=12):
+        x, y = geo.to_local(q[1], q[0]); c, w_ = int((x - LX0) / LMM), int((LY1 - y) / LMM); k = int(r / LMM)
+        okno = LM[max(0, w_ - k):w_ + k + 1, max(0, c - k):c + k + 1]
+        return float(okno.mean()) if okno.size else 0.0
+    for k_ in ('louka', 'park'): S[k_] = [q for q in S[k_] if stromy(q) < 0.25]
 # čarodějnice: největší louka blízko středu města
 if S['louka']:
     S['carodejnice'] = sorted(S['louka'], key=lambda q: math.hypot(*geo.to_local(q[1], q[0])))[:1]
