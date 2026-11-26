@@ -374,3 +374,11 @@ html body .game-fold { display: none !important; }
 .hra-btn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; font-size: .88rem; }
 .hra-btn .ico { width: 14px; height: 14px; flex: none; color: var(--red); }
 body.noc .hra-btn .ico { color: var(--lamp); }
+
+/* legenda datových vrstev (web/mapa_vrstvy.js) */
+.data-legenda { margin: 8px 0 0; padding: 8px 10px; border: 1px solid var(--edge); border-radius: 12px; background: var(--panel-2); font-size: .8rem; }
+.data-legenda ul { list-style: none; margin: 4px 0 6px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 3px 10px; }
+.data-legenda li { display: flex; align-items: center; gap: 6px; }
+.data-legenda i { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.data-legenda i.sraf { background: repeating-linear-gradient(135deg, rgba(150,40,200,.7) 0 2px, transparent 2px 5px); border: 1px solid rgba(150,40,200,.5); }
+.data-legenda .zdroj { margin: 0; color: var(--muted); font-size: .72rem; }

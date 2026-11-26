@@ -24,7 +24,7 @@ export function spust() {
   const H = { on: false, x: 0, y: 0, h: 0, v: 0, alt: 70, rot: 0, keys: new Set(), zoom: null };
   const zapni = () => {
     const vw = I.getView(), [x, y] = I.imgToWorld(vw.x, vw.y);
-    Object.assign(H, { on: true, x, y, h: Math.PI / 4, v: 0, alt: 70, keys: new Set(), zoom: Math.max(vw.zoom, 6) });
+    Object.assign(H, { on: true, x, y, h: Math.PI / 4, v: 0, alt: 70, keys: new Set(), zoom: Math.max(vw.zoom, 30) });
     I.panTo(vw.x, vw.y, H.zoom, true);
     hud.hidden = false; document.body.classList.add('vrtulnik');
     hud.querySelector('[data-k="w"]').focus();
@@ -50,7 +50,8 @@ export function spust() {
   }
 
   // bod vrtulníku (podélně f, příčně s, výška dz nad vrtulníkem) -> obrazovka
-  const bod = (v, f, s, dz, x, y, h, z) => v.toScreen(...I.toImg(x + f * Math.cos(h) - s * Math.sin(h), y + f * Math.sin(h) + s * Math.cos(h), z + dz));
+  const SC = 2.5;                                             // model zvětšený (ve skutečné velikosti 12 m by byl z výšky jen tečka)
+  const bod = (v, f, s, dz, x, y, h, z) => { f *= SC; s *= SC; dz *= SC; return v.toScreen(...I.toImg(x + f * Math.cos(h) - s * Math.sin(h), y + f * Math.sin(h) + s * Math.cos(h), z + dz)); };
   const mnohouhelnik = (ctx, P, barva) => { ctx.fillStyle = barva; ctx.beginPath(); P.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); ctx.fill(); };
 
   I.onFrame((ctx, v) => {
@@ -67,7 +68,7 @@ export function spust() {
     if (!vMape) { H.x -= Math.cos(H.h) * H.v * dt * 2; H.y -= Math.sin(H.h) * H.v * dt * 2; H.v *= 0.5; }
     H.rot += dt * 28;
     const g = I.gz(H.x, H.y), z = g + H.alt, [gx, gy] = I.toImg(H.x, H.y, g);
-    I.panTo(gx, gy - (z - g) * 0.4, undefined, false);       // kamera mezi stínem a vrtulníkem
+    const [, hy] = I.toImg(H.x, H.y, z); I.panTo(gx, gy + (hy - gy) * 0.65, undefined, false);   // kamera mezi stínem a vrtulníkem (blíž vrtulníku)
     // stín na terénu
     const [sx_, sy_] = v.toScreen(gx, gy), r = Math.max(4, Math.abs(bod(v, 6, 0, 0, H.x, H.y, H.h, g)[0] - sx_));
     ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(sx_, sy_, r, r * 0.5, 0, 0, 6.283); ctx.fill();
@@ -83,17 +84,32 @@ export function spust() {
     const tr = (H.rot * 1.7) % 6.283, tl = 0.9;                // ocasní vrtulka
     ctx.strokeStyle = 'rgba(40,40,44,.8)'; ctx.lineWidth = Math.max(1, r * 0.05); ctx.beginPath();
     ctx.moveTo(...P(-7.5 + Math.cos(tr) * tl, 0.35, 1.0 + 2.6 * nakl + Math.sin(tr) * tl)); ctx.lineTo(...P(-7.5 - Math.cos(tr) * tl, 0.35, 1.0 + 2.6 * nakl - Math.sin(tr) * tl)); ctx.stroke();
-    // kabina: spodek tmavší, vršek v barvě, okno vpředu
-    const obrys = (dz, m) => Array.from({ length: 14 }, (_, i) => { const a = i / 14 * 6.283; return P(Math.cos(a) * 2.4 * m, Math.sin(a) * 1.3 * m, dz - Math.cos(a) * 2.4 * nakl * 0.3); });
-    mnohouhelnik(ctx, obrys(-0.5, 0.9), '#7a0006');
-    mnohouhelnik(ctx, obrys(0.4, 1), '#c40006');
-    mnohouhelnik(ctx, obrys(1.2, 0.75), '#e23a35');
-    mnohouhelnik(ctx, [P(2.3, -0.9, 0.2), P(2.3, 0.9, 0.2), P(1.2, 0.9, 1.2), P(1.2, -0.9, 1.2)], 'rgba(150,200,235,.95)');
+    // trup: kapka vytažená do výšky (spodní a horní obrys, boky mezi nimi stínované podle světla od severozápadu),
+    // vpředu prosklená kabina; kreslí se odzadu dopředu (podle hloubky na obrazovce)
+    const N = 18, PROF = Array.from({ length: N }, (_, i) => {
+      const a = i / N * 6.283, c = Math.cos(a), sn = Math.sin(a);
+      return [c > 0 ? c * 2.5 : c * 2.1, sn * (c > 0 ? 1.15 : 1.15 - 0.35 * -c)];   // zezadu užší
+    });
+    const zdz = (f, dz) => dz - f * nakl * 0.35;                    // předklon trupu
+    const dole = PROF.map(([f, s_]) => P(f * 0.92, s_ * 0.85, zdz(f, -0.6))), stred = PROF.map(([f, s_]) => P(f, s_, zdz(f, 0.3))), nahore = PROF.map(([f, s_]) => P(f * 0.8, s_ * 0.75, zdz(f, 1.25)));
+    const sklo = (i) => PROF[i][0] > 0.9;                             // přední část trupu je kabina
+    const steny = [];
+    for (let i = 0; i < N; i++) {
+      const k = (i + 1) % N, nf = (PROF[i][0] + PROF[k][0]) / 2, ns = (PROF[i][1] + PROF[k][1]) / 2;
+      const sv = 0.55 + 0.45 * Math.max(0, (Math.cos(H.h) * nf - Math.sin(H.h) * ns) * -0.6 + (Math.sin(H.h) * nf + Math.cos(H.h) * ns) * 0.6) / 2.5;   // světlo ze SZ
+      steny.push({ P: [dole[i], dole[k], stred[k], stred[i]], y: (dole[i][1] + dole[k][1]) / 2, c: `rgb(${Math.round(160 * sv + 40)},${Math.round(8 * sv)},${Math.round(14 * sv)})` });
+      steny.push({ P: [stred[i], stred[k], nahore[k], nahore[i]], y: (stred[i][1] + stred[k][1]) / 2 - 0.01, c: sklo(i) && sklo(k) ? `rgba(${Math.round(120 * sv + 60)},${Math.round(170 * sv + 50)},${Math.round(200 * sv + 40)},.97)` : `rgb(${Math.round(185 * sv + 50)},${Math.round(30 * sv)},${Math.round(30 * sv)})` });
+    }
+    steny.sort((a, b) => a.y - b.y);
+    for (const w of steny) mnohouhelnik(ctx, w.P, w.c);
+    mnohouhelnik(ctx, nahore, '#d8282a');                            // střecha trupu
+    mnohouhelnik(ctx, [P(-0.3, -0.35, zdz(-0.3, 1.25)), P(0.6, -0.35, zdz(0.6, 1.25)), P(0.6, 0.35, zdz(0.6, 1.75)), P(-0.3, 0.35, zdz(-0.3, 1.75))], '#3a3a40');   // motor pod rotorem
     // hlavní rotor: kotouč a dva listy
-    const hz = 1.9;
+    const hz = 2.05;
     ctx.fillStyle = 'rgba(30,30,34,.12)'; ctx.beginPath(); Array.from({ length: 16 }, (_, i) => { const a = i / 16 * 6.283; return P(Math.cos(a) * 5.5, Math.sin(a) * 5.5, hz); }).forEach((p, i) => (i ? ctx.lineTo(...p) : ctx.moveTo(...p))); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = 'rgba(30,30,34,.85)'; ctx.lineWidth = Math.max(1, r * 0.07);
-    for (const o of [0, Math.PI]) { const a = H.rot + o; ctx.beginPath(); ctx.moveTo(...P(0, 0, hz)); ctx.lineTo(...P(Math.cos(a) * 5.5, Math.sin(a) * 5.5, hz)); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(...P(0.15, 0, zdz(0.15, 1.7))); ctx.lineTo(...P(0.15, 0, hz)); ctx.stroke();   // stožár
+    for (const o of [0, Math.PI]) { const a = H.rot + o; ctx.beginPath(); ctx.moveTo(...P(0.15, 0, hz)); ctx.lineTo(...P(0.15 + Math.cos(a) * 5.8, Math.sin(a) * 5.8, hz)); ctx.stroke(); }
     // údaje
     const st = document.getElementById('vrtulnikStav');
     if (st) st.textContent = `${Math.round(Math.abs(H.v) * 3.6)} km/h · ${Math.round(H.alt)} m`;

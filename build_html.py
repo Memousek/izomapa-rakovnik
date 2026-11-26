@@ -172,7 +172,7 @@ if (MESTO.get('hydro') or {}).get('stanice'):    # stanice ČHMÚ pro functions/
     json.dump({'stanice': MESTO['hydro']['stanice']}, open('site/hydro_zdroj.json', 'w', encoding='utf-8'))
 if (MESTO.get('kalendar_web') or {}).get('url'):   # adresa kalendáře akcí pro functions/api/kalendar.js
     json.dump({k: MESTO['kalendar_web'][k] for k in ('url', 'zdroj') if MESTO['kalendar_web'].get(k)}, open('site/kalendar_zdroj.json', 'w', encoding='utf-8'), ensure_ascii=False)
-for _f in ('akce_mista.json', 'zapasy.json', 'firmy.json', 'scenky.json', 'pamatna.json'):      # místa konání akcí (nastroje/akce_mista.py) a ručně vedené domácí zápasy
+for _f in ('akce_mista.json', 'zapasy.json', 'firmy.json', 'scenky.json', 'pamatna.json', 'zaplavy.json', 'stari_budov.json'):      # místa konání akcí (nastroje/akce_mista.py) a ručně vedené domácí zápasy
     if os.path.exists(f'assets/{_f}'): shutil.copy(f'assets/{_f}', f'site/{_f}')
 if os.path.exists('site/mhd.json'):                # linky v mapě pro výluky PID (functions/api/vyluky.js)
     json.dump({'linky': sorted({r[0] for r in json.load(open('site/mhd.json', encoding='utf-8'))['routes']})}, open('site/vyluky_zdroj.json', 'w', encoding='utf-8'))

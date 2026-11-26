@@ -36,6 +36,8 @@
     gz: (x, y) => gz(x, y),
     postava: (v, x, y, opts) => postavaApi(v, x, y, opts),           // chodec jako v mapě: {oi, kid, back, mir, frame, outfit}
     obrysMapy: () => cam.grounds.map((g) => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => { const x = g.cx + a * cam.half, y = g.cy + b * cam.half; return toImg(x, y, gz(x, y)); })),   // čtverce mapy v obrázku
+    // načtené čtverce (budovy s obrysem hull v obrázku, oid z Overture): fn(k, data) teď pro načtené a pak pro každý další
+    onChunkData(fn) { for (const k in CH) if (CH[k].buildings) fn(k, CH[k]); onChunk.push((k, d) => fn(k, d)); },
     vBudove: (x, y) => vBudove(x, y),                                // bod světa leží v půdorysu budovy
     zakryto: (x, y, h) => zakrytoBod(x, y, h ?? gz(x, y)),          // postava v bodě světa je za stromem, domem nebo výzdobou
     latLonToWorld: (lat, lon) => [(lon - cam.lon0) * cam.kx, (lat - cam.lat0) * cam.ky],
@@ -105,6 +107,7 @@
     import('./mapa_firmy.js').then((m) => m.spust({ ukazKartu: ukaz })).catch(() => {});
     import('./mapa_pamatna.js').then((m) => m.spust({ ukazKartu: ukaz })).catch(() => {});   // památná místa (nastroje/pamatna.py)
     import('./mapa_vrtulnik.js').then((m) => m.spust()).catch(() => {});   // řízení vrtulníku (záložka Objevuj)
+    import('./mapa_vrstvy.js').then((m) => m.spust()).catch(() => {});   // datové vrstvy: záplavy, stáří domů
     import('./mapa_scenky.js').then((m) => m.spust()).catch(() => {});   // drobné scénky (rybáři, draci, čarodějnice…), site/scenky.json
     import('./mapa_ovzdusi.js').then((m) => m.spust({ lat: OV.cam.lat0, lon: OV.cam.lon0, panelPo: $('predpovedBox') })).catch(() => {});
     if ({{KALENDAR}}) import('./mapa_kalendar.js').then((m) => m.spust({ panelPo: $('dnesTop'), ukazKartu: ukaz, jdi })).catch(() => {});
