@@ -90,7 +90,28 @@ export function vytvorZnacky(THREE, scene, api) {
 
   // ---------- poloha značky u silnice ----------
   // r: kus silnice, s: staničení, dir: směr jízdy (1 = k vyššímu staničení), vlevo: na levé straně (B2 u konce jednosměrky ne)
+  // leží bod na vozovce některé silnice? (u křižovatky by sloupek stál v příčné ulici)
+  function naVozovce(x, y) {
+    for (const q of roads) {
+      const W = (PUL[q.c] || 3) * (q.o ? 0.7 : 1) + 0.6, w0 = q.w[0];
+      if (Math.abs(w0[0] - x) > q.L + W || Math.abs(w0[1] - y) > q.L + W) continue;
+      for (let i = 1; i < q.w.length; i++) {
+        const a = q.w[i - 1], b = q.w[i], dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy;
+        const t = l2 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / l2)) : 0;
+        if (Math.hypot(a[0] + dx * t - x, a[1] + dy * t - y) < W) return true;
+      }
+    }
+    return false;
+  }
   function u(r, s, dir) {
+    // posun po silnici od křižovatky (pak k ní), dokud sloupek stojí ve vozovce; nejvýš 15 m
+    for (const ds of [0, -1.5, -3, -4.5, -6, -8, -10, -12.5, -15, 1.5, 3, 4.5]) {
+      const p = u0(r, s + ds * dir, dir);
+      if (!naVozovce(p.x, p.y)) return p;
+    }
+    return u0(r, s, dir);
+  }
+  function u0(r, s, dir) {
     const o = along(r, Math.max(0, Math.min(r.L, s))), L = Math.hypot(o.dx, o.dy) || 1, hx = o.dx / L * dir, hy = o.dy / L * dir;
     const off = (r.o ? (PUL[r.c] || 3) * 0.7 : PUL[r.c] || 3) + 1.1;
     let x = o.x + hy * off, y = o.y - hx * off;

@@ -831,7 +831,8 @@ for _, r in inf.iterrows():
 #  - plošné parkoviště: kolmo k zmapovaným uličkám, z obou stran; bez uliček vzor řada 5 m – ulička 6 m – řada 5 m
 #    (řady zády k sobě), stání jen tam, kde se celé vejde do plochy a nezasahuje do vozovky
 cars = []
-drive_cover = shapely.prepared.prep(shapely.unary_union([l.buffer(w / 2 + 0.2) for l, w, c, n in drive_lines]) or Point(1e9, 1e9).buffer(1))
+DRIVE_GEOM = shapely.unary_union([l.buffer(w / 2 + 0.2) for l, w, c, n in drive_lines]) or Point(1e9, 1e9).buffer(1)
+drive_cover = shapely.prepared.prep(DRIVE_GEOM)
 STREET_PK = {'street_side', 'lane', 'on_kerb', 'half_on_kerb', 'on_street', 'street'}
 def stall(cx, cy, ang, ln=4.8, wd=2.4):
     """obdélník stání: ang = směr podélné osy auta"""
@@ -1677,11 +1678,32 @@ for l, w, c, n in drive_lines:
         px_, py_ = pix(x, y)
         ok = AREA.contains(Point(x, y)) and 0 <= px_ < TWE and 0 <= py_ < TWE and bm_arr[py_, px_] == 0
         if ok: ok = len(bcent.query(Point(x, y).buffer(60))) >= 3   # jen v zástavbě (aspoň 3 budovy do 60 m), mezi poli lampy nejsou
+        if ok: ok = not drive_cover.contains(Point(x, y))     # u křižovatky by stála v příčné ulici
         if ok and lamp_tree is not None:
             i = lamp_tree.nearest(Point(x, y)); ok = lamp_pts[i].distance(Point(x, y)) > 18
         if ok and not any(abs(x - s[0]) < 12 and abs(y - s[1]) < 12 for s in props['lamp'][-6:]):
             props['lamp'].append([x, y, float(ground(x, y)), ang])
         d += 34; side = -side
+
+# lampy, sloupy, lavičky a koše z dat ve vozovce (bod v OSM na ose ulice, nepřesná poloha): k nejbližšímu okraji + 0,8 m
+_okraj = DRIVE_GEOM.boundary
+def mimo_vozovku(x, y):
+    for _ in range(3):
+        p = Point(x, y)
+        if not drive_cover.contains(p): return x, y
+        q = _okraj.interpolate(_okraj.project(p)); dx, dy = q.x - x, q.y - y; d = math.hypot(dx, dy) or 1
+        x, y = q.x + dx / d * 0.8, q.y + dy / d * 0.8
+    return None if drive_cover.contains(Point(x, y)) else (x, y)
+_presunuto = 0
+for _k in ('lamp', 'pole', 'bench', 'bin', 'recycling'):
+    _nove = []
+    for it in props[_k]:
+        m = mimo_vozovku(it[0], it[1])
+        if m is None: _presunuto += 1; continue
+        if (m[0], m[1]) != (it[0], it[1]): _presunuto += 1; it = [m[0], m[1], float(ground(*m))] + list(it[3:])
+        _nove.append(it)
+    props[_k] = _nove
+if _presunuto: print('mobiliář z vozovky přesunut/vynechán:', _presunuto)
 
 # popelnice před rodinnými domy, u chodníku na straně domu
 props['wheelie'] = []

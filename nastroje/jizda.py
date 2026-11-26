@@ -96,6 +96,9 @@ def svet_js():
     b = src.index('// ---------- rozsah obrázku ----------')
     kod = src[a:b]
     kod = 'const XMAS = false;   // vánoční vrstva dlaždic (render.html mode=xmas) ve 3D není' + chr(10) + kod
+    # vánoční strom, stánky a kluziště: ve 3D běžná tělesa, jen v období z assets/vanoce.json (O.vanoce určí stránka)
+    kod = jednou(kod, '  if (XMAS) {\n    const ROOF', '  if (O.vanoce) {\n    const ROOF')
+    kod = jednou(kod, 'new THREE.Mesh(geom(V), ovMat); m.userData.ov = true;', 'new THREE.Mesh(geom(V), solidMat); m.castShadow = true;')
     r0 = kod.index('const renderer = new THREE.WebGLRenderer('); r1 = kod.index('document.body.appendChild(renderer.domElement);')
     kod = kod[:r0] + kod[r1 + len('document.body.appendChild(renderer.domElement);'):]           # renderer dodá stránka
     kod = jednou(kod, 'new THREE.WebGLRenderTarget(8192, 8192, { depthTexture: new THREE.DepthTexture(8192, 8192, THREE.FloatType) })',
@@ -332,6 +335,7 @@ def vnitrek(scene):
     scene['trees'] = [t for t in scene['trees'] if uvnitr(t[0], t[1])]
     scene['cars'] = [c for c in scene['cars'] if uvnitr(c[0], c[1])]   # zaparkovaná auta jen na parkovištích (mesto.json auta_u_krajnice)
     for k, v in scene['props'].items(): scene['props'][k] = [q for q in v if uvnitr(q[0], q[1])]
+    for k in ('xmas', 'stalls', 'rinks'): scene[k] = [q for q in scene.get(k) or [] if uvnitr(q[0], q[1])]   # vánoční výzdoba
     scene['ms'] = 0; scene.pop('hext', None)        # bez neviditelného terénu sousedů
     return scene
 
@@ -396,6 +400,8 @@ def main():
     t = (t.replace('{{TITULEK}}', html.escape(M['titulek'])).replace('{{MESTO}}', html.escape(M['nazev'])).replace('{{OBDOBI}}', json.dumps(OBDOBI))
           .replace('{{MHD_RT}}', json.dumps(mhd.get('realtime') if mhd.get('gtfs') else None))
           .replace('{{MULTIPLAYER}}', json.dumps(M.get('multiplayer') or None))   # adresa místnosti multiplayeru (multiplayer/worker.js)
+          .replace('{{VANOCE}}', json.dumps({k: v for k, v in json.load(open('assets/vanoce.json', encoding='utf-8')).items() if k in ('od', 'do')}
+                                            if os.path.exists('assets/vanoce.json') else None))
           .replace('{{AUTOBUS}}', json.dumps(M.get('autobus', 'liberec')))
           .replace('{{VLAK}}', json.dumps(M['vlak'] if isinstance(M.get('vlak'), dict) else {'vychozi': M['vlak'], 'linky': {}} if M.get('vlak') else None))
           .replace('{{MHD_ZDROJ}}', f', jízdní řády{" a polohy vozidel" if mhd.get("realtime") else ""} © <a href="{html.escape(mhd["zdroj_url"] or "")}" target="_blank" rel="noopener">{html.escape(mhd["zdroj"])}</a>'

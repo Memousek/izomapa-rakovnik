@@ -361,7 +361,13 @@ import { vytvorZnaceni, vytvorPruhy } from './jizda/znaceni.js';
 THREE.ColorManagement.enabled = false;
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const OBDOBI = {{OBDOBI}}, MHD_RT = {{MHD_RT}}, VLAK = {{VLAK}}, AUTOBUS = {{AUTOBUS}};   // z nastroje/jizda.py (mesto.json)
+const OBDOBI = {{OBDOBI}}, MHD_RT = {{MHD_RT}}, VLAK = {{VLAK}}, AUTOBUS = {{AUTOBUS}}, VANOCE = {{VANOCE}};
+// vánoční výzdoba (strom, stánky): od–do z assets/vanoce.json ("MM-DD", přes Nový rok), podle dnešního data
+const VANOCE_TED = (() => {
+  if (!VANOCE?.od || !VANOCE?.do) return false;
+  const d = new Date(), md = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return VANOCE.od <= VANOCE.do ? md >= VANOCE.od && md <= VANOCE.do : md >= VANOCE.od || md <= VANOCE.do;
+})();   // z nastroje/jizda.py (mesto.json)
 // multiplayer: mesto.json "multiplayer" = adresa místnosti (wss://…/mistnost/<město>, server multiplayer/worker.js);
 // na tomto počítači jde zkusit i bez ní: jizda.html?mp=ws://127.0.0.1:8787/mistnost/test
 const MP_URL = (() => { const q = new URLSearchParams(location.search).get('mp'); return q && /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /^wss?:\/\//.test(q) ? q : {{MULTIPLAYER}}; })();
@@ -822,7 +828,7 @@ async function nactiCtverec(i, j) {
   CH.set(key, { loading: true, cx, cy });
   $('stav').textContent = `Stavím čtverec ${i}, ${j}…`;
   await new Promise((r) => setTimeout(r, 30));             // ať se stihne vykreslit zpráva
-  const res = await postavCtverec(THREE, renderer, { dir: `jizda/${key}`, obdobi: OBD, orto: ORTO, textury: TEXTURY, uCas: CAS_V, vodaH: VODA.h, vodaK: VODA.k, cx, cy, stin: DOTYK ? 2048 : 4096, uMokro: POVRCH.uMokro, uSnih: POVRCH.uSnih, uDet: DETAIL.uDet, uDetS: DETAIL.uDetS, uOkna: OKNA, stinN: STIN_N, slunce: slunceTed });
+  const res = await postavCtverec(THREE, renderer, { dir: `jizda/${key}`, obdobi: OBD, orto: ORTO, textury: TEXTURY, uCas: CAS_V, vodaH: VODA.h, vodaK: VODA.k, cx, cy, stin: DOTYK ? 2048 : 4096, uMokro: POVRCH.uMokro, uSnih: POVRCH.uSnih, uDet: DETAIL.uDet, uDetS: DETAIL.uDetS, uOkna: OKNA, stinN: STIN_N, slunce: slunceTed, vanoce: VANOCE_TED });
   if (POVRCH.zimni) for (const m of res.allMats) if (m.uniforms?.uSeason) m.uniforms.uSeason.value = 3;
   const grp = new THREE.Group();
   while (res.world.children.length) grp.add(res.world.children[0]);
@@ -2067,8 +2073,10 @@ function vzhledRozhrani() {                                  // přístupnost a 
   document.body.classList.toggle('mene-pohybu', !!NAST.menePohybu);
   document.body.classList.toggle('kontrast', !!NAST.kontrast);
   document.documentElement.style.fontSize = NAST.pismo === 100 ? '' : `${NAST.pismo}%`;
-  $('zamer').hidden = !NAST.zamer;
+  zamerVidet = null;
 }
+let zamerVidet = null;                                       // tečka jen pěšky (v autě a v autobusu nemíří, jen překáží)
+function zamerStav() { const v = !!NAST.zamer && !hrac.vAuto && !hrac.bus; if (v !== zamerVidet) { zamerVidet = v; $('zamer').hidden = !v; } }
 const NAST_PANEL = vykresliNastaveni($('nastaveni'), NAST, pouzijNastaveni);
 pouzijNastaveni('fov', NAST.fov);
 // dopravní značky podle skutečnosti (jizda/znacky.js; data z OSM: nastroje/znacky.py)
@@ -2292,6 +2300,7 @@ function frame(now) {
   HRACI.update(dt, now, camera);
   ZVUK.update(dt);
   // kamera
+  zamerStav();
   if (!hrac.vAuto && KOKPIT.skupina.visible) KOKPIT.update(null, null, 0, false);   // vystoupil: interiér pryč
   if (hrac.vAuto) {
     polohaAuta();
