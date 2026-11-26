@@ -722,5 +722,27 @@
    "lm": "hodiny_sloup",
    "only": 1
   }
+ },
+ {
+  "name": "Mariánský sloup",
+  "lat": 50.104033,
+  "lon": 13.731105,
+  "text": "",
+  "spec": {
+   "wc": [
+    190,
+    175,
+    145
+   ],
+   "rc": [
+    190,
+    175,
+    145
+   ],
+   "r": "flat",
+   "win": 4,
+   "lm": "mariansky_sloup",
+   "only": 1
+  }
  }
 ]

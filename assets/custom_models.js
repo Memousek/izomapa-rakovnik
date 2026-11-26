@@ -13,6 +13,50 @@ export const landmarks = {
     pushBox(X, f, -0.2, 0.2, -0.2, 0.2, g + 4.2, g + 4.4, tmava, [0, 1, 1, 0]);
     return true;
   },
+  // Mariánský sloup na Husově náměstí (1749, Kryštof Knopf, 12 m): stupně, podstavec se čtyřmi konzolami se sochami
+  // sv. Václava, Víta, Prokopa a Vojtěcha, sloup s hlavicí, nahoře Panna Maria s Ježíškem (zlatá svatozář).
+  // Pískovec, natočený podél náměstí. dominanty.json "lm": "mariansky_sloup", "only": 1
+  mariansky_sloup(b, { X, frameAt, pushBox }) {
+    const n = b.p.length, x = b.p.reduce((a, q) => a + q[0], 0) / n, y = b.p.reduce((a, q) => a + q[1], 0) / n;
+    const f = frameAt(x, y, 0, -0.16), g = b.g, W = [0, 1, 1, 0], W2 = [0, 1, 0, 0];
+    const kamen = [0.74, 0.68, 0.56], svetly = [0.82, 0.77, 0.66], tmavy = [0.58, 0.53, 0.44], socha = [0.86, 0.83, 0.76], zlato = [0.95, 0.78, 0.32];
+    // tři stupně
+    pushBox(X, f, -2.6, 2.6, -2.6, 2.6, g - 0.4, g + 0.25, tmavy, W);
+    pushBox(X, f, -2.2, 2.2, -2.2, 2.2, g + 0.25, g + 0.5, kamen, W);
+    pushBox(X, f, -1.8, 1.8, -1.8, 1.8, g + 0.5, g + 0.75, kamen, W);
+    // podstavec: sokl, tělo s vpadlinami, římsa
+    pushBox(X, f, -1.2, 1.2, -1.2, 1.2, g + 0.75, g + 1.1, svetly, W);
+    pushBox(X, f, -1.0, 1.0, -1.0, 1.0, g + 1.1, g + 2.9, kamen, W2);
+    for (const [s0, s1, t0, t1] of [[-0.7, 0.7, -1.04, -1.0], [-0.7, 0.7, 1.0, 1.04], [-1.04, -1.0, -0.7, 0.7], [1.0, 1.04, -0.7, 0.7]])
+      pushBox(X, f, s0, s1, t0, t1, g + 1.4, g + 2.6, tmavy, W2);                                     // vpadlé pole (nápis)
+    pushBox(X, f, -1.25, 1.25, -1.25, 1.25, g + 2.9, g + 3.25, svetly, W);
+    // čtyři konzoly v rozích se sochami světců (stojící postava: plášť, hlava, svatozář)
+    for (const [cs, ct] of [[-1.15, -1.15], [1.15, -1.15], [1.15, 1.15], [-1.15, 1.15]]) {
+      pushBox(X, f, cs - 0.45, cs + 0.45, ct - 0.45, ct + 0.45, g + 2.2, g + 3.25, kamen, W);
+      pushBox(X, f, cs - 0.5, cs + 0.5, ct - 0.5, ct + 0.5, g + 3.25, g + 3.4, svetly, W);
+      pushBox(X, f, cs - 0.28, cs + 0.28, ct - 0.24, ct + 0.24, g + 3.4, g + 4.4, socha, W2);           // plášť
+      pushBox(X, f, cs - 0.2, cs + 0.2, ct - 0.17, ct + 0.17, g + 4.4, g + 4.95, socha, W2);            // ramena
+      pushBox(X, f, cs - 0.12, cs + 0.12, ct - 0.12, ct + 0.12, g + 4.95, g + 5.25, socha, W2);         // hlava
+      pushBox(X, f, cs - 0.03, cs + 0.03, ct - 0.03, ct + 0.03, g + 4.0, g + 5.5, tmavy, W2);           // berla, kopí
+    }
+    // sloup: patka, dřík (osmiboký z kvádrů), hlavice
+    pushBox(X, f, -0.6, 0.6, -0.6, 0.6, g + 3.25, g + 3.7, svetly, W);
+    for (const r of [0, Math.PI / 4]) {
+      const fr = frameAt(x, y, 0, -0.16 + r);
+      pushBox(X, fr, -0.34, 0.34, -0.34, 0.34, g + 3.7, g + 10.4, kamen, W2);
+    }
+    pushBox(X, f, -0.5, 0.5, -0.5, 0.5, g + 10.4, g + 10.75, svetly, W);                              // hlavice
+    pushBox(X, f, -0.62, 0.62, -0.62, 0.62, g + 10.75, g + 10.95, kamen, W);
+    // Panna Maria s Ježíškem a svatozář
+    pushBox(X, f, -0.22, 0.22, -0.22, 0.22, g + 10.95, g + 11.15, tmavy, W);                          // oblak, měsíc
+    pushBox(X, f, -0.24, 0.24, -0.2, 0.2, g + 11.15, g + 12.0, socha, W2);                              // šat
+    pushBox(X, f, -0.18, 0.18, -0.15, 0.15, g + 12.0, g + 12.45, socha, W2);                            // ramena
+    pushBox(X, f, 0.12, 0.34, -0.12, 0.08, g + 11.95, g + 12.25, socha, W2);                            // Ježíšek v náručí
+    pushBox(X, f, -0.1, 0.1, -0.1, 0.1, g + 12.45, g + 12.72, socha, W2);                               // hlava
+    pushBox(X, f, -0.2, 0.2, -0.04, 0.04, g + 12.72, g + 12.78, zlato, W2);                             // svatozář s hvězdami
+    pushBox(X, f, -0.04, 0.04, -0.2, 0.2, g + 12.72, g + 12.78, zlato, W2);
+    return true;
+  },
   // obloukový hangár na letišti: valená klenba nad nízkými zdmi, osa podél delší strany (dominanty.json, "lm": "hangar_oblouk")
   hangar_oblouk(b, { X, R, pushQuad, pushTri, C255, tv }) {
     const p = b.p; if (p.length < 4) return false;
