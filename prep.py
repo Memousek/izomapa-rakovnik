@@ -1740,6 +1740,15 @@ for _, r in inf.iterrows():
         xs_, ys_ = np.array(l.coords).T
         lines_out[kk].append([[round(x, 2), round(y, 2), round(float(zz), 2)] for x, y, zz in zip(xs_, ys_, ground(xs_, ys_))])
 for k in props: props[k] = [[round(v, 3) for v in q] for q in props[k]]
+# žádné zaparkované auto v jízdním pruhu: střed auta dál než 1 m do vozovky kterékoli silnice (i příčné u křižovatky) -> pryč
+def _v_pruhu(x, y):
+    pt = Point(x, y)
+    for i in drive_tree.query(pt.buffer(15)):
+        l, w, c, n = drive_lines[int(i)]
+        if l.distance(pt) < w / 2 - 1.0: return True
+    return False
+_n0 = len(cars); cars = [q for q in cars if not _v_pruhu(q[0], q[1])]
+if _n0 != len(cars): print('zaparkovaná auta z jízdního pruhu pryč:', _n0 - len(cars))
 cars = [[round(x, 2), round(y, 2), round(float(ground(x, y)), 2), round(a, 3), ci] for x, y, a, ci in cars]
 cars += [[round(x, 2), round(y, 2), round(z, 2), round(a, 3), ci] for x, y, z, a, ci in ROOF_CARS if AREA.contains(Point(x, y))]   # parkoviště na střechách
 if not geo.MESTO.get('parkovana_auta', True): cars = []   # mesto.json "parkovana_auta": false = žádná zaparkovaná auta (ani na parkovištích)
