@@ -103,6 +103,7 @@
     if ({{HYDRO}}) import('./mapa_hydro.js').then((m) => m.spust({ panelPo: $('dnesTop'), ukazKartu: ukaz })).catch(() => {});
     import('./mapa_nebe.js').then((m) => m.spust({ lat: OV.cam.lat0, lon: OV.cam.lon0, panelPo: $('dnesTop') })).catch(() => {});
     import('./mapa_firmy.js').then((m) => m.spust({ ukazKartu: ukaz })).catch(() => {});
+    import('./mapa_pamatna.js').then((m) => m.spust({ ukazKartu: ukaz })).catch(() => {});   // památná místa (nastroje/pamatna.py)
     import('./mapa_scenky.js').then((m) => m.spust()).catch(() => {});   // drobné scénky (rybáři, draci, čarodějnice…), site/scenky.json
     import('./mapa_ovzdusi.js').then((m) => m.spust({ lat: OV.cam.lat0, lon: OV.cam.lon0, panelPo: $('predpovedBox') })).catch(() => {});
     if ({{KALENDAR}}) import('./mapa_kalendar.js').then((m) => m.spust({ panelPo: $('dnesTop'), ukazKartu: ukaz, jdi })).catch(() => {});

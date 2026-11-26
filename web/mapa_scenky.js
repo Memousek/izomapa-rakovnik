@@ -93,16 +93,21 @@ export async function spust() {
       kresli(() => bod(ctx, v, px + 0.35, py, 0.55, '#8a6a3a', Math.max(2, u * 2.5)), 'nad');
     });
     // draci: září–říjen 14–18 h, o víkendu skoro vždy, ve všední den občas; dítě a dospělý, drak 25 m nad loukou
-    if ((m === 8 || m === 9) && !dest && h >= 14 && h < 18) M.louka.forEach(({ w: [x, y] }, k) => {
+    // drak letí po větru (v.wind z Open-Meteo: e, n = kam fouká, ms = m/s); za bezvětří (pod 1,5 m/s) nelétá
+    const vitr = v.wind && Number.isFinite(v.wind.ms) ? v.wind : { e: 0.8, n: 0.6, ms: 4 };
+    if ((m === 8 || m === 9) && !dest && h >= 14 && h < 18 && vitr.ms >= 1.5) M.louka.forEach(({ w: [x, y] }, k) => {
       if (rnd(D * 7 + k) > (vikend ? 0.6 : 0.2)) return;
-      pridej(x, y, { oi: 800 + k, kid: true, back: true });
-      pridej(x + 1.2, y - 0.4, { oi: 820 + k, back: true });
-      const vx = x + 14 + Math.sin(t * 0.3 + k) * 3, vy = y + 10, vz = 22 + Math.sin(t * 0.5 + k) * 3;
+      const sm = otoc(x, y, Math.atan2(vitr.n, vitr.e));          // lidé koukají za drakem
+      pridej(x, y, { oi: 800 + k, kid: true, ...sm });
+      pridej(x - vitr.n * 1.2, y + vitr.e * 1.2, { oi: 820 + k, ...sm });
+      const sila = Math.min(vitr.ms, 12), delka = 16 + sila * 1.5, kyv = (0.12 + sila * 0.03) * Math.sin(t * (0.4 + sila * 0.08) + k);
+      const ex = vitr.e * Math.cos(kyv) - vitr.n * Math.sin(kyv), ny = vitr.e * Math.sin(kyv) + vitr.n * Math.cos(kyv);
+      const vx = x + ex * delka, vy = y + ny * delka, vz = 12 + sila * 1.6 + Math.sin(t * (0.6 + sila * 0.1) + k) * (1 + sila * 0.25);
       kresli(() => {
         cara(ctx, v, [x, y, 1.0], [vx, vy, vz], 'rgba(240,240,240,.7)', 1);
         const [X, Y] = v.toScreen(...I.toImg(vx, vy, I.gz(vx, vy) + vz)), s = Math.max(6, u * 12), c = ['#e0302a', '#f0c030', '#2a7fd0', '#2fa060'][k % 4];
         ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(X, Y - s); ctx.lineTo(X + s * 0.7, Y); ctx.lineTo(X, Y + s * 1.2); ctx.lineTo(X - s * 0.7, Y); ctx.closePath(); ctx.fill();
-        for (let j = 1; j <= 4; j++) { ctx.fillStyle = j % 2 ? '#f4f2ea' : c; ctx.fillRect(X - s * 0.15 + Math.sin(t * 3 + j) * s * 0.3, Y + s * (1.2 + j * 0.45), s * 0.3, s * 0.25); }
+        for (let j = 1; j <= 4; j++) { ctx.fillStyle = j % 2 ? '#f4f2ea' : c; ctx.fillRect(X - s * 0.15 + Math.sin(t * (2 + sila * 0.5) + j) * s * (0.15 + sila * 0.04), Y + s * (1.2 + j * 0.45), s * 0.3, s * 0.25); }
       }, 'nad');
     });
     // pikniky: červen–srpen o víkendu 11–18 h bez deště
@@ -140,13 +145,30 @@ export async function spust() {
     for (const [f, kde] of P) if (kde === 'nad') f();
   }, { layer: 'world', priority: -2 });
 
+  // ---------- nebe: čáry větru při silném větru (od 6 m/s) jen při oddálení, letí po větru, víc a delší podle síly ----------
+  const cary = Array.from({ length: 40 }, (_, i) => ({ x: rnd(i + 1) * 2 - 1, y: rnd(i + 2) * 2 - 1, f: rnd(i + 3), d: 0.6 + rnd(i + 4) * 0.8 }));
+  I.onFrame((ctx, v) => {
+    const w = v.wind, fade = Math.max(0, Math.min(1, (0.45 - v.sx) / 0.25)); if (!w || !(w.ms >= 6) || fade <= 0) return;   // jen při oddálení (jako mraky)
+    const sila = Math.min(1, (w.ms - 6) / 8), n = Math.round((12 + sila * 28) * (v.eco ? 0.5 : 1)), t = v.now / 1000;
+    const L = Math.hypot(w.dx, w.dy) || 1, ux = w.dx / L, uy = w.dy / L, dl = (40 + sila * 60) * Math.max(0.6, Math.min(1.6, v.sx * 3));
+    ctx.lineWidth = Math.max(1.5, Math.min(3, v.sx * 3)); ctx.lineCap = 'round';
+    for (let i = 0; i < n; i++) {
+      const c = cary[i], fz = (t * (0.18 + sila * 0.25) * c.d + c.f) % 1;   // fáze průletu přes obrazovku
+      const X = ((c.x * 0.5 + 0.5) * v.cw + ux * (fz - 0.5) * v.cw * 1.2 + v.cw) % v.cw, Y = ((c.y * 0.5 + 0.5) * v.ch + uy * (fz - 0.5) * v.cw * 1.2 + v.ch) % v.ch;
+      const a = Math.sin(fz * Math.PI) * (0.38 + sila * 0.32) * fade;
+      ctx.strokeStyle = `rgba(255,255,255,${a.toFixed(2)})`; ctx.beginPath();
+      const zv = Math.sin(t * 2 + i) * 6;                          // lehké zvlnění
+      ctx.moveTo(X - ux * dl, Y - uy * dl); ctx.quadraticCurveTo(X - ux * dl * 0.4 - uy * zv, Y - uy * dl * 0.4 + ux * zv, X, Y); ctx.stroke();
+    }
+  }, { layer: 'sky', priority: -3 });
+
   // ---------- nebe: horkovzdušný balón (duben–září, za úsvitu 6–8:30 a večer 18–20:30, ne každý den, bez deště) ----------
   const stred = I.latLonToWorld(...I.worldToLatLon(0, 0));
   I.onFrame((ctx, v) => {
     const d = praha(), h = d.getHours() + d.getMinutes() / 60, m = d.getMonth(), D = den(d);
-    if (m < 3 || m > 8 || v.weather === 'rain' || v.weather === 'snow' || rnd(D * 13) > 0.3) return;
+    if (m < 3 || m > 8 || v.weather === 'rain' || v.weather === 'snow' || rnd(D * 13) > 0.3 || (v.wind && v.wind.ms > 7)) return;
     const okno = h >= 6 && h < 8.5 ? [6, 8.5] : h >= 18 && h < 20.5 ? [18, 20.5] : null; if (!okno) return;
-    const f = (h - okno[0]) / (okno[1] - okno[0]), sm = rnd(D * 17) * 6.283;   // let přes mapu po větru, 3 km za okno
+    const f = (h - okno[0]) / (okno[1] - okno[0]), sm = v.wind && Number.isFinite(v.wind.e) ? Math.atan2(v.wind.n, v.wind.e) : rnd(D * 17) * 6.283;   // let přes mapu po větru, 3 km za okno
     const x = stred[0] + Math.cos(sm) * (f - 0.5) * 3000 + Math.sin(sm) * 400, y = stred[1] + Math.sin(sm) * (f - 0.5) * 3000 - Math.cos(sm) * 400;
     const z = 120 + Math.sin(f * Math.PI) * 180, ip = I.toImg(x, y, I.gz(x, y) + z);
     if (!v.vis(ip[0], ip[1], 200)) return;

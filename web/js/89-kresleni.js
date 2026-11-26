@@ -330,7 +330,11 @@
       const fade = Math.max(0, Math.min(1, (0.45 - sx) / 0.25));
       const dark = night > 0.5 ? 2 : (state.weather === 'rain' || state.weather === 'snow') ? 1 : 0;
       clouds.forEach((c, i) => {
-        c.x += dt * (state.weather === 'rain' ? 30 : 14); if (c.x > MX1 + 1800) c.x = MX0 - 1800;
+        // mraky plují po větru (rychlost podle síly větru); bez dat o větru k východu
+        const rv = realWind ? Math.max(6, Math.min(60, realWind.ms * 4)) : state.weather === 'rain' ? 30 : 14, wdx = realWind ? realWind.dx / (Math.hypot(realWind.dx, realWind.dy) || 1) : 1, wdy = realWind ? realWind.dy / (Math.hypot(realWind.dx, realWind.dy) || 1) : 0;
+        c.x += dt * rv * wdx; c.y += dt * rv * wdy;
+        if (c.x > MX1 + 1800) c.x = MX0 - 1800; else if (c.x < MX0 - 1800) c.x = MX1 + 1800;
+        if (c.y > MY1 + 900) c.y = MY0 - 900; else if (c.y < MY0 - 900) c.y = MY1 + 900;
         if (fade <= 0 || (state.weather === 'clear' && i > 20)) return;
         const [shadowC, bodyC] = cloudBitmap(c, dark, dark);
         ctx.globalAlpha = fade;

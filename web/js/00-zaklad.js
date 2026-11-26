@@ -14,7 +14,7 @@
       if ({{POCASI}}) { realWeather = wmoWeather(c.weather_code, c.precipitation); applyRealWeather(); }
       if (!{{VITR}}) return;
       const from = c.wind_direction_10m * Math.PI / 180, e = -Math.sin(from), n = -Math.cos(from);
-      realWind = { dx: 0.7071 * (e - n), dy: -0.3536 * (e + n), strength: Math.min(2.2, Math.max(0.15, c.wind_speed_10m / 3)) };
+      realWind = { dx: 0.7071 * (e - n), dy: -0.3536 * (e + n), strength: Math.min(2.2, Math.max(0.15, c.wind_speed_10m / 3)), ms: c.wind_speed_10m, e, n };   // e, n: kam fouká (jednotkový vektor ve světě), ms: m/s
     }).catch(() => {});
   if ({{VITR}} || {{POCASI}}) { loadWind(); setInterval(loadWind, 30 * 60 * 1000); }
   // předpověď na 5 dní do panelu a výška sněhu: v listopadu a březnu se sněhem se mapa otevře v zimě
