@@ -1762,8 +1762,9 @@ for _, r in inf.iterrows():
 # ---------------- ploty dopočítané z katastru (nastroje/parcely.py -> assets/parcely.json) ----------------
 # Katastr neříká, kde plot stojí, jen kde jsou pozemky domů (zahrada, zastavěná plocha). Plot se proto odhaduje:
 #  - do ulice: hranice pozemku do 7 m od okraje vozovky, mezi domem a ulicí mezera na vjezd (3,5 m), u budov žádný;
-#    ve městě kovový na podezdívce, na vsi dřevěný laťkový nebo pletivo, u statku (pozemek se stodolou) zeď
-#  - mezi sousedy: společná hranice dvou pozemků domů, asi u 60 % hranic pletivo
+#    typ drží celá ulice (podle názvu, bez názvu po úsecích 120 m), jen asi každý sedmý pozemek má jiný; v husté zástavbě
+#    (hustota domů do 100 m) převažuje kovový na podezdívce, na vsi dřevěný laťkový nebo pletivo; u statku (pozemek se stodolou) zeď
+#  - mezi sousedy: společná hranice dvou pozemků, z nichž aspoň jeden je zahrada, pletivo, jen do 30 m od domu (útržky pod 6 m ne)
 #  - jen pozemky, kde do 25 m stojí dům; kde je plot, zeď nebo živý plot z OSM (do 2 m), se nepřidává
 #  "ploty_z_katastru": false v mesto.json je vypne
 for _k in ('plot_drevo', 'plot_kov', 'plot_pletivo'): lines_out[_k] = []
@@ -1787,10 +1788,25 @@ if os.path.exists('assets/parcely.json') and geo.MESTO.get('ploty_z_katastru', T
     _ulice_okraj = shapely.union_all([l.buffer(w / 2 + 7) for l, w, c, n in drive_lines if c != 'service']) if drive_lines else None
     _vjezdy = shapely.union_all([l.buffer(2.2) for l, w, c, n in drive_lines if c == 'service']) if drive_lines else None
     _pst = shapely.STRtree([g_ for g_, _d in _pp]) if _pp else None
-    _hustota = len(_domy) / max(1.0, AREA.area / 1e6)             # domů na km² (město x vesnice)
-    def _plot(geom_, druh_):
-        for l_ in lines(geom_.intersection(AREA)):
-            if l_.length < 2.5: continue
+    _ul_l = [(l, n) for l, w, c, n in drive_lines if c != 'service'] if drive_lines else []
+    _ul_t = shapely.STRtree([l for l, n in _ul_l]) if _ul_l else None
+    _cent = shapely.STRtree([d.centroid for d in _domy]) if _domy else None
+    def _typ_ulice(ul, g_, statek):
+        """typ plotu do ulice: jeden pro celou ulici (název, jinak úsek 120 m), občas jiný; hustota domů do 100 m"""
+        if statek: return 'wall'
+        m_ = ul.centroid
+        n_ = _ul_l[int(_ul_t.nearest(m_))][1] if _ul_t is not None else None
+        ulice_ = n_ or f'u{m_.x // 120:.0f}_{m_.y // 120:.0f}'
+        mesto_ = len(_cent.query(g_.centroid.buffer(100))) >= 22        # ~700 domů na km²: řadová a městská zástavba
+        poradi = (['plot_kov', 'plot_drevo', 'plot_kov'] if mesto_ else ['plot_drevo', 'plot_pletivo', 'plot_drevo', 'plot_kov'])
+        hlavni = poradi[int(h01('ulice' + ulice_) * len(poradi))]
+        if h01(f'p{g_.centroid.x:.0f}_{g_.centroid.y:.0f}') < 0.14:       # výjimka na jednom pozemku
+            jine = [t for t in ('plot_kov', 'plot_drevo', 'plot_pletivo') if t != hlavni]
+            return jine[int(h01(f'q{g_.centroid.x:.0f}') * 2)]
+        return hlavni
+    def _plot(geom_, druh_, min_ = 3.5):
+        for l_ in lines(shapely.line_merge(geom_.intersection(AREA)) if not geom_.is_empty else geom_):
+            if l_.length < min_: continue                       # krátké útržky mezi překážkami působí náhodně
             l_ = l_.segmentize(4.0); xs_, ys_ = np.array(l_.coords).T
             lines_out[druh_].append([[round(x, 2), round(y, 2), round(float(zz), 2)] for x, y, zz in zip(xs_, ys_, ground(xs_, ys_))])
     def _bez_prekazek(g_):
@@ -1805,7 +1821,6 @@ if os.path.exists('assets/parcely.json') and geo.MESTO.get('ploty_z_katastru', T
         if not g_.intersects(AREA) or _dt is None: continue
         dum = [int(j) for j in _dt.query(g_.buffer(25))]
         if not dum: continue
-        klic = f'plot{g_.centroid.x:.0f}_{g_.centroid.y:.0f}'
         statek = _st is not None and len(_st.query(g_, predicate='intersects')) > 0
         # do ulice
         if _ulice_okraj is not None:
@@ -1815,18 +1830,19 @@ if os.path.exists('assets/parcely.json') and geo.MESTO.get('ploty_z_katastru', T
                 c_ = _domy[d0].centroid
                 vj = shapely.ops.nearest_points(ul, c_)[0].buffer(1.75)               # vjezd naproti domu
                 ul = _bez_prekazek(ul.difference(vj))
-                h_ = h01(klic + 'typ')
-                typ = 'wall' if statek else 'plot_kov' if (_hustota > 900 and h_ < 0.7) or h_ < 0.25 else 'plot_drevo' if h_ < 0.7 else 'plot_pletivo'
-                _plot(ul, typ)
+                if not ul.is_empty: _plot(ul, _typ_ulice(ul, g_, statek))
         # mezi sousedy (každá dvojice jednou)
         for j_ in _pst.query(g_.buffer(0.3)):
             j_ = int(j_)
             if j_ == i_ or (min(i_, j_), max(i_, j_)) in _sousede_hotovo: continue
             _sousede_hotovo.add((min(i_, j_), max(i_, j_)))
-            if h01(f'{klic}s{j_}') > 0.6: continue
+            if druh_ != 5 and _pp[j_][1] != 5: continue           # dvě zastavěné plochy: hranici tvoří zdi domů
             spol = g_.exterior.intersection(_pp[j_][0].buffer(0.3))
             if spol.length < 3: continue
-            _plot(_bez_prekazek(spol), 'plot_pletivo')
+            # jen u domů (do 30 m): zadní části dlouhých zahrad a pole za vsí oplocené nebývají a čáry v trávě působí náhodně
+            okoli = shapely.union_all([_domy[d].buffer(30) for d in _dt.query(spol.buffer(30))]) if _dt is not None else None
+            if okoli is None or okoli.is_empty: continue
+            _plot(_bez_prekazek(spol.intersection(okoli)), 'plot_pletivo', 6.0)
     print('ploty z katastru: dřevo', len(lines_out['plot_drevo']), 'kov', len(lines_out['plot_kov']), 'pletivo', len(lines_out['plot_pletivo']))
 for k in props: props[k] = [[round(v, 3) for v in q] for q in props[k]]
 # žádné zaparkované auto v jízdním pruhu: střed auta dál než 1 m do vozovky kterékoli silnice (i příčné u křižovatky) -> pryč

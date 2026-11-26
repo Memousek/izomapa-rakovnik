@@ -181,3 +181,37 @@ body.kontrast { --panel: #fff; --edge: #1c1917; --muted: #1c1917; --s6: #1c1917;
 body.kontrast .pauza, body.kontrast .px-btn, body.kontrast .nast-skupina, body.kontrast #hud > *, body.kontrast .toast { border: 2px solid #1c1917 !important; }
 body.kontrast .px-btn[aria-pressed="true"] { outline: 3px solid var(--red); outline-offset: 1px; }
 body.kontrast .nast-radek small, body.kontrast .panel h2 small { color: #1c1917; }
+
+/* ---------- menu: jednotný vzhled panelů (karty jako Nastavení, vybraná volba tmavá, ostrý fokus v barvě města) ---------- */
+.pauza-menu .pol:focus:not(:focus-visible):not([aria-selected="true"]) { background: none; color: #d6d0c6; }
+#hud .hra-sek h2, #hud .gar-r .lbl, #hud .prof-sk > span, #hud .mp-h { margin: 0 0 4px; font: 700 .74rem var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--s6); }
+#hud .hra-sek input[type="checkbox"], #hud .gar-dopl input { accent-color: var(--red); width: 18px; height: 18px; }
+#hud .hra-sek label.hra-p { display: flex; gap: 10px; align-items: center; min-height: 32px; font: 500 .95rem var(--sans); color: var(--s9); }
+/* garáž */
+#hud .gar { gap: 12px; }
+#hud .gar-r, #hud .prof-sk, #hud .prof .mp-sek { background: #fff; border: 1px solid var(--edge); border-radius: 14px; padding: 12px 16px 14px; }
+#hud .gar-nahled, #hud .prof-nahled { height: 240px; border-radius: 14px; border: 1px solid var(--edge);
+  background: radial-gradient(ellipse at 50% 88%, #f6f3ed 0 26%, #e4ded3 27% 28%, transparent 29%), linear-gradient(#efebe4, #d9d2c6); }
+#hud .gar-volby { gap: 6px; }
+#hud .gar-volby .px-btn { padding: 7px 12px; font-size: .88rem; min-height: 36px; }
+#hud .gar-volby .px-btn[aria-pressed="true"] { outline: 0; }
+#hud .gar-barvy { gap: 6px; }
+#hud .gar-barvy button { width: 28px; height: 28px; border: 1px solid rgba(28, 25, 23, .25); }
+#hud .gar-barvy button[aria-pressed="true"] { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--s8); }
+#hud .gar-barvy input[type=color] { width: 40px; height: 30px; border-radius: 8px; border-color: var(--s2); }
+#hud .gar-tl { gap: 8px; }
+#hud .gar-pozn, #hud .prof-pozn { color: var(--s6); font: 400 .8rem/1.4 var(--sans); }
+#hud .gar-barvy button:focus-visible, #hud .gar-volby .px-btn:focus-visible, #hud .prof-karta:focus-visible, #hud .mp-sek li button:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+/* postava */
+#hud .prof-jm { font: 700 1.25rem var(--serif); color: var(--s9); }
+#hud .prof-mriz { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+#hud .prof-karta { background: #fbfaf7; box-shadow: none; border: 1px solid var(--edge); font: 600 .82rem var(--sans); color: var(--s9); }
+#hud .prof-karta:hover { border-color: var(--s4); box-shadow: none; }
+#hud .prof-karta[aria-checked="true"] { border-color: var(--red); box-shadow: 0 0 0 2px var(--red); background: #fff; }
+/* jméno ve hře a hráči */
+#hud .mp-sek .mp-jm { gap: 6px; margin-top: 4px; }
+#hud .mp-sek .mp-jm input { background: #fff; color: var(--s9); border: 1px solid var(--s2); border-radius: 10px; padding: 8px 12px; font: 500 .95rem var(--sans); min-height: 40px; }
+#hud .mp-sek .mp-jm input:focus-visible { outline: 3px solid var(--red); outline-offset: 1px; border-color: transparent; }
+#hud .mp-sek .mp-chyba { font: 500 .82rem var(--sans); margin-top: 4px; }
+#hud .mp-sek li button:hover { background: var(--s1); }
+#hud .mp-sek ul { font: 500 .88rem var(--sans); max-height: 180px; }

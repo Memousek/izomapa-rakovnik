@@ -705,6 +705,7 @@ export function vytvorUlici(THREE, scene, api) {
   api.lideBoj.boj = B;
 
   function uder() {
+    if (hrac.rezim) return;
     if (konec || hrac.vAuto || hrac.bus !== null || uderCd > 0) return;   // rána jde i v běžné mapě (bez policie a rvaček)
     uderCd = 0.45; uderAnim = 0.3; zebra = false;
     modelH = hrac.yaw;
@@ -1020,6 +1021,7 @@ export function vytvorUlici(THREE, scene, api) {
   });
   api.canvas.addEventListener('mousedown', (e) => { if (e.button === 0 && document.pointerLockElement === api.canvas) uder(); });
   function skok() {
+    if (hrac.rezim) return;
     if (konec || hrac.vAuto || hrac.bus !== null) return;
     const zem = naStrese(hrac.x, hrac.y) ? STRECHA : 0;
     if (skokV !== 0 || skokZ > zem + 0.05) return;            // ve vzduchu znovu neskočí
@@ -1096,7 +1098,7 @@ export function vytvorUlici(THREE, scene, api) {
   // ---------- třetí osoba: kamera přes rameno ----------
   const T3 = new THREE.Vector3(), W3 = new THREE.Vector3(), L3 = new THREE.Vector3();
   let snapK = true;
-  const tretiOsoba = () => !hrac.vAuto && hrac.bus === null && !hrac.zOci;   // pěšky výchozí pohled zezadu (V: z očí), i v běžné mapě
+  const tretiOsoba = () => !hrac.vAuto && hrac.bus === null && !hrac.zOci && !hrac.rezim;   // hrac.rezim: na motorce, v letadle (REZIMY)   // pěšky výchozí pohled zezadu (V: z očí), i v běžné mapě
   function kamera(camera, fwd, dt) {
     // kamera obíhá bod nad pravým ramenem a míří na něj: postava je v záběru celá, myš nahoru/dolů mění výšku kamery
     const yaw = hrac.yaw, e = mez(0.32 - hrac.pitch, -0.15, 1.2), D = zebra ? 3.6 : 4.8;
@@ -1120,7 +1122,7 @@ export function vytvorUlici(THREE, scene, api) {
     fwd.copy(L3).sub(camera.position).normalize();
   }
   function modelHrace(dt) {
-    const v = tretiOsoba(), oci = !hrac.vAuto && hrac.bus === null && hrac.zOci;   // z očí: vlastní tělo vidět při pohledu dolů (bez hlavy)
+    const v = tretiOsoba(), oci = !hrac.vAuto && hrac.bus === null && hrac.zOci && !hrac.rezim;   // z očí: vlastní tělo vidět při pohledu dolů (bez hlavy)
     hracG.visible = (v || oci) && !schovany;
     if (vzhled !== s.on) {                                   // pouliční režim: bezdomovec v kabátě a kulichu, jinak chodec v bundě
       vzhled = s.on;
@@ -1154,9 +1156,11 @@ export function vytvorUlici(THREE, scene, api) {
     const zpet = oci ? 0.16 : 0;
     hracG.position.set(hrac.x - Math.cos(modelH) * zpet, hrac.z + skokZ + bob, -(hrac.y - Math.sin(modelH) * zpet));
     hracG.rotation.y = modelH;
-    // postava s kostrou (jizda/postavy.js): jakmile je načtená, nahradí jednoduchý model; pohyb podle rychlosti a stavu
+    // postava s kostrou (jizda/kenney.js): jakmile je načtená, nahradí jednoduchý model; pohyb podle rychlosti a stavu
     const P = api.postavy;
-    if (P && !hracL && P.pripraveno) hracL = P.nova({ zena: false, koze: 0xe2b896, triko: s.on ? 0x5b4a36 : 0x2f5fa8, kalh: 0x2a2f3a, vlasy: 0x3a2616,
+    const pm = api.postava?.() || 'character-male-a';         // postavička z garáže (Moje auto)
+    if (hracL && hracL.model && hracL.model !== pm) { hracL.zrus(); hracL = null; }
+    if (P && !hracL && P.pripraveno) hracL = P.nova({ model: pm, bez: true, zena: false, koze: 0xe2b896, triko: s.on ? 0x5b4a36 : 0x2f5fa8, kalh: 0x2a2f3a, vlasy: 0x3a2616,
       boty: 0x24242a, strih: [2, 1, 1], uces: 'simpleparted' });
     else if (P) P.nacti();
     if (hracL) {

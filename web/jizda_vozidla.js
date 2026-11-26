@@ -228,6 +228,49 @@ function traktor() {                                       // 4,3 × 2,3 × 2,8;
   return m;
 }
 
+function tyc(s, xa, ya, xb, yb, t, hw, k, zc = 0) {    // šikmá tyč tloušťky t v bočním profilu (vidlice, výfuk, končetiny)
+  const dx = xb - xa, dy = yb - ya, L = Math.hypot(dx, dy) || 1, nx = -dy / L * t / 2, ny = dx / L * t / 2;
+  hranol(s, [[xa + nx, ya + ny], [xb + nx, yb + ny], [xb - nx, yb - ny], [xa - nx, ya - ny]], hw, k, zc);
+}
+function motorka() {                                       // 2,1 × 0,8 × 1,75 i s jezdcem; lak = nádrž, záď, blatník a helma
+  const m = novy(), BUNDA = '#2d3138', KALHOTY = '#2a3550', MOTOR = '#3a3c40';
+  for (const x of [-0.72, 0.73]) { valec(m.D, x, 0.31, 0, 0.31, 0.06, 12, PNEU); valec(m.D, x, 0.31, 0, 0.19, 0.066, 8, DISK); }
+  hranol(m.L, [[-0.12, 0.84], [0.42, 0.88], [0.5, 0.98], [0.38, 1.08], [0.0, 1.07], [-0.15, 0.98]], 0.16);   // nádrž
+  hranol(m.L, [[-0.84, 0.9], [-0.45, 0.86], [-0.42, 0.96], [-0.86, 1.0]], 0.09);                             // záď
+  tyc(m.L, 0.58, 0.68, 0.9, 0.6, 0.04, 0.07);                                                                // přední blatník
+  hranol(m.D, [[-0.55, 0.92], [-0.1, 0.92], [-0.1, 0.99], [-0.5, 1.01]], 0.14, TMAVA);                       // sedlo
+  kvadr(m.D, -0.15, 0.32, 0.3, 0.7, -0.15, 0.15, MOTOR);                                                     // motor
+  tyc(m.D, 0.12, 0.62, 0.3, 0.82, 0.2, 0.17, SEDA);                                                          // hlava válců
+  for (const g of [1, -1]) {
+    tyc(m.D, 0.48, 1.0, -0.05, 0.78, 0.07, 0.03, TMAVA, g * 0.12);                                           // rám
+    tyc(m.D, -0.72, 0.31, -0.1, 0.45, 0.06, 0.03, TMAVA, g * 0.1);                                           // kyvná vidlice
+    tyc(m.D, 0.5, 1.04, 0.73, 0.31, 0.05, 0.025, SEDA, g * 0.09);                                            // přední vidlice
+    tyc(m.D, 0.42, 1.12, 0.4, 1.34, 0.02, 0.01, TMAVA, g * 0.3);                                             // držák zrcátka
+  }
+  tyc(m.D, 0.28, 0.4, -0.2, 0.36, 0.06, 0.03, SEDA, 0.14);                                                   // výfuk
+  tyc(m.D, -0.2, 0.4, -0.66, 0.6, 0.11, 0.055, SEDA, 0.2);
+  kvadr(m.D, 0.41, 0.45, 1.1, 1.14, -0.37, 0.37, TMAVA);                                                     // řídítka
+  kvadr2(m.D, 0.38, 0.42, 1.3, 1.38, 0.25, 0.37, TMAVA);                                                     // zrcátka
+  kvadr(m.D, 0.55, 0.66, 0.92, 1.08, -0.09, 0.09, TMAVA);                                                    // pouzdro světla
+  kvadr(m.D, -0.88, -0.86, 0.72, 0.85, -0.09, 0.09, SPZ);
+  svetla(m, true, 0.66, 0.95, 1.05, 0, 0.065);
+  svetla(m, false, -0.86, 0.92, 0.98, 0, 0.06);
+  // jezdec: trup v bundě, helma v barvě motorky, ruce na řídítkách, nohy na stupačkách
+  hranol(m.D, [[-0.45, 0.95], [-0.2, 0.95], [0.08, 1.45], [-0.14, 1.5]], 0.18, BUNDA);
+  const helma = []; for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; helma.push([0.03 + Math.cos(a) * 0.15, 1.63 + Math.sin(a) * 0.15, Math.abs(Math.sin(a)) > 0.9 ? 0.04 : 0]); }
+  hranol(m.L, helma, 0.13);
+  kvadr(m.D, 0.15, 0.185, 1.58, 1.68, -0.09, 0.09, SKLO);                                                    // hledí
+  for (const g of [1, -1]) {
+    tyc(m.D, -0.04, 1.42, 0.2, 1.22, 0.09, 0.045, BUNDA, g * 0.25);                                          // paže
+    tyc(m.D, 0.2, 1.22, 0.43, 1.12, 0.08, 0.04, BUNDA, g * 0.31);                                            // předloktí
+    tyc(m.D, -0.32, 1.0, 0.08, 0.92, 0.15, 0.065, KALHOTY, g * 0.225);                                       // stehno (vně nádrže)
+    tyc(m.D, 0.08, 0.92, -0.12, 0.44, 0.12, 0.06, KALHOTY, g * 0.23);                                        // lýtko
+  }
+  kvadr2(m.D, -0.2, 0.02, 0.36, 0.46, 0.17, 0.28, TMAVA);                                                    // boty
+  m.bl = [[0.6, 1.0, 0.16], [-0.8, 0.95, 0.12]];                                                             // blinkry (úzké vozidlo)
+  return m;
+}
+
 // pid: nátěr PID (Manuál jednotného vzhledu vozidel PID 09/2023, jako mapa BUS_LIV): šedá RAL 7038, červená RAL 3020
 // nad koly a nad okny, černý pás oken
 function autobus(pid = false) {                            // 12 × 2,55 × 3,1; obecný nízkopodlažní linkový vůz, vlastní nátěr
@@ -535,7 +578,7 @@ function univerzal(a) {
   return { m, kola: { x: B.kola, z: hw - 0.095, r, w: B.w || 0.11, disk: a.kola === 'barva' ? c2 : DISKY[a.kola] || DISK } };
 }
 
-const MODELY = { car: () => osobni(false), van: dodavka, truck: nakladni, semi: tahac, trailer: naves, garbage: popelar, tractor: traktor, bus: () => autobus(false),
+const MODELY = { car: () => osobni(false), van: dodavka, truck: nakladni, semi: tahac, trailer: naves, garbage: popelar, tractor: traktor, moto: motorka, bus: () => autobus(false),
   bus_pid: () => autobus(true), vlak_kab: vlakKab, lokomotiva, vuz,
   j_shark: () => jednotka(21.6, LV.cd, 3.9), j_panter: () => jednotka(26.2, LV.cd, 4.2), j_nova: () => jednotka(14, LV.cd, 3.8),
   j_810: () => jednotka(13.97, LV.cdw, 3.7, true), j_arriva: () => jednotka(23.2, LV.arriva, 3.85), j_dlb: () => jednotka(24.8, LV.dlb, 3.55, true) };
@@ -599,7 +642,7 @@ export function vytvorVozidla(THREE, scene, max = 1400) {
     const zadni = mz || ml, predni = mp || ml;
     if (zadni && predni) {                                   // blinkry: přední roh, zadní roh (na straně ±z)
       t.bl = instance(gBlinkr, matBlinkr, max * 2);
-      t.blBody = [[predni.x1 - 0.02, (predni.y0 + predni.y1) / 2, Math.max(predni.z, 0.6)], [zadni.x0 + 0.02, (zadni.y0 + zadni.y1) / 2 + 0.02, Math.max(zadni.z, 0.6)]];
+      t.blBody = m.bl || [[predni.x1 - 0.02, (predni.y0 + predni.y1) / 2, Math.max(predni.z, 0.6)], [zadni.x0 + 0.02, (zadni.y0 + zadni.y1) / 2 + 0.02, Math.max(zadni.z, 0.6)]];
     }
     typy[druh] = t; seznam.push(t);
   }

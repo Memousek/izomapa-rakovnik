@@ -349,7 +349,7 @@ def main():
     # hotové modely aut do garáže (glTF, jizda/vozidla.js HOTOVE) a jejich načítání (GLTFLoader z three, cesty jako v examples/jsm)
     shutil.copytree('web/jizda_modely', f'{OUT}/modely', dirs_exist_ok=True)
     if os.path.isdir('web/jizda_textury'): shutil.copytree('web/jizda_textury', f'{OUT}/textury', dirs_exist_ok=True)   # textury povrchů (CC0, ambientCG)
-    if os.path.isdir('web/jizda_postavy'): shutil.copytree('web/jizda_postavy', f'{OUT}/postavy', dirs_exist_ok=True)   # postavy a animace (CC0, Quaternius; nastroje/postavy.py)
+    if os.path.isdir('web/jizda_kenney'): shutil.copytree('web/jizda_kenney', f'{OUT}/kenney', dirs_exist_ok=True)   # postavy a pomůcky Kenney Mini Characters (CC0)
     for f in ('loaders/GLTFLoader.js', 'utils/BufferGeometryUtils.js', 'utils/SkeletonUtils.js'):
         os.makedirs(os.path.dirname(f'{OUT}/three/{f}'), exist_ok=True)
         shutil.copy(f'node_modules/three/examples/jsm/{f}', f'{OUT}/three/{f}')
@@ -403,6 +403,8 @@ def main():
           .replace('{{VANOCE}}', json.dumps({k: v for k, v in json.load(open('assets/vanoce.json', encoding='utf-8')).items() if k in ('od', 'do')}
                                             if os.path.exists('assets/vanoce.json') else None))
           .replace('{{AUTOBUS}}', json.dumps(M.get('autobus', 'liberec')))
+          .replace('{{LETISTE}}', json.dumps(json.load(open('assets/doplnky/letiste.json', encoding='utf-8'))   # letiště (doplněk letiste): ve 3D letadla a vrtulníky k pilotování
+                                             if os.path.exists('assets/doplnky/letiste.json') else None, separators=(',', ':')))
           .replace('{{VLAK}}', json.dumps(M['vlak'] if isinstance(M.get('vlak'), dict) else {'vychozi': M['vlak'], 'linky': {}} if M.get('vlak') else None))
           .replace('{{MHD_ZDROJ}}', f', jízdní řády{" a polohy vozidel" if mhd.get("realtime") else ""} © <a href="{html.escape(mhd["zdroj_url"] or "")}" target="_blank" rel="noopener">{html.escape(mhd["zdroj"])}</a>'
                    if mhd.get('gtfs') and mhd.get('zdroj') else ''))

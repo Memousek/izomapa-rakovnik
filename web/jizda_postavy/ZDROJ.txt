@@ -1,3 +1,0 @@
-Postavy a animace: Quaternius (quaternius.com), Universal Base Characters a Universal Animation Library,
-verze Standard z quaternius.itch.io. Licence CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/).
-Převedeno nástrojem nastroje/postavy.py (zmenšené textury, jen vybrané animace).

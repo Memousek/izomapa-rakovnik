@@ -41,8 +41,11 @@
         const f = ((performance.now() / 1000 - samoT0) % SAMO_S) / SAMO_S, min = Math.round((12 + 24 * f) * 60) % 1440;
         t = `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
       } else t = casZNoci(Math.round(state.night * 100) / 100);
+      { const [hh, mm] = t.split(':'); state.hod = +hh + mm / 60; state.vikend = ziva && [0, 6].includes(new Date().getDay()); }   // hodina na mapě: hustota dopravy (70-animace.js)
       $('stavCas').textContent = t;
       $('stavPopis').textContent = ziva ? (($('predpovedVal') && $('predpovedVal').textContent) || 'skutečný čas') : `${OBD[state.season]} · ${POC[state.weather]}`;
+      const spicka = !state.vikend && ((state.hod >= 6.5 && state.hod < 8.5) || (state.hod >= 14 && state.hod < 16.5));   // stejně jako DAY_SHARE v 70-animace.js
+      if (spicka && $('l-traffic')?.checked) $('stavPopis').textContent += ' · špička';
       stav.classList.toggle('ziva', ziva);
       stav.title = ziva ? 'Skutečný čas a počasí nad městem' : 'Čas na mapě (nastavíte ve Vzhledu)';
       stav.hidden = false;

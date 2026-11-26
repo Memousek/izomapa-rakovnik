@@ -561,7 +561,7 @@ export function vytvorLidi(THREE, scene, api) {
       dej(mHlava, i, X, Y0 + 1.42 * sc + hs * 0.55, Z, ch, sh, Math.cos(-pk), Math.sin(-pk), hs, hs, hs);
       dej(mVlasy, i, X - ch * 0.02 * sc, Y0 + 1.42 * sc + hs * 0.6, Z + sh * 0.02 * sc, ch, sh, Math.cos(-pk), Math.sin(-pk), hs * 1.06, hs * 1.2, hs * 1.0);
     }
-    // 5) postavy s kostrou (api.postavy, jizda/postavy.js) pro nejbližší lidi: jednoduché díly se jim schovají
+    // 5) postavy s kostrou (api.postavy, jizda/kenney.js) pro nejbližší lidi: jednoduché díly se jim schovají
     const P = api.postavy, K = api.loutek ? api.loutek() : 0;
     if (P && K > 0) {
       P.nacti();

@@ -90,6 +90,11 @@ export const AUTO_VOLBY = {
   kola: { ocel: 'Ocelová', alu: 'Hliníková', cerna: 'Černá', zlata: 'Zlatá', barva: 'V barvě doplňku' },
   vys: { nizky: 'Snížený', normal: 'Normální', vysoky: 'Zvýšený' },
   dopl: { spoiler: 'Spoiler', box: 'Střešní box', rampa: 'Světelná rampa', vyfuky: 'Dvojitý výfuk' },
+  // postavička hráče (Kenney Mini Characters, jizda/kenney.js); nepovinná, bez ní model podle id hráče
+  p: { 'character-male-a': 'Muž 1', 'character-male-b': 'Muž 2', 'character-male-c': 'Muž 3', 'character-male-d': 'Muž 4',
+    'character-male-e': 'Muž 5', 'character-male-f': 'Muž 6', 'character-male-g': 'Muž 7', 'character-female-a': 'Žena 1',
+    'character-female-b': 'Žena 2', 'character-female-c': 'Žena 3', 'character-female-d': 'Žena 4', 'character-female-e': 'Žena 5',
+    'character-female-f': 'Žena 6', 'character-worker': 'Dělník' },
 };
 export const AUTO_VYCHOZI = { k: 'hatch', b1: '#c0392b', b2: '#f2f2ee', v: 'zadny', kola: 'ocel', vys: 'normal', dopl: [] };
 const BARVA = /^#[0-9a-f]{6}$/;
@@ -101,7 +106,9 @@ export function platneAuto(a) {
   if (!ma('k') || !ma('v') || !ma('kola') || !ma('vys')) return null;
   if (!BARVA.test(b1) || !BARVA.test(b2) || (a.dopl !== undefined && !Array.isArray(a.dopl))) return null;
   const dopl = Object.keys(AUTO_VOLBY.dopl).filter((d) => (a.dopl || []).includes(d));
-  return { k: a.k, b1, b2, v: a.v, kola: a.kola, vys: a.vys, dopl };
+  const o = { k: a.k, b1, b2, v: a.v, kola: a.kola, vys: a.vys, dopl };
+  if (ma('p')) o.p = a.p;
+  return o;
 }
 
 // ---------- vlastní jméno hráče ----------

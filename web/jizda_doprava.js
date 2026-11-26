@@ -121,11 +121,13 @@ export function vytvorDopravu(api) {
     car: { len: 4.2, wid: 1.76, h: 1.45, vmax: 130, gap: 8 }, van: { len: 5.4, wid: 2.0, h: 2.3, vmax: 110, gap: 9 },
     truck: { len: 9, wid: 2.45, h: 3.3, vmax: 80, gap: 13 }, semi: { len: 6.1, wid: 2.5, h: 3.2, vmax: 80, gap: 25 },
     garbage: { len: 9.2, wid: 2.5, h: 3.2, vmax: 35, gap: 13 }, tractor: { len: 4.3, wid: 2.3, h: 2.8, vmax: 30, gap: 8 },
+    moto: { len: 2.1, wid: 0.8, h: 1.75, vmax: 110, gap: 5 },
   };
   const TRAILER = 13.6, TAH = 3.05 - 1.0 + 6.8;
   const CARC = ['#ecebe6', '#b3b8bf', '#2a2c31', '#b8291f', '#33529e', '#62666d', '#3d6b4c', '#cdbd99'];
   const VANC = ['#ecebe6', '#ecebe6', '#ecebe6', '#b3b8bf', '#2f3f6e', '#c23b2a'];
   const TRUCKC = ['#c42a20', '#eceeed', '#2f4f86', '#eceeed', '#d6a13a'];
+  const MOTOC = ['#b8201a', '#1d1e22', '#1f4fa0', '#e8701a', '#3d9a2a', '#e8e8e4', '#e2b41c', '#62666d'];
   const CLASS_KMH = { motorway: 110, trunk: 90, primary: 50, secondary: 50, tertiary: 50, unclassified: 40, residential: 30, living_street: 20 };
   const roadSpeed = (r) => (r.x ? Math.min(r.l || 50, 50) : r.l || CLASS_KMH[r.c] || 40) / 3.6;
   const carSpeed = (c, r) => Math.min(c.truck ? Math.min(roadSpeed(r), 22) * 0.85 : roadSpeed(r), c.T.vmax / 3.6) * c.f * (ULICE_STAV.on ? (c.drzy ? 1.35 : 1.15) : 1);
@@ -188,14 +190,16 @@ export function vytvorDopravu(api) {
     // mimo špičku část aut zajede do garáže (provozPodleTmy). api.mnozstvi: podíl podle grafiky (slabší zařízení méně aut)
     const n = Math.min(Math.round(520 * api.mnozstvi()), Math.round(wsum / 450 / 1000 * 1.6 * api.mnozstvi()));
     const pick = (u) => { let x = u * wsum; for (let k = 0; k < main.length; k++) { x -= weights[k]; if (x <= 0) return main[k]; } return main[main.length - 1]; };
+    // motorky: asi 2 % osobních, v zimě jen výjimečně (api.obdobi: 'winter' … nebo funkce, která ho vrátí)
+    const motoPrah = 0.116 + ((typeof api.obdobi === 'function' ? api.obdobi() : api.obdobi) === 'winter' ? 0.004 : 0.018);
     for (let j = 0; j < n && main.length; j++) {
       // vlastnosti z semínka auta: u všech hráčů stejné auto (typ, barva, povaha řidiče), v libovolném pořadí čtverců
       const c = { uid: key + ':' + j, sd: semeno(key + ':' + j), pr: -1 };
       const r_ = pick(nah(c)), u = nah(c), truck = nah(c) * 100 < (roads[r_].t || 0), barva = nah(c);
-      const t = truck ? (u < 0.55 && !MINOR.has(roads[r_].c) ? 'semi' : 'truck') : u < 0.1 ? 'van' : u < 0.11 ? 'garbage' : u < 0.116 ? 'tractor' : 'car';
+      const t = truck ? (u < 0.55 && !MINOR.has(roads[r_].c) ? 'semi' : 'truck') : u < 0.1 ? 'van' : u < 0.11 ? 'garbage' : u < 0.116 ? 'tractor' : u < motoPrah ? 'moto' : 'car';
       const z = (a) => a[Math.floor(barva * a.length)];
       Object.assign(c, { r: r_, dir: roads[r_].o || (nah(c) > 0.5 ? 1 : -1), s: nah(c) * roads[r_].L, f: 0.85 + nah(c) * 0.25, truck, t, T: VTYP[t], drzy: nah(c) < 0.12,
-        col: t === 'van' ? z(VANC) : truck ? z(TRUCKC) : t === 'garbage' ? '#e8742a' : t === 'tractor' ? '#3f7a2e' : z(CARC) });
+        col: t === 'van' ? z(VANC) : truck ? z(TRUCKC) : t === 'garbage' ? '#e8742a' : t === 'tractor' ? '#3f7a2e' : t === 'moto' ? z(MOTOC) : z(CARC) });
       if (c.dir < 0) c.s = roads[c.r].L - c.s;
       cars.push(c);
     }

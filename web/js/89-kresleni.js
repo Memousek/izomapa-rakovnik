@@ -58,7 +58,9 @@
         const selection = limitCars(cars, trafficShare(), tShareSlow); tShare = selection.threshold; tAllowed = selection.allowed;
       }
       if (SIG.size) updateSignals();
-      for (const c of cars) if (carActive(c) || c.hold) stepCar(c, dt);
+      const jedou = cars.filter((c) => carActive(c) || c.hold);
+      followCars(jedou, dt);                              // odstupy a předjíždění (70-animace.js)
+      for (const c of jedou) stepCar(c, dt);
       const xFront = [];                                  // výstražníky před kolejí (blíž k divákovi) až po vlaku, ať je vlak nepřekryje
       if (sx > 0.25) for (const [r, z] of xings) {        // výstražník před přejezdem: zavřeno střídavě červená, otevřeno bílá přerušovaná
         if (!shown(r.k)) continue;
@@ -84,7 +86,7 @@
       CARS_DRAWN.length = 0;
       if (sx > 0.12) for (const c of cars) {
         if (!carActive(c) || !shown(roads[c.r].k)) continue;
-        const o = along(roads[c.r], c.s); o.dirSign = c.dir; o.lane = roads[c.r].o ? 0 : 1.6;
+        const o = along(roads[c.r], c.s); o.dirSign = c.dir; o.lane = c.lo ?? (roads[c.r].o ? 0 : 1.6);
         if (!vis(o.ix, o.iy)) continue;
         if (sx > 0.3) CARS_DRAWN.push([Math.round(ox + o.ix * sx), Math.round(oy + o.iy * sx) - Math.round(3 * sx), c]);   // klik na auto: karta
         if (c.t !== 'semi') { drawVehicle(o, c.T.len, c.T.wid, c.col, sx, ox, oy, night, c.T.code); continue; }

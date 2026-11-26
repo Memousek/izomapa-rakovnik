@@ -616,16 +616,21 @@
     for (const o of opts) { x -= roads[o[0]].v || 0; if (x <= 0) return o; }
     return opts[opts.length - 1];
   }
-  // podíl aut podle denní doby: odhad tvaru dne, ne měření ze sčítání (špička 7 a 16 h, v noci málo)
-  const DAY_SHARE = [.08, .05, .04, .04, .08, .25, .6, 1, .85, .65, .6, .65, .7, .7, .8, .95, 1, .9, .7, .5, .35, .25, .18, .12];
+  // podíl aut podle denní doby: odhad tvaru dne, ne měření ze sčítání. Ranní špička 6–8 h, odpolední 14–16 h (konec ranní
+  // směny ve fabrikách), přes poledne asi polovina, v noci málo; o víkendu bez špiček. Hodina je ta z hodin na mapě
+  // (state.hod, 62-rakovnik-hud.js: Právě teď skutečná, Vlastní podle posuvníku, Samo herní), jinak podle tmy.
+  const DAY_SHARE = [.06, .04, .03, .03, .07, .22, .62, .95, .8, .55, .5, .52, .55, .56, .78, 1, .96, .78, .58, .42, .3, .22, .15, .1];
+  const VIKEND = [.08, .06, .04, .04, .05, .1, .18, .28, .4, .5, .55, .58, .55, .5, .48, .5, .52, .5, .45, .38, .3, .22, .16, .11];
   const trafficShare = () => {
     if (!roads.some((r) => r.v)) return 1;
-    if ($('realTime').checked) return DAY_SHARE[+new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Prague', hour: 'numeric', hourCycle: 'h23' }).format(new Date())];
-    return 1 - 0.85 * state.night;
+    const h = state.hod;
+    if (h === undefined || !isFinite(h)) return 1 - 0.85 * state.night;
+    const P = state.vikend ? VIKEND : DAY_SHARE, i = Math.floor(h) % 24, f = h - Math.floor(h);
+    return P[i] + (P[(i + 1) % 24] - P[i]) * f;              // plynule mezi hodinami
   };
   // pevná hustota na silnici (ne strop na celou mapu: ten se dělil podle počtu načtených čtverců a auta chodila ve vlnách);
   // strop aut na celou mapu; rozděluje se rovnoměrně přes c.q, takže platí pro všechny čtverce stejně
-  const CAR_DENS = 0.4, SLOW_SHARE = 0.35;   // CAR_DENS: zlomek špičkové hustoty (plná působila jako zácpa); slabší zařízení kreslí jen část aut
+  const CAR_DENS = 0.65, SLOW_SHARE = 0.35;   // CAR_DENS: zlomek špičkové hustoty ve špičce (kolony za vozem tvoří followCars); mimo špičku ubere trafficShare
   const MAX_CARS = 1000, MAX_CARS_SLOW = 300;
   // Zvolená auta jsou stabilní podle q. Při dosažení stropu vybereme přesný počet,
   // místo náhodného prahu, který může limit překročit.
@@ -674,9 +679,77 @@
     }
     return false;
   }
+  // kam auto smí z konce kusu silnice pokračovat (ne na účelové komunikace, do uzavírky ani proti jednosměrce)
+  const exitOpts = (c, endPt) => (ends.get(ek(endPt)) || []).filter(([i, dir]) => i !== c.r && roads[i].c !== 'service' && !roads[i].uz && (!roads[i].o || roads[i].o === dir));
+  // řazení za sebou: auto drží odstup za vozem před sebou ve stejném pruhu (i na navazujícím kusu silnice), takže se samy tvoří kolony
+  // za pomalým vozem; na dvoupruhové jednosměrce (dálnice, rychlostní silnice bez ramp) osobní auta předjíždějí levým pruhem
+  const ACC = 2.2, DEC = 6, HEAD = 1.2, MIN_GAP = 2.5, LC_V = 1.5;   // zrychlení a brzdění m/s², časový odstup s, mezera v klidu m, příčná rychlost při změně pruhu m/s
+  const lanes2 = (r) => !!(r.o && !r.x && (r.c === 'motorway' || r.c === 'trunk'));
+  const laneOff = (r, ln) => (!r.o ? 1.6 : !lanes2(r) ? 0 : ln ? -1.7 : r.c === 'motorway' ? 2.0 : 1.7);   // kladné = vpravo od osy
+  const backOf = (o) => (o.t === 'semi' ? TAH + TRAILER / 2 : o.T.len / 2);   // od středu vozu k jeho zádi (kamion i s návěsem)
+  const GRP = new Map();
+  const grpKey = (i, dir) => i * 2 + (dir > 0 ? 1 : 0);
+  const inLane = (o, r, ln) => !lanes2(r) || o.ln === ln || Math.abs(o.lo - laneOff(r, ln)) < 1.3;   // při přejíždění zabírá oba pruhy
+  // nejbližší vůz před c v pruhu ln: [volné místo mezi nárazníky v m, vůz]
+  function leaderOf(c, r, ln) {
+    let best = null, bd = 1e9;
+    for (const o of GRP.get(grpKey(c.r, c.dir)) || []) {
+      if (o === c || o.pg <= c.pg || !inLane(o, r, ln)) continue;
+      const d = o.pg - c.pg - backOf(o) - c.T.len / 2; if (d < bd) { bd = d; best = o; }
+    }
+    const rest = r.L - c.pg;
+    if (!best && rest < 70) {                              // konec kusu blízko: podívat se na kus, kam auto pojede
+      if (!c.nx) { const opts = exitOpts(c, c.dir > 0 ? r.w[r.w.length - 1] : r.w[0]); if (opts.length) c.nx = pickExit(opts, c); }
+      if (c.nx) {
+        const q = roads[c.nx[0]];
+        for (const o of GRP.get(grpKey(c.nx[0], c.nx[1])) || []) {
+          if (lanes2(q) && lanes2(r) && !inLane(o, q, ln)) continue;
+          const d = rest + o.pg - backOf(o) - c.T.len / 2; if (d < bd) { bd = d; best = o; }
+        }
+      }
+    }
+    return [bd, best];
+  }
+  // volný pruh ln pro změnu: nikdo vedle ani kousek před a za (rychlejší vůz zezadu potřebuje víc místa)
+  function laneFree(c, r, ln, front, back) {
+    for (const o of GRP.get(grpKey(c.r, c.dir)) || []) {
+      if (o === c || !inLane(o, r, ln)) continue;
+      const ahead = o.pg - backOf(o) - (c.pg + c.T.len / 2), behind = (c.pg - backOf(c)) - (o.pg + o.T.len / 2);
+      if (ahead > -0.5 ? ahead < front : behind < back + Math.max(0, (o.v || 0) - c.v) * 3) return false;
+    }
+    return true;
+  }
+  function followCars(act, dt) {
+    GRP.clear();
+    for (const c of act) {
+      const r = roads[c.r]; c.pg = c.dir > 0 ? c.s : r.L - c.s;
+      const k = grpKey(c.r, c.dir); let g = GRP.get(k); if (!g) GRP.set(k, (g = [])); g.push(c);
+    }
+    for (const c of act) {
+      const r = roads[c.r], v0 = carSpeed(c, r), two = lanes2(r);
+      if (c.v === undefined) c.v = v0;
+      if (c.ln === undefined || !two) c.ln = 0;
+      if (c.lo === undefined || !two) c.lo = laneOff(r, c.ln);
+      if (c.hold) { c.v = 0; continue; }
+      let [d, ld] = leaderOf(c, r, c.ln);
+      c.lt = (c.lt || 0) + dt;
+      if (two && c.lt > 3 && (c.t === 'car' || c.t === 'van')) {
+        if (c.ln === 0 && ld && d < 40 && (ld.v ?? v0) < v0 * 0.93 && laneFree(c, r, 1, 25, 15)) { c.ln = 1; c.lt = 0; }
+        else if (c.ln === 1 && laneFree(c, r, 0, 35, 12)) { c.ln = 0; c.lt = 0; }      // po předjetí zpátky doprava
+        if (!c.lt) [d, ld] = leaderOf(c, r, c.ln);
+      }
+      if (two && Math.abs(c.lo - laneOff(r, c.ln)) > 0.05) {   // během přejíždění hlídat i pruh, ze kterého odjíždí
+        const [d2] = leaderOf(c, r, 1 - c.ln); d = Math.min(d, d2);
+        c.lo += Math.sign(laneOff(r, c.ln) - c.lo) * Math.min(Math.abs(laneOff(r, c.ln) - c.lo), LC_V * dt);
+      }
+      const vt = Math.min(v0, Math.max(0, (d - MIN_GAP) / HEAD));
+      c.v = vt < c.v ? Math.max(vt, c.v - DEC * dt) : Math.min(vt, c.v + ACC * dt);
+      if (dt > 0) c.v = Math.min(c.v, Math.max(0, (d - 0.5) / dt));   // nikdy nenajet do vozu před sebou
+    }
+  }
   function stepCar(c, dt) {
     if (c.hold) { if (blocked(c.hold)) return; c.hold.q = null; c.hold = null; }
-    const r = roads[c.r], next = c.s + carSpeed(c, r) * dt * c.dir;
+    const r = roads[c.r], next = c.s + (c.v ?? carSpeed(c, r)) * dt * c.dir;
     for (const zs of [r.jy, r.sg]) if (zs) for (const z of zs) {   // zavřený přejezd, plný kruhový objezd (6 m před) nebo červená/žlutá na semaforu (z.d m před bodem); fronta po c.T.gap m
       if (!blocked(z) || (z.t && z.t !== c.dir)) continue;  // semafor platí jen pro směr ke křižovatce
       const D = z.d ?? 6, qi = c.dir > 0 ? 0 : 1, stop = z[0] - c.dir * (D + ((z.q && z.q[qi]) || 0));   // z.q = délka fronty v m
@@ -688,12 +761,13 @@
       const endPt = c.s < 0 ? r.w[0] : r.w[r.w.length - 1];
       const pr0 = c.pr, pd0 = c.pdir;
       c.pr = c.r; c.pdir = c.dir;                           // návěs kamionu ještě chvíli jede po předchozí silnici
-      const opts = (ends.get(ek(endPt)) || []).filter(([i, dir]) => i !== c.r && roads[i].c !== 'service' && !roads[i].uz && (!roads[i].o || roads[i].o === dir));   // do uzavírky neodbočí
+      const opts = exitOpts(c, endPt);   // do uzavírky neodbočí
       if (opts.length) {
         const nx = c.nx && opts.find(([i, dir]) => i === c.nx[0] && dir === c.nx[1]); c.nx = null;
         const [i, dir] = nx || pickExit(opts, c);
         if (queueBack(c, r, i, dir)) { c.pr = pr0; c.pdir = pd0; return; }
         c.r = i; c.dir = dir; c.s = dir > 0 ? 0 : roads[i].L;
+        if (lanes2(roads[i]) && lanes2(r)) c.lo = laneOff(roads[i], c.ln); else c.ln = 0;   // pruh drží i na dalším kusu dálnice
       }
       else if (r.o && (ends.get(ek(endPt)) || []).some(([i]) => i !== c.r && roads[i].c !== 'service')) {   // data mají navazující kus opačně: radši pokračovat než zmizet
         const [i, dir] = pickExit((ends.get(ek(endPt)) || []).filter(([i]) => i !== c.r && roads[i].c !== 'service'), c); c.r = i; c.dir = dir; c.s = dir > 0 ? 0 : roads[i].L;
@@ -707,9 +781,9 @@
   }
   function trailerPos(c) {                                  // návěs kamionu TAH m za tahačem, po předchozí silnici, když tahač právě odbočil
     const r = roads[c.r], done = c.dir > 0 ? c.s : r.L - c.s;
-    if (done >= TAH || c.pr < 0) { const o = along(r, Math.max(0, Math.min(r.L, c.s - TAH * c.dir))); o.dirSign = c.dir; o.lane = r.o ? 0 : 1.6; return o; }
+    if (done >= TAH || c.pr < 0) { const o = along(r, Math.max(0, Math.min(r.L, c.s - TAH * c.dir))); o.dirSign = c.dir; o.lane = c.lo ?? (r.o ? 0 : 1.6); return o; }
     const q = roads[c.pr], rem = Math.min(q.L, TAH - done);
-    const o = along(q, c.pdir > 0 ? q.L - rem : rem); o.dirSign = c.pdir; o.lane = q.o ? 0 : 1.6; return o;
+    const o = along(q, c.pdir > 0 ? q.L - rem : rem); o.dirSign = c.pdir; o.lane = lanes2(q) ? laneOff(q, 0) : q.o ? 0 : 1.6; return o;
   }
   const bus = (() => {
     if (!OV.bus) return null;

@@ -98,9 +98,9 @@ export function vytvorGaraz(THREE, api) {
   bNahoda.addEventListener('click', () => zmen({
     k: vyber(AUTO_VOLBY.k), v: vyber(AUTO_VOLBY.v), kola: vyber(AUTO_VOLBY.kola), vys: vyber(AUTO_VOLBY.vys),
     b1: LAKY[Math.floor(Math.random() * LAKY.length)], b2: LAKY[Math.floor(Math.random() * LAKY.length)],
-    dopl: Object.keys(AUTO_VOLBY.dopl).filter(() => Math.random() < 0.3),
+    dopl: Object.keys(AUTO_VOLBY.dopl).filter(() => Math.random() < 0.3), p: a.p,
   }));
-  bVychozi.addEventListener('click', () => zmen({ ...AUTO_VYCHOZI }));
+  bVychozi.addEventListener('click', () => zmen({ ...AUTO_VYCHOZI, p: a.p }));   // postavička zůstává
   tl.append(bNahoda, bVychozi);
   koren.append(tl, el('p', 'gar-pozn', 'Auto se uloží v tomhle prohlížeči. Ve hře s ostatními ho všichni vidí přesně takhle.'));
   const kredit = el('p', 'gar-pozn', 'Hotové modely: Kenney Car Kit (');
@@ -161,5 +161,5 @@ export function vytvorGaraz(THREE, api) {
   }
   for (const f of prvky) f();
 
-  return { auto: () => a, spust };
+  return { auto: () => a, spust, nastav: (o) => zmen(o) };   // nastav: změna zvenku (postavička z menu Postava, jizda/profil.js)
 }

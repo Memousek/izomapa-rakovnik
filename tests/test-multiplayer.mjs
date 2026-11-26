@@ -99,18 +99,25 @@ assert.equal(platneAuto({ ...AUTO_VYCHOZI, b1: '#ABCDEF' }).b1, '#abcdef');
 assert.equal(platneAuto({ ...AUTO_VYCHOZI, k: 'm_hasici' }).k, 'm_hasici', 'hotový model');
 for (const zle of [{ k: 'tank' }, { k: 'toString' }, { k: '__proto__' }, { kola: 'constructor' }, { b1: 'red' }, { b2: '#12345' }, { v: '<script>' }, { dopl: 'box' }, { vys: 'let' }]) assert.equal(platneAuto({ ...AUTO_VYCHOZI, ...zle }), null, JSON.stringify(zle));
 assert.equal(platneAuto(null), null);
+assert.equal(platneAuto({ ...AUTO_VYCHOZI, p: 'character-female-c' }).p, 'character-female-c', 'postavička');
+assert.equal(platneAuto({ ...AUTO_VYCHOZI, p: 'character-tank' }).p, undefined, 'neznámá postavička vypadne, auto zůstane');
+assert.equal(platneAuto({ ...AUTO_VYCHOZI, p: 'toString' }).p, undefined);
 {
   const M3 = new Mistnost({ getWebSockets: () => [] }, {}), P = new Soket(), Q = new Soket();
   const hp = M3.pripoj(P); M3.pripoj(Q);
   M3.webSocketMessage(P, JSON.stringify({ t: 'auto', a: { ...AUTO_VYCHOZI, k: 'suv', dopl: ['rampa'] } }));
   assert.deepEqual(Q.json().at(-1), { t: 'auto', id: hp.id, a: { ...AUTO_VYCHOZI, k: 'suv', dopl: ['rampa'] } });
+  M3.webSocketMessage(P, JSON.stringify({ t: 'auto', a: { ...AUTO_VYCHOZI, k: 'suv', dopl: ['rampa'], p: 'character-worker' } }));   // postavička projde serverem
+  assert.equal(Q.json().at(-1).a.p, 'character-worker');
   assert.equal(P.json().filter((z) => z.t === 'auto').length, 0, 'odesílatel svoje auto zpátky nedostane');
   M3.webSocketMessage(P, JSON.stringify({ t: 'auto', a: { k: 'tank' } }));
   M3.webSocketMessage(P, JSON.stringify({ t: 'chat', text: 'ahoj' }));
-  assert.equal(Q.json().length, 2, 'neplatné auto ani chat se dál neposílají');
+  assert.equal(Q.json().length, 3, 'neplatné auto ani chat se dál neposílají');
   const R = new Soket(); M3.pripoj(R);
   assert.equal(R.json()[0].hraci.find((h) => h.id === hp.id).auto.k, 'suv', 'nový hráč dostane auta ostatních');
   assert.equal(P.pr.auto.k, 'suv', 'auto přežije hibernaci (příloha soketu)');
+  assert.equal(P.pr.auto.p, 'character-worker', 'postavička přežije hibernaci');
+  assert.equal(R.json()[0].hraci.find((h) => h.id === hp.id).auto.p, 'character-worker', 'nový hráč vidí postavičku ostatních');
   clearInterval(M3.casovac);
 }
 // vlastní jméno: kontrola, obsazené jméno, limit změn, rozeslání všem i odesílateli, příloha pro hibernaci
