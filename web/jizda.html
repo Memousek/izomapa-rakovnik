@@ -2121,7 +2121,7 @@ function vykresli(dt = 0.016) {
     const sp = camera.position.clone().add(s.uSun.value.clone().multiplyScalar(1000)).project(camera), k = fwd.dot(s.uSun.value);
     s.uSunScr.value.set(sp.x * 0.5 + 0.5, sp.y * 0.5 + 0.5, sp.z < 1 && k > 0 ? Math.min(1, k * 1.4) * (1 - uN) * (1 - WXI.zat * 0.8) : 0);
   }     // vzhled: telefon a nízká grafika bez záře a zrna
-  renderer.setRenderTarget(null); renderer.clear(); renderer.render(slozScena, slozCam);
+  renderer.setRenderTarget(WEBKAM?.cil(renderer) ?? null); renderer.clear(); renderer.render(slozScena, slozCam);   // webkamera: přes objektiv (jizda/webkamery.js)
   SRAZKY_UVNITR.value = (hrac.vAuto || hrac.bus !== null) && hrac.kabina ? 2.2 : 0;   // z kabiny: kapky uvnitř a těsně u skla pryč, do ~7 m slábnou
   if (KOKPIT.skupina.visible) {                            // kabina: nejdřív jen hloubka kokpitu, aby kapky na skle a déšť nešly přes palubní desku a sloupky
     renderer.autoClear = false; renderer.clearDepth();
@@ -2133,6 +2133,7 @@ function vykresli(dt = 0.016) {
     DEST.material.uniforms.uJas.value = jas; SNIH.material.uniforms.uJas.value = jas;
     renderer.autoClear = false; renderer.render(SRAZKY, camera); renderer.autoClear = true;
   }
+  WEBKAM?.prenes(renderer);                                 // webkamera: zkreslení objektivu a rámeček na poměr snímku
 }
 
 // ---------- prostorové stromy u kamery (jizda/stromy.js; dál zůstávají billboardy z render.html) ----------
@@ -2280,7 +2281,7 @@ const REZIMY = [vytvorLetani(REZIM_API), vytvorMotorky(REZIM_API)].filter(Boolea
 // webkamery (menu Webkamery, jizda/webkamery.js): 3D pohled ze střechy, kde stojí skutečná kamera, a vedle její záběr
 WEBKAM = vytvorWebkamery(THREE, { CAM, gz, hrac, panel: $('kamerypanel'),
   start: () => { zavriMenu(false); if (document.pointerLockElement) { MENU.sam = true; document.exitPointerLock(); } $('klik').hidden = true; },
-  konec: () => { camera.fov = NAST.fov; camera.updateProjectionMatrix(); orbit.snap = true; } });
+  konec: () => { camera.fov = NAST.fov; camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); orbit.snap = true; } });
 let rezim = null;
 // ostatní hráči: posílá se poloha (auto: i světla, brzda, blinkry, klakson), v autobuse nebo při sledování spoje jen místo
 // garáž: konfigurátor auta v menu (Moje auto); změna se hned projeví na vlastním autě a pošle se ostatním hráčům
