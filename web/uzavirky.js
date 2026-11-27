@@ -226,7 +226,7 @@ export const nactiSit = (d) => pripravSit(d);
 
 // ---------------------------------------------------------------- ruční úpravy správce (functions/api/uzavirky.js, KV)
 // klíč uzavírky: odkaz na oznámení + ulice + začátek etapy (příští etapa je jiná uzavírka, úprava na ni nepřejde)
-export const klic = (u) => (u.jid ? `jsdi#${u.jid}` : `${u.url || ''}#${u.nazev || ''}#${u.od || ''}`);
+export const klic = (u) => (u.jid ? `jsdi#${u.jid}` : u.kid ? `kraj#${u.kid}` : `${u.url || ''}#${u.nazev || ''}#${u.od || ''}`);
 const POLE = ['line', 'od', 'do', 'nazev', 'popis', 'objizdka', 'castecna', 'zdroj', 'url'];
 
 // seznam + úpravy -> [viditelné, skryté (jen pro editor)]
@@ -293,6 +293,73 @@ export function zGeojson(S, d, i, cfg, jine, dnes = dnesISO()) {
   return out;
 }
 
+// ---------------------------------------------------------------- dopravní události kraje (functions/api/udalosti.js)
+// Portál dává jen bod: přichytit ho na silnici nebo ulici z názvu (číslo silnice, „ulice …“) a vzít úsek ±pul m po ní.
+export function usekUBodu(S, lat, lon, nazev, pul = 90) {
+  const { cam } = S.d, x = (lon - cam.lon0) * cam.kx, y = (lat - cam.lat0) * cam.ky;
+  const refy = [...nazev.matchAll(/(?<![\p{L}\d])(D\d+|I{1,3}\/\d+[a-z]?)/gu)].map((m) => m[1].replace(/^I{1,3}\//, ''));
+  const ul = (/ulice\s+([^,]+)/i.exec(nazev) || [])[1]?.trim();
+  const sedi = (e) => (ul && e.nm === ul) || e.refs.some((r) => refy.includes(r));
+  let best = -1, bd = 300, volny = -1, vd = 120;              // silnice z názvu do 300 m, jinak nejbližší jakákoli do 120 m
+  for (let i = 0; i < S.adj.length; i++) {
+    if (!S.adj[i].length) continue;
+    const [ix, iy] = S.xy(i), d = Math.hypot(ix - x, iy - y);
+    if (d < bd && S.adj[i].some(([, e]) => sedi(e))) { bd = d; best = i; }
+    if (d < vd) { vd = d; volny = i; }
+  }
+  const podleNazvu = best >= 0;
+  if (!podleNazvu) best = volny;
+  if (best < 0) return null;
+  const jdi = (start, zakaz) => {                            // po hranách téže silnice (jinak rovně dál) do vzdálenosti pul
+    const out = []; let u = start, pred = zakaz, L = 0;
+    while (L < pul) {
+      const moz = S.adj[u].filter(([v]) => v !== pred), dal = podleNazvu ? moz.find(([, e]) => sedi(e)) : moz.length === 1 || !out.length ? moz[0] : null;
+      if (!dal) break;
+      pred = u; u = dal[0]; L += dal[1].L; out.push(u);
+      if (out.length > 200) break;
+    }
+    return out;
+  };
+  const tam = jdi(best, -1), zpet = jdi(best, tam[0] ?? -1);          // na obě strany od bodu
+  const uzly = [...zpet.reverse(), best, ...tam];
+  if (uzly.length < 2) return null;
+  return uzly.map((k) => { const [ux, uy] = S.xy(k); return [+(uy / cam.ky + cam.lat0).toFixed(6), +(ux / cam.kx + cam.lon0).toFixed(6)]; });
+}
+const denISO = (t) => { if (!t) return null; const d = new Date(t); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`; };   // místní den (ISO čas je v UTC)
+// Kraj je hlavní zdroj: uzavírka z kraje nahradí stejnou z webu města, KSÚS nebo JSDI (vyhrává název, termín, popis a zdroj),
+// jen čáru úseku a úplnost převezme od nich, protože kraj dává jen bod. Kolona nebo nehoda se nepřidá, když stejná už je.
+// ostatni: záznamy z jiných zdrojů (ne ruční); vrací [záznamy z kraje, Set nahrazených]
+export function zKraje(S, data, cfg, ostatni) {
+  const out = [], nahrazene = new Set(), { cam } = S.d;
+  const odBodu = (la, lo, line) => {                          // vzdálenost bodu od čáry v m
+    const x = (lo - cam.lon0) * cam.kx, y = (la - cam.lat0) * cam.ky; let d = Infinity;
+    for (let i = 1; i < line.length; i++) {
+      const [ay, ax] = [(line[i - 1][0] - cam.lat0) * cam.ky, (line[i - 1][1] - cam.lon0) * cam.kx], [by, bx] = [(line[i][0] - cam.lat0) * cam.ky, (line[i][1] - cam.lon0) * cam.kx];
+      const ex = bx - ax, ey = by - ay, l2 = ex * ex + ey * ey || 1, t = Math.max(0, Math.min(1, ((x - ax) * ex + (y - ay) * ey) / l2));
+      d = Math.min(d, Math.hypot(ax + ex * t - x, ay + ey * t - y));
+    }
+    return d;
+  };
+  const klicova = (nazev) => [...(nazev.match(/ulice\s+([^,]+)/i) || []).slice(1), ...[...nazev.matchAll(/(?:I{1,3}\/|D)(\d+[a-z]?)/g)].map((m) => m[1])].map((q) => bezDiakritiky(q.trim())).filter(Boolean);
+  for (const u of (data && data.udalosti) || []) {
+    const line = usekUBodu(S, u.lat, u.lon, u.nazev, u.druh === 'kolona' ? 250 : 90);
+    if (!line || !vMape(S, line)) continue;
+    const nm = u.nazev.replace(/^(Dopravní uzavírky a omezení|Omezení provozu a zákazy|Práce na silnici|Dopravní situace),\s*/i, '').replace(/,?\s*okr\.\s*[^,]+$/i, '').replace(/,?\s*v katastru obce\s+/i, ', ').replace(/(^|,\s*)(silnice|ulice)\s+/gi, '$1').replace(/^,\s*/, '');
+    const zaz = { nazev: nm.slice(0, 90), line, od: null, do: null, konec: u.konec, popis: u.popis || u.nazev, zdroj: cfg.zdroj, url: cfg.odkaz || null, auto: 1, puvod: 'kraj', kid: u.id };
+    if (u.druh !== 'uzavirka') {
+      if (ostatni.some((o) => o.druh === u.druh && prekryva(S, line, [o.line], 25))) continue;
+      out.push({ ...zaz, druh: u.druh, typ: u.typ }); continue;
+    }
+    const kl = klicova(u.nazev);
+    const dupl = ostatni.filter((o) => !o.druh && o.line && o.line.length > 1 && (prekryva(S, line, [o.line], 25)
+      || (odBodu(u.lat, u.lon, o.line) < 150 && kl.some((k) => bezDiakritiky(o.nazev || '').includes(k)))));
+    const uz = { ...zaz, od: denISO(u.od), do: denISO(u.konec) };
+    if (!dupl.length) { out.push({ ...uz, castecna: true }); continue; }   // jen v kraji: rozsah neznáme, částečná
+    for (const o of dupl) { nahrazene.add(o); out.push({ ...uz, line: o.line, ...(o.castecna ? { castecna: true } : {}), usek: o.zdroj || 'jiný zdroj' }); }
+  }
+  return [out, nahrazene];
+}
+
 // ---------------------------------------------------------------- načtení pro prohlížeč
 // hotovo(viditelné, {skryte, upravy, upravyZapnute}) se volá se statickým souborem a znovu s čerstvými daty z api/uzavirky
 // (oznámení z webu města -> úseky po síti ulic, úseky z GeoJSON zdrojů přes api/uzavirky?geo=i). Co nejde stáhnout, zůstává ze snímku.
@@ -328,6 +395,13 @@ export async function nactiUzavirky(base, hotovo, { jenApi = false } = {}) {   /
     web = web.filter((u) => !prekryva(S, u.line, jl));
     for (const [k, l] of geo) geo.set(k, l.filter((u) => !prekryva(S, u.line, jl)));
   }
-  const [vid, skryte] = aplikuj([...rucni, ...jsdi, ...web, ...[...geo.values()].flat()], api.upravy || []);
+  // dopravní události kraje (mesto.json "uzavirky_kraj"): hlavní zdroj, při duplicitě vyhrává nad webem města, KSÚS i JSDI
+  let kraj = [], nahrazene = new Set();
+  if (sd && sd.kraj) {
+    const kd = await j('api/udalosti');
+    if (kd) { try { [kraj, nahrazene] = zKraje(pripravSit(sd), kd, sd.kraj, [...jsdi, ...web, ...[...geo.values()].flat()]); } catch (e) { console.warn('události kraje', e); } }
+  }
+  const zbyva = (l) => l.filter((u) => !nahrazene.has(u));
+  const [vid, skryte] = aplikuj([...rucni, ...kraj, ...zbyva(jsdi), ...zbyva(web), ...zbyva([...geo.values()].flat())], api.upravy || []);
   hotovo(vid, { skryte, upravy: api.upravy || [], upravyZapnute: !!api.upravyZapnute, zApi: true });
 }

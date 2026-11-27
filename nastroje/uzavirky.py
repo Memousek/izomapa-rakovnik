@@ -385,6 +385,7 @@ def export_sit(sit, adresy, mista, obce, cfg):
     x0, y0, x1, y1 = geo.extent(400)
     out = {'cam': {'lon0': geo.LON0, 'lat0': geo.LAT0, 'kx': geo.KX, 'ky': geo.KY, 'half': geo.HALF}, 'ctverce': [list(c) for c in geo.CHUNKS],
            'obce': obce, 'geojson': [{'zdroj': z.get('zdroj'), 'odkaz': z.get('odkaz') or z['url']} for z in geo.MESTO.get('uzavirky_geojson') or []], 'zdroj': cfg.get('zdroj') or urllib.parse.urlparse(cfg['url']).netloc, 'skryt': up.get('uzavirky_skryt') or [],
+           **({'kraj': {k: geo.MESTO['uzavirky_kraj'][k] for k in ('zdroj', 'odkaz') if geo.MESTO['uzavirky_kraj'].get(k)}} if (geo.MESTO.get('uzavirky_kraj') or {}).get('url') else {}),
            'uzly': [v for k in klice for v in (round(sit.xy[k][0], 2), round(sit.xy[k][1], 2))], 'ulice': ulice, 'refy': refy, 'hrany': hrany,
            'kruh': [v for k_, r in sit.kruh.items() for v in (idx[k_], r)],
            'adresy': [[n, ui.get(s_, -1), round(x, 1), round(y, 1)] for n, s_, x, y in adresy if x0 <= x <= x1 and y0 <= y <= y1],
@@ -392,7 +393,9 @@ def export_sit(sit, adresy, mista, obce, cfg):
     json.dump(out, open('site/uzavirky_sit.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     (lo0, lo1), (la0, la1) = geo.to_lonlat([x0, x1], [y0, y1])          # mapa + 400 m: co z JSDI (functions/api/jsdi.js) ukládat
     json.dump({'url': cfg['url'], 'geojson': [z['url'] for z in geo.MESTO.get('uzavirky_geojson') or []],
-               'bbox': [round(float(la0), 5), round(float(lo0), 5), round(float(la1), 5), round(float(lo1), 5)]}, open('site/uzavirky_zdroj.json', 'w', encoding='utf-8'))
+               'bbox': [round(float(la0), 5), round(float(lo0), 5), round(float(la1), 5), round(float(lo1), 5)],
+               **({'kraj': geo.MESTO['uzavirky_kraj']} if (geo.MESTO.get('uzavirky_kraj') or {}).get('url') else {})},   # dopravní události kraje (functions/api/udalosti.js)
+              open('site/uzavirky_zdroj.json', 'w', encoding='utf-8'), ensure_ascii=False)
     print('síť pro prohlížeč:', len(klice), 'uzlů,', len(hrany) // 4, 'hran,', os.path.getsize('site/uzavirky_sit.json') // 1000, 'kB')
 
 
