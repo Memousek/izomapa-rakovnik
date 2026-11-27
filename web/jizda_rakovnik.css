@@ -215,3 +215,7 @@ body.kontrast .nast-radek small, body.kontrast .panel h2 small { color: #1c1917;
 #hud .mp-sek .mp-chyba { font: 500 .82rem var(--sans); margin-top: 4px; }
 #hud .mp-sek li button:hover { background: var(--s1); }
 #hud .mp-sek ul { font: 500 .88rem var(--sans); max-height: 180px; }
+
+/* odkazy na jiný web (web/js/02-odkazy-ven.js vložený nástrojem jizda.py): viditelná šipka, text jen pro čtečku */
+.ven-sipka { display: inline-block; margin-left: .25em; text-decoration: none; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

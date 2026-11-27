@@ -1,10 +1,14 @@
 // Webkamery (Vrstvy → Webkamery): ikona kamery na mapě, klik otevře kartu.
 // Centrum: webkamera webcamlive.cz (provoz unitednetworks.cz); web dovoluje vložit obrázek s odkazem zpět na stránku kamery,
-// proto karta ukazuje aktuální snímek a pod ním odkaz na webcamlive.cz. Poloha je přibližná (ulice, na kterou kamera míří).
+// proto karta ukazuje aktuální snímek a pod ním odkaz na webcamlive.cz. Ikona stojí na domě, kde kamera je.
+// Husovo náměstí: kamera CBCNET (now.jpg, obnova ~10 s, cache 10 let → při vložení nutný parametr ?t=); podmínky nejsou
+// zveřejněné, proto zatím jen odkaz. Se souhlasem CBC stačí doplnit obrazek: 'https://cbcnet.cz/wp-content/uploads/kamera/now.jpg?x=1'.
 // Dálnice D6: kamery ŘSD; podmínky použití obrázků nejsou zveřejněné, proto jen odkaz na dopravniinfo.gov.cz (bez snímku).
 const KAMERY = [
-  { nazev: 'Webkamera: centrum Rakovníka', lat: 50.10640, lon: 13.72600, text: 'Pohled k východu na centrum přes Havlíčkovu a Palackého ulici. Snímek se obnovuje po několika minutách.',
+  { nazev: 'Webkamera: centrum Rakovníka', lat: 50.10614, lon: 13.72287, text: 'Kamera na domě Dukelských hrdinů 1804, pohled k východu na centrum přes Havlíčkovu a Palackého ulici. Snímek se obnovuje po několika minutách.',
     obrazek: 'https://www.webcamlive.cz/camera_image.php?idCamera=955', odkaz: 'https://www.webcamlive.cz/en/webcam/town-of-rakovnik/955', zdroj: 'webcamlive.cz' },
+  { nazev: 'Webkamera: Husovo náměstí', lat: 50.10481, lon: 13.72748, text: 'Kamera na domě Husovo náměstí 54, pohled k východu: radnice, kostel sv. Bartoloměje a Pražská brána. Aktuální snímek je na webu CBCNET.',
+    odkaz: 'https://cbcnet.cz/o-nas/kamera/', zdroj: 'CBCNET, cbcnet.cz' },
   ...[[3615, 40.7, 50.178, 13.779], [4245, 43.2, 50.170, 13.745], [4246, 45.4, 50.168, 13.716], [4247, 47.2, 50.170, 13.691]].map(([id, km, lat, lon]) => ({
     nazev: `Kamera ŘSD: D6, km ${String(km).replace('.', ',')}`, lat, lon, text: 'Dopravní kamera Ředitelství silnic a dálnic. Aktuální snímek je na webu Dopravní info.',
     odkaz: 'https://dopravniinfo.gov.cz/cameras-overview/D6', zdroj: 'ŘSD ČR, dopravniinfo.gov.cz', id })),

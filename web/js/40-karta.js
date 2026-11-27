@@ -5,6 +5,7 @@
     if (k && !(LAYERS.find((l) => l.key === k) || {}).status?.startsWith('hotovo')) { const t = document.createElement('span'); t.className = 'wip-tag'; t.textContent = 'Rozpracováno'; $('cardTitle').append(' ', t); }
     $('cardText').hidden = !text; $('cardText').textContent = text || '';
     $('cardWiki').hidden = true; $('cardWiki').replaceChildren(); kartaId++;
+    $('cardFoto').hidden = true; $('cardFoto').replaceChildren();
     $('cardSpoj').hidden = true; $('cardSpoj').replaceChildren();
     const dl = $('cardDl'); dl.replaceChildren();
     for (const [k, v] of rows) { if (v === undefined || v === null || v === '') continue; const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v; dl.append(dt, dd); }
@@ -71,6 +72,16 @@
       if (id === kartaId && !$('card').hidden) m.vykresli($('cardWiki'), w);
     } catch {}
   }
+  // fotka domu z Wikimedia Commons (web/mapa_fotky.js, site/fotky.json z nastroje/fotky.py): bod položky Wikidat v obrysu domu
+  async function fotoDo(b, nazev) {
+    const id = kartaId;
+    try {
+      const m = await import('./mapa_fotky.js');
+      const vObrysu = (lat, lon) => { const x = (lon - cam.lon0) * cam.kx, y = (lat - cam.lat0) * cam.ky, [ix, iy] = toImg(x, y, gz(x, y)); return inPoly(ix, iy, b.hull); };
+      const f = await m.najdi(b, nazev, vObrysu);
+      if (id === kartaId && !$('card').hidden) m.vykresli($('cardFoto'), f);
+    } catch {}
+  }
   function showBuilding(b) {
     state.sel = b;
     const pl = placeOf(b);
@@ -81,6 +92,7 @@
       ['Adresa', (b.addr || []).join(', ')], ['Typ', nm ? b.cls : null],
     ] });
     if (nm && !story) wikiDo(nm, b.lat, b.lon);
+    if (b.hull) fotoDo(b, nm);
     if (nm && DENIK) DENIK.zapisPodleNazvu(nm);
     setReport(b.oid ? 'b:' + b.oid : b.id, [title, (b.addr || [])[0]].filter(Boolean).join(', '), b.lon, b.lat);
   }

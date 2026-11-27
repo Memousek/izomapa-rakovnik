@@ -30,7 +30,7 @@ body.noc, body.noc #map { background: #0f1218; }
   background: var(--sklo); color: var(--ink); border: 0 !important; border-radius: var(--r); box-shadow: var(--stin);
   -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
 }
-.px-btn, .chip, .tab, .search input, .sled-list, .card .report textarea, .hydro-graf, .pohl-nahled, .card-wiki img {
+.px-btn, .chip, .tab, .search input, .sled-list, .card .report textarea, .hydro-graf, .pohl-nahled, .card-wiki img, .card-foto img {
   border-radius: 10px; box-shadow: none;
 }
 .px-btn { font-family: var(--sans); font-weight: 500; border: 1px solid var(--edge); background: var(--panel-2); color: var(--ink); }
