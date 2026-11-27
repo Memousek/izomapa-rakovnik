@@ -9,6 +9,7 @@ const CIF = {                                                     // číslice 3
   9: ['111', '101', '111', '001', '111'],
 };
 const DOSAH = 70, BLIZ = 8, VYDRZ = 2.5, MAX_UHEL = 60;          // m, m, s, °
+const SW = 17, SH = 31;                                           // obrázek tabule v bodech: skříň 13, štítek 3, sloup 14 (2,8 m)
 
 export function spust({ ukazKartu }) {
   const I = window.Izomapa; if (!I) return;
@@ -47,12 +48,48 @@ export function spust({ ukazKartu }) {
 
   let posledni = 0;
   const kde = [];
+
+  // tabule jako pixelový obrázek (1 bod = 1 pixel při přiblížení 1), stejně jako vozidla: tmavý obrys, světlo zleva shora,
+  // stín vpravo dole; zvětšuje se celými násobky bez vyhlazení. Cache podle čísla, barvy a noci.
+  const SPRITY = new Map();
+  function sprite(txt, nad, noc) {
+    const k = `${txt}|${nad}|${noc}`;
+    let c = SPRITY.get(k); if (c) return c;
+    c = document.createElement('canvas'); c.width = SW; c.height = SH;
+    const g = c.getContext('2d'), tma = (hex) => {             // v noci skříň a sloup potmavé a do modra, svítí jen čísla
+      if (!noc) return hex; const n = parseInt(hex.slice(1), 16);
+      return `rgb(${Math.round((n >> 16) * 0.34)},${Math.round(((n >> 8) & 255) * 0.36)},${Math.round((n & 255) * 0.5 + 12)})`;
+    };
+    const px = (x, y, col, w = 1, h = 1, sviti) => { g.fillStyle = sviti ? col : tma(col); g.fillRect(x, y, w, h); };
+    const OBR = '#1d1f22';
+    // skříň displeje 17 × 13: obrys se zkosenými rohy, žlutý rám (světlá horní a levá hrana, tmavší dolní a pravá)
+    px(1, 0, OBR, 15); px(1, 12, OBR, 15); px(0, 1, OBR, 1, 11); px(16, 1, OBR, 1, 11);
+    px(1, 1, '#ffd200', 15, 11);
+    px(1, 1, '#ffe766', 15); px(1, 1, '#ffe766', 1, 11);
+    px(1, 11, '#c99d00', 15); px(15, 1, '#c99d00', 1, 11);
+    // displej 13 × 9 (tmavé sklo, v noci s nádechem barvy čísla)
+    px(2, 2, OBR, 13, 9);
+    px(3, 3, txt && noc ? (nad ? '#2a0f0d' : '#0d2414') : '#0b0c0d', 11, 7, true);
+    if (txt) {
+      const col = nad ? '#ff4a3d' : '#46ff74', x = 2 + Math.floor((13 - (txt.length * 4 - 1)) / 2);
+      [...txt].forEach((ch, n) => CIF[ch].forEach((r, j) => { for (let i = 0; i < 3; i++) if (r[i] === '1') px(x + n * 4 + i, 4 + j, col, 1, 1, true); }));
+    }
+    // štítek „VAŠE RYCHLOST“ pod displejem: bílá cedulka, text naznačený tečkami
+    px(3, 13, OBR, 11, 3); px(4, 14, '#eef0f2', 9);
+    for (let i = 5; i < 12; i += 2) px(i, 14, '#7a8087');
+    // sloup 2 px s obrysem (světlá levá, tmavší pravá strana) a patka
+    px(7, 16, OBR, 1, SH - 17); px(10, 16, OBR, 1, SH - 17);
+    px(8, 16, '#d3d7db', 1, SH - 17); px(9, 16, '#8f959c', 1, SH - 17);
+    px(6, SH - 1, OBR, 6);
+    SPRITY.set(k, c);
+    return c;
+  }
   I.onFrame((ctx, v) => {
     kde.length = 0;
     if (!zap || !tabule.length || v.sx < 0.5) return;        // jen zblízka (z výšky by tabule trčela nad městem)
     const ted = v.now / 1000, mer = ted - posledni > 0.12;       // měřit asi 8× za sekundu
     if (mer) posledni = ted;
-    const q = Math.max(1, Math.round(v.sx * 1.3));
+    const q = Math.max(1, Math.round(v.sx));                    // celé násobky: pixely tabule sedí na mřížce jako zbytek mapy
     for (const t of tabule) {
       const z = I.gz(t.x, t.y), [ix, iy] = I.toImg(t.x, t.y, z);
       if (!v.vis(ix, iy, 60)) continue;
@@ -63,24 +100,18 @@ export function spust({ ukazKartu }) {
           if (a.auto !== t.minule) { t.minule = a.auto; t.posl.unshift({ v: t.cislo, cas: new Date() }); t.posl.length = Math.min(t.posl.length, 8); }
         } else if (ted > t.do) t.cislo = null;
       }
-      const [X, Y] = v.toScreen(ix, iy), h = Math.max(14, 17 * v.sx);   // sloup ~3,4 m
-      const txt = t.cislo == null ? '' : String(Math.min(199, t.cislo)), w = 3 * 4 * q + 3 * q, vy = 5 * q + 4 * q;
-      const x0 = Math.round(X - w / 2), y0 = Math.round(Y - h - vy);
-      const pw = Math.max(2, q), px = Math.round(X - pw / 2);
-      ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(px + pw, Math.round(Y) - 1, Math.round(h * 0.5), Math.max(2, q));   // stín sloupu
-      ctx.fillStyle = '#2b2d31'; ctx.fillRect(px - 1, y0 + vy, pw + 2, Math.round(h) + 1);
-      ctx.fillStyle = '#b9bdc2'; ctx.fillRect(px, y0 + vy, pw, Math.round(h));
-      ctx.fillStyle = '#ffd200'; ctx.fillRect(x0 - q, y0 - q, w + 2 * q, vy + 2 * q);   // žlutý rámeček jako u skutečných tabulí
-      ctx.fillStyle = '#111'; ctx.fillRect(x0, y0, w, vy);
+      const [X, Y] = v.toScreen(ix, iy);
       const nad = t.cislo != null && t.cislo > t.m.limit, blik = nad && Math.floor(ted * 2.5) % 2;
-      if (txt && !blik) {
-        const col = nad ? '#ff3b30' : '#3cff6a';
-        if (v.night > 0.3) { ctx.fillStyle = nad ? 'rgba(255,59,48,.25)' : 'rgba(60,255,106,.22)'; ctx.fillRect(x0 - 3 * q, y0 - 3 * q, w + 6 * q, vy + 6 * q); }
-        ctx.fillStyle = col;
-        const sx0 = x0 + 2 * q + (3 - txt.length) * 2 * q;            // zarovnání na střed
-        [...txt].forEach((ch, k) => CIF[ch].forEach((r, j) => { for (let i = 0; i < 3; i++) if (r[i] === '1') ctx.fillRect(sx0 + (k * 4 + i) * q, y0 + 2 * q + j * q, q, q); }));
+      const txt = t.cislo == null || blik ? '' : String(Math.min(199, t.cislo));
+      const sp = sprite(txt, nad, v.night > 0.3), x0 = Math.round(X - (SW / 2) * q), y0 = Math.round(Y) - SH * q;
+      ctx.fillStyle = 'rgba(0,0,0,.26)';                            // stín sloupu po zemi (slunce od jihovýchodu), po celých pixelech
+      if (v.night < 0.5) for (let i = 1; i <= 6; i++) ctx.fillRect(x0 + (SW / 2 + i) * q, y0 + (SH - 1 - (i >> 1)) * q, q, q);
+      if (txt && v.night > 0.3) {                                   // v noci displej září do okolí
+        ctx.fillStyle = nad ? 'rgba(255,59,48,.22)' : 'rgba(60,255,106,.2)';
+        ctx.fillRect(x0 - 2 * q, y0 - 2 * q, (SW + 4) * q, 17 * q);
       }
-      kde.push([x0 - q, y0 - q, w + 2 * q, vy + 2 * q + h, t]);
+      ctx.imageSmoothingEnabled = false; ctx.drawImage(sp, x0, y0, SW * q, SH * q);
+      kde.push([x0, y0, SW * q, SH * q, t]);
     }
   }, { layer: 'top', priority: -1 });
 
