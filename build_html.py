@@ -113,6 +113,8 @@ def postav_stranku(M, html_out='site/index.html', og_cesta='og.jpg', je_obec=Fal
         'DOPRAVA_ZDROJ': ', intenzity dopravy © <a href="https://www.rsd.cz/silnice-a-dalnice/scitani-dopravy" target="_blank" rel="noopener">ŘSD ČR</a> (Celostátní sčítání dopravy)' if M.get('doprava') else '',
         'RUIAN_ZDROJ': ', typy budov z RÚIAN' if os.path.exists('assets/ruian_budovy.json') else '',
         'VITR_ZDROJ': ', ' + ('počasí a vítr' if M.get('pocasi') and M.get('vitr') else 'počasí' if M.get('pocasi') else 'vítr') + ' © <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (CC BY 4.0)' if M.get('vitr') or M.get('pocasi') else '',
+        'DATA_ZDROJ': (', hluk © <a href="https://geoportal.mzcr.cz/SHM2022/" target="_blank" rel="noopener">Ministerstvo zdravotnictví</a> (strategické hlukové mapy 2022)' if os.path.exists('assets/hluk.json') else '')
+                      + (', hustota obyvatel © <a href="https://ec.europa.eu/eurostat/web/gisco/geodata/population-distribution/population-grids" target="_blank" rel="noopener">Eurostat</a> (Sčítání 2021, ČSÚ)' if os.path.exists('assets/hustota.json') else ''),
         'HASICI_ZDROJ': f', zásahy hasičů © <a href="{E(M['hasici']['url'])}" target="_blank" rel="noopener">{E(M['hasici'].get('zdroj', 'HZS'))}</a>' if (M.get('hasici') or {}).get('url') else '',
         'PLUHY_ZDROJ': ', sypače zimní údržby © <a href="https://udrzba.rsd.cz/" target="_blank" rel="noopener">ŘSD ČR</a>' if M.get('pluhy', False) else '',
         'LETADLA_ZDROJ': ', letadla © <a href="https://adsb.lol/" target="_blank" rel="noopener">adsb.lol</a> (ODbL) a&nbsp;<a href="https://adsb.fi/" target="_blank" rel="noopener">adsb.fi</a>' if M.get('letadla', False) else '',
@@ -176,7 +178,7 @@ if (MESTO.get('hydro') or {}).get('stanice'):    # stanice ČHMÚ pro functions/
     json.dump({'stanice': MESTO['hydro']['stanice']}, open('site/hydro_zdroj.json', 'w', encoding='utf-8'))
 if (MESTO.get('kalendar_web') or {}).get('url'):   # adresa kalendáře akcí pro functions/api/kalendar.js
     json.dump({k: MESTO['kalendar_web'][k] for k in ('url', 'zdroj') if MESTO['kalendar_web'].get(k)}, open('site/kalendar_zdroj.json', 'w', encoding='utf-8'), ensure_ascii=False)
-for _f in ('akce_mista.json', 'zapasy.json', 'firmy.json', 'scenky.json', 'pamatna.json', 'zaplavy.json', 'stari_budov.json', 'fotky.json'):      # místa konání akcí (nastroje/akce_mista.py) a ručně vedené domácí zápasy
+for _f in ('akce_mista.json', 'zapasy.json', 'firmy.json', 'scenky.json', 'pamatna.json', 'zaplavy.json', 'stari_budov.json', 'fotky.json', 'hluk.json', 'hustota.json'):      # místa konání akcí (nastroje/akce_mista.py) a ručně vedené domácí zápasy
     if os.path.exists(f'assets/{_f}'): shutil.copy(f'assets/{_f}', f'site/{_f}')
 if os.path.exists('site/mhd.json'):                # linky v mapě pro výluky PID (functions/api/vyluky.js)
     json.dump({'linky': sorted({r[0] for r in json.load(open('site/mhd.json', encoding='utf-8'))['routes']})}, open('site/vyluky_zdroj.json', 'w', encoding='utf-8'))

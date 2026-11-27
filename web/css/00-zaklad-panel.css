@@ -281,3 +281,10 @@ input[type="range"] { width: 100%; accent-color: var(--lamp); }
 .nebe-list li { display: grid; grid-template-columns: 7.4em 1fr; gap: 8px; padding: 4px 8px; font-size: .84rem; }
 .nebe-list .nebe-co { color: var(--lamp); font-variant-numeric: tabular-nums; }
 .iss-pruh { top: calc(env(safe-area-inset-top, 0px) + 50px); }
+/* linky MHD v záložce Doprava: mřížka štítků po druzích (jako izomapa.fun) */
+.lines { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 6px; margin: 4px 0 10px; }
+.line-chip { min-height: 40px; padding: 2px 4px; border: 2px solid rgba(0, 0, 0, .45); cursor: pointer; font-size: .95rem; }
+.line-chip:hover { filter: brightness(1.15); }
+.line-chip:focus-visible { outline: 3px solid var(--lamp); outline-offset: 2px; }
+.livenote { margin: 6px 0; color: var(--muted); font-size: .82rem; }
+#linkyBox .chip { margin-bottom: 4px; }

@@ -157,8 +157,12 @@
     <p class="label">Sledovat spoj</p>
     <button class="px-btn sled-btn" id="sledBtn" type="button" aria-expanded="false" aria-controls="sledList">Autobusy a vlaky na mapě</button>
     <ul class="sled-list" id="sledList" hidden></ul>
-    <button class="px-btn sled-btn" id="linkyBtn" type="button" aria-expanded="false" aria-controls="linkyList">Linky: celá trasa</button>
-    <ul class="sled-list" id="linkyList" hidden></ul>
+  </div>
+  <div id="linkyBox" class="sec" hidden>
+    <label class="chip"><input type="checkbox" id="l-stops"><span>Zastávky na mapě</span></label>
+    <p class="livenote" id="mhdNow" aria-live="polite"></p>
+    <div id="linesWrap"></div>
+    <p class="livenote">Klepnutím na číslo linky ukážete celou trasu, klepnutím na zastávku na mapě odjezdy.</p>
   </div>
   <details class="sec" id="puBox" hidden>
     <summary>Pumpy a&nbsp;nabíječky <span class="sum-val" id="puVal"></span></summary>
@@ -248,7 +252,7 @@
     <dt>Esc</dt><dd>zavřít kartu, pak panel</dd>
   </dl>
   <p class="muted">Vytvořeno nástrojem <a href="https://github.com/adamklatovsky/izomapa" target="_blank" rel="noopener">izomapa</a> od <a href="https://www.adamklatovsky.cz/" target="_blank" rel="noopener">Adama Klatovského</a> (původní mapa: <a href="https://izomapa.fun" target="_blank" rel="noopener">izometrický Liberec</a>).<br>
-  Mapová data © přispěvatelé <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL) a&nbsp;Overture Maps, terén Terrarium (AWS Open Data), výšky budov a&nbsp;stromů, ortofoto a&nbsp;ZABAGED{{RUIAN_ZDROJ}} © <a href="https://geoportal.cuzk.cz/" target="_blank" rel="noopener">ČÚZK</a> (CC BY 4.0){{MHD_ZDROJ}}{{VITR_ZDROJ}}{{LETADLA_ZDROJ}}{{PLUHY_ZDROJ}}{{HASICI_ZDROJ}}{{DOPRAVA_ZDROJ}}<span id="puZdrojPata" hidden>, Ceny: <a href="https://www.mbenzin.cz" target="_blank" rel="noopener">mbenzin.cz</a></span>.</p>
+  Mapová data © přispěvatelé <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL) a&nbsp;Overture Maps, terén Terrarium (AWS Open Data), výšky budov a&nbsp;stromů, ortofoto a&nbsp;ZABAGED{{RUIAN_ZDROJ}} © <a href="https://geoportal.cuzk.cz/" target="_blank" rel="noopener">ČÚZK</a> (CC BY 4.0){{MHD_ZDROJ}}{{VITR_ZDROJ}}{{LETADLA_ZDROJ}}{{PLUHY_ZDROJ}}{{HASICI_ZDROJ}}{{DATA_ZDROJ}}{{DOPRAVA_ZDROJ}}<span id="puZdrojPata" hidden>, Ceny: <a href="https://www.mbenzin.cz" target="_blank" rel="noopener">mbenzin.cz</a></span>.</p>
 </dialog>
 <dialog class="help plocha" id="plochaDlg" aria-labelledby="plochaTitle">
   <button class="px-btn close" id="plochaClose" type="button" aria-label="Zavřít">×</button>

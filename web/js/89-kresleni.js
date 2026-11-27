@@ -50,6 +50,7 @@
       ctx.closePath(); ctx.stroke();
     }
     drawUlice(sx, ox, oy, cw, ch, dpr);                   // názvy ulic (87-nazvy-ulic.js), pod vozidly a čísly linek
+    kresliZastavky(sx, ox, oy, cw, ch);                   // cedulky zastávek (Doprava → Zastávky na mapě, 70-animace.js)
     // doprava
     if (!$('l-traffic').checked) CARS_DRAWN.length = 0;          // bez dopravy žádná klikací auta (jinak by zůstala poslední poloha)
     if (!$('l-traffic').checked) CARS_DRAWN.length = 0;          // bez dopravy žádná klikací auta (jinak by zůstala poslední poloha)

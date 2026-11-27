@@ -77,5 +77,4 @@
 .linka-bar { bottom: calc(env(safe-area-inset-bottom, 0px) + 124px); }
 .linka-bar .px-btn { width: auto; padding: 0 10px; }
 .linka-bar #linkaZavri { width: 32px; padding: 0; }
-#linkyBtn { margin-top: 6px; }
 @media (max-width: 640px) { .linka-bar { bottom: 120px; } }

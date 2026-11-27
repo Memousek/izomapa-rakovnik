@@ -1183,26 +1183,51 @@
   $('linkaOtoc').addEventListener('click', () => { LINKA.smer = (LINKA.smer + 1) % LINKA.smery.length; linkaUkaz(false); });
   $('linkaZavri').addEventListener('click', () => { $('linkaBar').hidden = true; LINKA.sh = null; });
   setInterval(() => { if (!$('linkaBar').hidden) linkaUkaz(false); }, 15000);
-  function seznamLinek() {
-    const act = mhdActive(), seen = new Map();
-    MHD.routes.forEach(([line, typ], ri) => { const k = typ + '|' + line; if (!seen.has(k)) seen.set(k, { line, typ, n: 0 }); });
-    for (const [i] of act) { const [line, typ] = MHD.routes[MHD.trips[i][0]]; const q = seen.get(typ + '|' + line); if (q) q.n++; }
-    const ul = $('linkyList'), PORADI = (t) => (t === 0 ? 1 : t === 2 ? 2 : 0), lin = [...seen.values()].sort((a, b) => PORADI(a.typ) - PORADI(b.typ) || String(a.line).localeCompare(String(b.line), 'cs', { numeric: true }));   // autobusy, tramvaje, vlaky
-    ul.replaceChildren(...lin.map(({ line, typ, n }) => {
-      const li = document.createElement('li'), b = document.createElement('button'), l = document.createElement('span'), t = document.createElement('span'), sm = document.createElement('small');
-      l.className = 'linka ' + (typ === 2 ? 'vlak' : typ === 0 ? 'tram' : 'bus'); l.textContent = line;
-      sm.textContent = n ? ` · právě jede ${n}` : ' · teď nejede'; t.append(typNazev(typ), sm);
-      b.type = 'button'; b.append(l, t); b.addEventListener('click', () => linkaVyber(line, typ)); li.append(b); return li;
-    }));
+  // linky jako mřížka štítků po druzích (klepnutí = celá trasa), nad ní kolik vozů teď jede (jako izomapa.fun)
+  const sklon = (n, a, b, d) => `${n} ${n === 1 ? a : n >= 2 && n <= 4 ? b : d}`;
+  function mrizkaLinek() {
+    const wrap = $('linesWrap'), seen = new Map();
+    MHD.routes.forEach(([line, typ]) => { const k = typ + '|' + line; if (!seen.has(k)) seen.set(k, { line, typ, n: 0 }); });
+    const c = { 0: 0, 2: 0, 3: 0 };
+    for (const [i] of mhdActive()) { const [line, typ] = MHD.routes[MHD.trips[i][0]]; const q = seen.get(typ + '|' + line); if (q) q.n++; c[typ === 0 ? 0 : typ === 2 ? 2 : 3]++; }
+    const casti = [];
+    if (c[3]) casti.push(sklon(c[3], 'autobus', 'autobusy', 'autobusů'));
+    if (c[0]) casti.push(sklon(c[0], 'tramvaj', 'tramvaje', 'tramvají'));
+    if (c[2]) casti.push(sklon(c[2], 'vlak', 'vlaky', 'vlaků'));
+    $('mhdNow').textContent = casti.length ? `Teď podle jízdních řádů jede ${casti.slice(0, -1).join(', ')}${casti.length > 1 ? ' a ' : ''}${casti[casti.length - 1]}.`
+      : 'Teď podle jízdních řádů nic nejede. Linky a zastávky jdou prohlížet i tak.';
+    if (wrap.childElementCount) {                            // štítky už jsou: jen počty jedoucích do popisku
+      for (const b of wrap.querySelectorAll('button[data-k]')) { const q = seen.get(b.dataset.k); if (q) b.setAttribute('aria-label', `${typNazev(q.typ)} ${q.line}: celá trasa, ${q.n ? 'právě jede ' + q.n : 'teď nejede'}`); }
+      return;
+    }
+    const nat = (a, b) => (parseInt(String(a.line).replace(/\D/g, ''), 10) || 999) - (parseInt(String(b.line).replace(/\D/g, ''), 10) || 999) || String(a.line).localeCompare(String(b.line), 'cs');
+    for (const [typ, nadpis] of [[3, 'Autobusy'], [0, 'Tramvaje'], [2, 'Vlaky']]) {
+      const L = [...seen.values()].filter((q) => (typ === 3 ? q.typ !== 0 && q.typ !== 2 : q.typ === typ)).sort(nat);
+      if (!L.length) continue;
+      const h = document.createElement('p'), g = document.createElement('div'), id = 'lines-' + typ;
+      h.className = 'label'; h.id = id + '-h'; h.textContent = nadpis;
+      g.className = 'lines'; g.setAttribute('role', 'group'); g.setAttribute('aria-labelledby', h.id);
+      for (const q of L) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'line-chip linka ' + (q.typ === 2 ? 'vlak' : q.typ === 0 ? 'tram' : 'bus'); b.textContent = q.line; b.dataset.k = q.typ + '|' + q.line;
+        b.setAttribute('aria-label', `${typNazev(q.typ)} ${q.line}: celá trasa, ${q.n ? 'právě jede ' + q.n : 'teď nejede'}`);
+        b.addEventListener('click', () => linkaVyber(q.line, q.typ));
+        g.append(b);
+      }
+      wrap.append(h, g);
+    }
   }
-  $('linkyBtn').addEventListener('click', () => { const ul = $('linkyList'); ul.hidden = !ul.hidden; $('linkyBtn').setAttribute('aria-expanded', String(!ul.hidden)); if (!ul.hidden) seznamLinek(); });
+  $('l-stops').checked = (() => { try { return localStorage.getItem('izo-stops') === '1'; } catch { return false; } })();
+  $('l-stops').addEventListener('change', (e) => { try { localStorage.setItem('izo-stops', e.target.checked ? '1' : '0'); } catch {} });
+  setInterval(() => { if (!$('linkyBox').hidden && !$('pane-doprava').hidden) mrizkaLinek(); }, 30000);
   $('sledBtn').addEventListener('click', () => { const ul = $('sledList'); ul.hidden = !ul.hidden; $('sledBtn').setAttribute('aria-expanded', String(!ul.hidden)); if (!ul.hidden) seznamSpoju(); });
   setInterval(() => { if (!$('sledList').hidden) seznamSpoju(); }, 3000);
   function stopsReady() {
     $('sledBox').hidden = false;                             // jízdní řády načtené: jde sledovat spoje
+    $('linkyBox').hidden = false; mrizkaLinek();
     linesReady();
     if (!MHD.stops) return;
-    MHD.stopPts = MHD.stops.map(([n, x, y, kd]) => { const [ix, iy] = toImg(x, y, gz(x, y)); return { n, x, y, kd, ix, iy }; });
+    MHD.stopPts = MHD.stops.map(([n, x, y, kd]) => { const [ix, iy] = toImg(x, y, gz(x, y)); return { n, x, y, kd, ix, iy }; }).sort((a, b) => a.iy - b.iy);   // vzadu dřív (cedulky se překrývají správně)
     const seen = new Set();
     for (const s of MHD.stopPts) {
       if (seen.has(s.n)) continue; seen.add(s.n);
@@ -1240,11 +1265,43 @@
   const stopAt = (ix, iy) => {                              // zastávka pod kliknutím (do ~20 px na obrazovce, nejméně 6 m)
     if (!MHD.stopPts) return null;
     const scr = viewer.viewport.getContainerSize().x / (viewer.viewport.getBounds(true).width * W);
-    if (scr < 0.12) return null;
-    const r = Math.max(20 / scr, 30); let best = null, bd = r;
-    for (const s of MHD.stopPts) { const d = Math.hypot(s.ix - ix, s.iy - iy); if (d < bd) { bd = d; best = s; } }
+    const ced = $('l-stops').checked;                        // zapnuté cedulky: kliká se na cedulku nad bodem zastávky, i z větší dálky
+    if (scr < (ced ? 0.06 : 0.12)) return null;
+    const r = Math.max(20 / scr, 30), dy = ced ? 17 / scr : 0; let best = null, bd = r;
+    for (const s of MHD.stopPts) { const d = Math.hypot(s.ix - ix, s.iy - dy - iy); if (d < bd) { bd = d; best = s; } }
     return best;
   };
+  // zastávky na mapě (Doprava → Zastávky na mapě): cedulka jako značka IJ 4 na sloupku (modrý rámeček, bílé pole, piktogram
+  // autobusu nebo vlaku, 13 × 17 px), zblízka název pixelovým písmem; nástupiště stejného jména do 150 m mají jeden popisek (podle izomapa.fun)
+  const ZPIK = {
+    3: ['.........', '.........', '#########', '#.#.#.#.#', '#########', '#########', '.##...##.', '.........', '.........'],
+    2: ['..#####..', '.#######.', '.#.###.#.', '.#.###.#.', '.#######.', '.#######.', '..#...#..', '.#.....#.', '#.......#'],
+  };
+  const ZS = new Map();
+  function stopSign(t) {
+    t = t === 2 ? 2 : 3; let c = ZS.get(t); if (c) return c;
+    const k = 2; c = document.createElement('canvas'); c.width = 13 * k; c.height = 17 * k; const g = c.getContext('2d');
+    const R = (x, y, w, h, f) => { g.fillStyle = f; g.fillRect(x * k, y * k, w * k, h * k); };
+    R(6, 13, 1, 4, '#16191f'); R(0, 0, 13, 13, '#16191f'); R(1, 1, 11, 11, '#2a62c9'); R(2, 2, 9, 9, '#ffffff');
+    ZPIK[t].forEach((row, y) => [...row].forEach((ch, x) => { if (ch === '#') R(2 + x, 2 + y, 1, 1, '#16191f'); }));
+    ZS.set(t, c); return c;
+  }
+  function kresliZastavky(sx, ox, oy, cw, ch) {
+    if (!$('l-stops').checked || !MHD.stopPts || sx < 0.06) return;
+    const boxes = [];
+    ctx.save(); ctx.imageSmoothingEnabled = false; ctx.font = `500 12px ${DISPLAY_FONT}`; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = 3;
+    for (const q of MHD.stopPts) {
+      const X = Math.round(ox + q.ix * sx), Y = Math.round(oy + q.iy * sx);
+      if (X < -20 || Y < -30 || X > cw + 200 || Y > ch + 30) continue;
+      ctx.drawImage(stopSign(q.kd), X - 13, Y - 34);
+      if (sx < 0.22) continue;
+      const nm = MHD.names[q.n], tw = Math.ceil(ctx.measureText(nm).width) + 6, lx = X + 16, ly = Y - 21;
+      if (boxes.some(([bx, by, bw, bn, bix, biy]) => (lx < bx + bw && lx + tw > bx && Math.abs(ly - by) < 17) || (bn === q.n && Math.hypot(bix - q.ix, biy - q.iy) < 750))) continue;
+      boxes.push([lx, ly, tw, q.n, q.ix, q.iy]);
+      ctx.strokeStyle = 'rgba(16,20,30,.92)'; ctx.strokeText(nm, lx, ly); ctx.fillStyle = '#eef1e6'; ctx.fillText(nm, lx, ly);
+    }
+    ctx.restore();
+  }
   function mhdPos(trip, el, T = 0, off = 0) {                              // kde na trase je spoj el sekund po výjezdu
     const q = trip[4]; let i = 2; while (i < q.length - 2 && q[i] < el) i += 2;
     const f = Math.max(0, Math.min(1, (el - q[i - 2]) / ((q[i] - q[i - 2]) || 1)));
