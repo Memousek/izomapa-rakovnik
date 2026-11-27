@@ -19,7 +19,7 @@ import heapq, html, json, math, os, re, sys, time, unicodedata, urllib.parse, ur
 sys.path.insert(0, '.')
 import geo
 
-UA = 'izomapa-uzavirky/1.0 (+https://github.com/adamklatovsky/izomapa)'
+UA = 'izomapa-uzavirky/1.0 (+https://github.com/Memousek/izomapa-rakovnik)'
 AUTO = 'assets/uzavirky_auto.json'
 DNES = time.strftime('%Y-%m-%d')
 HLAVICKY = r'(Termín uzavírky|Rozsah uzavírky|Důvod uzavírky|Objízdná trasa|Objížďka|[Aa] nařizuje|Po celou dobu|DIO\b|Vyznačení|Zbývající jízdní pruh)'

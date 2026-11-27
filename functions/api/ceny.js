@@ -9,7 +9,7 @@
 const ZDROJ = 'https://www.mbenzin.cz/Mapa-cen/data';
 const PALIVA = { n95: '95', benzinplus: '98', diesel: 'nafta', lpg: 'lpg' };
 const CERSTVE = 6 * 3600e3, MAX_STARI = 7 * 86400e3, OKRAJ = 0.02;      // okraj kolem pump ve stupních (~2 km)
-const KLIC_KV = 'ceny_mbenzin', UA = 'izomapa-ceny/1.0 (+https://github.com/adamklatovsky/izomapa)';
+const KLIC_KV = 'ceny_mbenzin', UA = 'izomapa-ceny/1.0 (+https://github.com/Memousek/izomapa-rakovnik)';
 
 const json = (d, status = 200, extra = {}) => new Response(JSON.stringify(d), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...extra } });
 

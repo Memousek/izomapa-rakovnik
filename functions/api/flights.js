@@ -21,7 +21,7 @@ export async function onRequest({ request }) {
   const stavy = [];
   for (const z of ZDROJE) {
     try {
-      const up = await fetch(z.url(lat, lon), { headers: { 'user-agent': 'izomapa (https://github.com/adamklatovsky/izomapa)', accept: 'application/json' } });
+      const up = await fetch(z.url(lat, lon), { headers: { 'user-agent': 'izomapa-rakovnik (+https://github.com/Memousek/izomapa-rakovnik)', accept: 'application/json' } });
       stavy.push(`${z.nazev} ${up.status}`);
       if (!up.ok) continue;
       const d = await up.json();

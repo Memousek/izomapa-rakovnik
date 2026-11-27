@@ -11,7 +11,7 @@ import html, json, re, subprocess, sys, time, urllib.parse
 sys.path.insert(0, '.')
 import geo
 
-UA = 'izomapa-tools/1.0 (https://github.com/adamklatovsky/izomapa)'
+UA = 'izomapa-tools/1.0 (+https://github.com/Memousek/izomapa-rakovnik)'
 NE_DRUHY = {'Q79007', 'Q174782', 'Q4022', 'Q47521', 'Q23397', 'Q34442', 'Q3957', 'Q123705', 'Q1549591', 'Q515', 'Q2983893',
             'Q5153359', 'Q3257686', 'Q55488', 'Q644371', 'Q22698', 'Q1076486', 'Q4421'}   # ulice, náměstí, řeka, potok, rybník, silnice, městečko, čtvrť, město, obec, část obce, nádraží, letiště, park, sport. areál, les
 

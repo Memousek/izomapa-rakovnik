@@ -5,7 +5,7 @@
 // Výsledek drží Cache API (pro všechny návštěvníky v datacentru): čerstvý 3 h, pak se vrátí starý a na pozadí
 // se stáhne znovu. Mezi stránkami pauza 1 s (web má v robots.txt Crawl-Delay 3, stahuje se nejvýš pár krát denně).
 const CERSTVE = 3 * 3600e3, DRZET = 7 * 86400, PAUZA = 1000, MAX_STRANEK = 25;
-const UA = 'izomapa-uzavirky/1.0 (+https://github.com/adamklatovsky/izomapa)';
+const UA = 'izomapa-uzavirky/1.0 (+https://github.com/Memousek/izomapa-rakovnik)';
 const ENT = { nbsp: ' ', ndash: '–', mdash: '—', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", bdquo: '„', ldquo: '“', rdquo: '”', lsquo: '‚', rsquo: '‘', hellip: '…', laquo: '«', raquo: '»', shy: '', times: '×', deg: '°', sect: '§', euro: '€', copy: '©' };
 
 const json = (d, status = 200, extra = {}) => new Response(JSON.stringify(d), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...extra } });

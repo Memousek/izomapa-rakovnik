@@ -3,7 +3,7 @@
 // takže funkce nestahuje nic jiného (není to otevřená proxy). Stránka se stahuje nejvýš jednou za 30 min pro všechny.
 // Parser je naladěný na CMS GCM (web mesto-rakovnik.cz: div.event-message__item, h3.event-message__heading,
 // p.event-message__perex, span.event-message__date-value); jiný web může potřebovat úpravu.
-const CERSTVE = 1800, UA = 'izomapa-zpravy/1.0 (+https://github.com/adamklatovsky/izomapa)';
+const CERSTVE = 1800, UA = 'izomapa-zpravy/1.0 (+https://github.com/Memousek/izomapa-rakovnik)';
 const ENT = { nbsp: ' ', ndash: '–', mdash: '—', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", bdquo: '„', ldquo: '“', rdquo: '”', hellip: '…' };
 const text = (s) => (s || '').replace(/<[^>]+>/g, '').replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => (e[0] === '#' ? String.fromCodePoint(e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : +e.slice(1)) : ENT[e.toLowerCase()] ?? m)).replace(/\s+/g, ' ').trim();
 const json = (o, max = CERSTVE) => new Response(JSON.stringify(o), { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': `public, max-age=${max}` } });
