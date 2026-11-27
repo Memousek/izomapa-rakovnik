@@ -165,6 +165,23 @@ button { font: inherit; color: inherit; }
 #minimapa { position: fixed; z-index: 1; right: 16px; top: 16px; width: 180px; height: 180px; border-radius: 50%; box-shadow: 0 0 0 2px var(--edge), 4px 4px 0 rgba(0, 0, 0, .35); }
 #bus { position: fixed; z-index: 2; left: 50%; bottom: 16px; transform: translateX(-50%); width: max-content; max-width: min(640px, calc(100vw - 360px)); box-sizing: border-box; padding: 8px 14px; background: var(--panel); border: 2px solid var(--edge); box-shadow: var(--stin); font-weight: 700; text-align: center; }
 #bus:empty { display: none; }
+/* webkamery (jizda/webkamery.js): obraz v obraze se skutečným záběrem, seznam v menu */
+#webkam { position: fixed; z-index: 3; right: 16px; top: 16px; width: min(36vw, 520px); box-sizing: border-box; padding: 8px; background: var(--panel); border: 2px solid var(--edge); box-shadow: var(--stin); color: var(--ink); }
+#webkam header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+#webkam .wk-obr { width: 100%; background: #111; }
+#webkam .wk-obr img { display: block; width: 100%; height: 100%; object-fit: cover; }
+#webkam .wk-odkaz { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; height: 100%; padding: 12px; box-sizing: border-box; color: #eee; text-align: center; text-decoration: none; }
+#webkam .wk-odkaz strong { padding: 6px 12px; border: 2px solid currentColor; }
+#webkam .wk-zdroj { margin: 6px 0 0; font-size: .8rem; color: var(--muted); }
+#webkam .wk-zdroj a { color: inherit; }
+#webkam .wk-dalsi { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+#webkam .wk-dalsi:empty { display: none; }
+body.webkamera #pohledBtn, body.webkamera #tacho, body.webkamera #zamer, body.webkamera #klik, body.webkamera #minimapa { display: none !important; }
+.wk-seznam { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.wk-seznam button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; min-height: 44px; padding: 8px 10px; text-align: left; border: 2px solid var(--edge); background: var(--panel-2); color: var(--ink); cursor: pointer; font: inherit; }
+.wk-seznam button:hover, .wk-seznam button:focus-visible { outline: 2px solid var(--lamp); outline-offset: -2px; }
+.wk-seznam small, .wk-pozn { color: var(--muted); font-size: .85rem; }
+@media (max-width: 700px) { #webkam { left: 12px; right: 12px; width: auto; top: 12px; } }
 #toast { position: fixed; z-index: 5; left: 50%; top: 18%; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 10px 18px; background: var(--panel); border: 2px solid var(--edge); border-left: 6px solid #29c8ff; box-shadow: var(--stin); font: 500 1.05rem var(--display); }
 #toast.pokuta { border-left-color: #ff3b30; } #toast.odmena { border-left-color: #35e06f; }
 /* odjezdová tabule: na počítači uprostřed volného místa mezi panelem (vlevo) a minimapou (vpravo) */
@@ -256,6 +273,7 @@ button { font: inherit; color: inherit; }
         <button type="button" class="pol" role="tab" data-tab="auto" aria-controls="pnAuto">Moje auto</button>
         <button type="button" class="pol" role="tab" data-tab="nav" aria-controls="pnNav">Navigace</button>
         <button type="button" class="pol" role="tab" data-tab="spoje" aria-controls="pnSpoje">Autobusy a vlaky</button>
+        <button type="button" class="pol" role="tab" data-tab="kamery" aria-controls="pnKamery">Webkamery</button>
         <button type="button" class="pol" role="tab" data-tab="cas" aria-controls="pnCas">Čas a počasí</button>
         <button type="button" class="pol" role="tab" data-tab="grafika" aria-controls="pnGrafika">Nastavení</button>
         <button type="button" class="pol" role="tab" data-tab="ovladani" aria-controls="pnOvl">Ovládání</button>
@@ -274,6 +292,7 @@ button { font: inherit; color: inherit; }
           <ul id="sledList" hidden></ul>
           <div id="sledInfo" hidden><ol id="sledZast"></ol><button type="button" class="px-btn" id="sledKonec">Ukončit sledování</button></div>
         </section>
+        <section class="panel" data-panel="kamery" id="pnKamery" role="tabpanel" hidden><h2>Webkamery <small>3D pohled ze skutečné kamery a vedle její záběr</small></h2><div id="kamerypanel"></div></section>
         <section class="panel" data-panel="cas" id="pnCas" role="tabpanel" hidden><h2>Čas a počasí</h2>
   <div class="cas">
     <label class="lbl" for="noc">Denní doba <span id="hodiny"></span></label>
@@ -365,6 +384,7 @@ import { vytvorProfil } from './jizda/profil.js';
 import { vytvorLetani } from './jizda/let.js';
 import { vytvorMotorky } from './jizda/motorka.js';
 import { vytvorVybuchy } from './jizda/vybuchy.js';
+import { vytvorWebkamery } from './jizda/webkamery.js';
 THREE.ColorManagement.enabled = false;
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -1487,7 +1507,7 @@ const skryjNapovedu = () => { $('klik').hidden = true; };
 
 addEventListener('keydown', skryjNapovedu, { once: true });
 renderer.domElement.addEventListener('pointerdown', skryjNapovedu, { once: true });
-renderer.domElement.addEventListener('click', () => { if (DOTYK) return; try { renderer.domElement.requestPointerLock?.()?.catch?.(() => {}); } catch {} });
+renderer.domElement.addEventListener('click', () => { if (DOTYK || WEBKAM?.on) return; try { renderer.domElement.requestPointerLock?.()?.catch?.(() => {}); } catch {} });
 // když prohlížeč zamčení myši nedovolí (nebo je uvolněné), rozhlíží se tažením se stisknutým tlačítkem
 let tazeni = false;
 renderer.domElement.addEventListener('pointerdown', (e) => { tazeni = true; try { renderer.domElement.setPointerCapture(e.pointerId); } catch {} });
@@ -1543,6 +1563,7 @@ if (DOTYK) {
 }
 // ---------- pauza menu: Esc (nebo tlačítko Menu) hru zastaví a otevře menu; Esc nebo Pokračovat zavře a zamkne myš ----------
 const MENU = { open: false, t: 0 };
+let WEBKAM = null;                                           // webkamery (vytvoří se níž, po režimech)
 const POLOZKY = [...document.querySelectorAll('.pauza-menu .pol')], ZALOZKY = POLOZKY.filter((b) => b.dataset.tab);
 function zobrazPanel(k) {
   if (!ZALOZKY.some((b) => b.dataset.tab === k)) k = 'hra';
@@ -1577,6 +1598,7 @@ addEventListener('keydown', (e) => {
     e.stopImmediatePropagation(); return;
   }
   if (e.code === 'KeyM' && !pise && !MENU.open && !e.repeat) { e.preventDefault(); e.stopImmediatePropagation(); otevriMapu(); return; }
+  if (e.code === 'Escape' && WEBKAM?.on && !MENU.open) { e.preventDefault(); e.stopImmediatePropagation(); WEBKAM.vypni(); return; }   // webkamera: zpět do jízdy
   if (e.code === 'Escape') {
     e.preventDefault(); e.stopImmediatePropagation();
     if (!MENU.open) otevriMenu(); else if (performance.now() - MENU.t > 350) zavriMenu(true);   // Esc při zamčené myši otevře menu i přes pointerlockchange
@@ -2244,6 +2266,10 @@ const REZIM_API = { VYBUCHY, THREE, scene3, gz, vyska, hitBuilding, inMap, zabra
   postavy: POSTAVY, postava: () => KONFIG.auto().p || 'character-male-a', parkovana, vrsekBudovy, ramenoVolne,
   konec: () => { if (rezim) nastoupit(); } };   // konec: modul sám ukončí režim (po pádu z motorky vstaneš jako pěší); postavy: jezdec a pilot
 const REZIMY = [vytvorLetani(REZIM_API), vytvorMotorky(REZIM_API)].filter(Boolean);
+// webkamery (menu Webkamery, jizda/webkamery.js): 3D pohled ze střechy, kde stojí skutečná kamera, a vedle její záběr
+WEBKAM = vytvorWebkamery(THREE, { CAM, gz, hrac, panel: $('kamerypanel'),
+  start: () => { zavriMenu(false); if (document.pointerLockElement) { MENU.sam = true; document.exitPointerLock(); } $('klik').hidden = true; },
+  konec: () => { camera.fov = NAST.fov; camera.updateProjectionMatrix(); orbit.snap = true; } });
 let rezim = null;
 // ostatní hráči: posílá se poloha (auto: i světla, brzda, blinkry, klakson), v autobuse nebo při sledování spoje jen místo
 // garáž: konfigurátor auta v menu (Moje auto); změna se hned projeví na vlastním autě a pošle se ostatním hráčům
@@ -2286,7 +2312,8 @@ function frame(now) {
   const dt = MENU.open || MAPA.open ? 0 : Math.min(0.05, (now - last) / 1000); last = now;   // otevřené menu nebo mapa = pauza
   if (FSD.on && (!hrac.vAuto || SLED.i !== null)) fsdVypni('FSD vypnuto');
   fsdHud();
-  if (SLED.i !== null) krokSled(dt, now);
+  if (WEBKAM.on) { $('bus').textContent = ''; }             // pohled z webkamery: hráč stojí, svět jede dál
+  else if (SLED.i !== null) krokSled(dt, now);
   else if (rezim) { rezim.krok(dt, { k, keys, JOY }); $('bus').textContent = rezim.stav(); vratKameru(dt, 5); }
   else if (hrac.vAuto) krokAuto(dt);
   else if (hrac.bus !== null) {                             // v autobuse: hráč jede s ním (čtverce se načítají, kolem chodí lidé)
@@ -2376,7 +2403,10 @@ function frame(now) {
   // kamera
   zamerStav();
   if (!hrac.vAuto && KOKPIT.skupina.visible) KOKPIT.update(null, null, 0, false);   // vystoupil: interiér pryč
-  if (rezim) {                                              // letadlo, vrtulník, motorka: kameru řídí modul
+  if (WEBKAM.on) {                                          // webkamera: poloha, směr a zorné pole skutečné kamery (jizda/webkamery.js)
+    mojeAuto.visible = !!hrac.car; if (hrac.car) polohaAuta();
+    WEBKAM.kamera(camera, fwd);
+  } else if (rezim) {                                       // letadlo, vrtulník, motorka: kameru řídí modul
     mojeAuto.visible = !!hrac.car; if (hrac.car) polohaAuta();
     rezim.kamera(camera, fwd, orbit, dt);
   } else if (hrac.vAuto) {
@@ -2436,7 +2466,7 @@ function frame(now) {
   STROMY.update(camera.position.x, -camera.position.z, camera.position.y);
   PTACI.update(dt, now / 1000, hrac, DOBA.n, WXI.zat, WXI.dest);
   EFEKTY.update(dt, now / 1000, { veVoze: hrac.vAuto || hrac.bus !== null, pesky: !hrac.vAuto && hrac.bus === null && SLED.i === null && !rezim, zOci: !!hrac.zOci,   // na motorce a v letadle bez houpání kroku (klepalo by kamerou)
-    fov0: NAST.fov, fovRychlost: smiPohyb(NAST, 'fovRychlost'), houpani: smiPohyb(NAST, 'houpani'), chveni: smiPohyb(NAST, 'chveni'),
+    fov0: WEBKAM.on ? camera.fov : NAST.fov, fovRychlost: smiPohyb(NAST, 'fovRychlost'), houpani: smiPohyb(NAST, 'houpani'), chveni: smiPohyb(NAST, 'chveni'),
     vitr: Array.isArray(POC.vitr) ? POC.vitr : [0, 0], stromy: (x, y, R) => STROMY.listnate(x, y, R) }, gz, hrac);
   if (OKRAJE) OKRAJE.update(hrac);
   ZNACENI.update(hrac);
@@ -2460,7 +2490,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') window.__jizda = { REZIMY, KENNEY, get rezim() { return rezim; }, FSD, fsdPrepni, hitBuilding, ramenoVolne, SLUNCE, sunL, WXI, WX_CIL, KOKPIT, DEST, SRAZKY_UVNITR, UZ, CAM, carPose, MRIZ, GARAZ, KONFIG, KUZELY, BL, OKNA, hodina, ULICE, ZNACKY, NAST, parkovana, PARK, DETAIL, KVALITA, rtDen, slozeni, POVRCH, STROMY, HRA, ZVUK, hustota, hrac, orbit, gz, vyska, DOBA, NAV, LIDE, ZAST, busBlizko, cars, roads, DOPR, HRACI, CH, SIG, sigPosts, MHD, RT, keys, camera, scene3, renderer, nastoupit, snimek: (ms = 16) => { last = performance.now() - ms; frame(performance.now()); } };
+if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') window.__jizda = { REZIMY, WEBKAM, KENNEY, get rezim() { return rezim; }, FSD, fsdPrepni, hitBuilding, ramenoVolne, SLUNCE, sunL, WXI, WX_CIL, KOKPIT, DEST, SRAZKY_UVNITR, UZ, CAM, carPose, MRIZ, GARAZ, KONFIG, KUZELY, BL, OKNA, hodina, ULICE, ZNACKY, NAST, parkovana, PARK, DETAIL, KVALITA, rtDen, slozeni, POVRCH, STROMY, HRA, ZVUK, hustota, hrac, orbit, gz, vyska, DOBA, NAV, LIDE, ZAST, busBlizko, cars, roads, DOPR, HRACI, CH, SIG, sigPosts, MHD, RT, keys, camera, scene3, renderer, nastoupit, snimek: (ms = 16) => { last = performance.now() - ms; frame(performance.now()); } };
 </script>
 </body>
 </html>

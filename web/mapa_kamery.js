@@ -1,14 +1,7 @@
-// Webkamery (Vrstvy → Webkamery): ikona kamery na mapě, klik otevře kartu.
-// Centrum: webkamera webcamlive.cz (provoz unitednetworks.cz); web dovoluje vložit obrázek s odkazem zpět na stránku kamery,
-// proto karta ukazuje aktuální snímek a pod ním odkaz na webcamlive.cz. Poloha je přibližná (ulice, na kterou kamera míří).
-// Dálnice D6: kamery ŘSD; podmínky použití obrázků nejsou zveřejněné, proto jen odkaz na dopravniinfo.gov.cz (bez snímku).
-const KAMERY = [
-  { nazev: 'Webkamera: centrum Rakovníka', lat: 50.10640, lon: 13.72600, text: 'Pohled k východu na centrum přes Havlíčkovu a Palackého ulici. Snímek se obnovuje po několika minutách.',
-    obrazek: 'https://www.webcamlive.cz/camera_image.php?idCamera=955', odkaz: 'https://www.webcamlive.cz/en/webcam/town-of-rakovnik/955', zdroj: 'webcamlive.cz' },
-  ...[[3615, 40.7, 50.178, 13.779], [4245, 43.2, 50.170, 13.745], [4246, 45.4, 50.168, 13.716], [4247, 47.2, 50.170, 13.691]].map(([id, km, lat, lon]) => ({
-    nazev: `Kamera ŘSD: D6, km ${String(km).replace('.', ',')}`, lat, lon, text: 'Dopravní kamera Ředitelství silnic a dálnic. Aktuální snímek je na webu Dopravní info.',
-    odkaz: 'https://dopravniinfo.gov.cz/cameras-overview/D6', zdroj: 'ŘSD ČR, dopravniinfo.gov.cz', id })),
-];
+// Webkamery (Vrstvy → Webkamery): ikona kamery na domě, kde kamera je, klik otevře kartu. Data jsou ve web/kamery.js
+// (společná s 3D jízdou). Snímek karta ukazuje jen u kamer s obrazek (provozovatel dovoluje vložení), vždy s odkazem zpět.
+import { KAMERY, snimekUrl } from './kamery.js';
+
 const IKONA = ['000000000', '011111100', '011111111', '011101111', '011111111', '011111100', '000100000', '000100000', '001110000'];
 
 export function spust({ ukazKartu }) {
@@ -48,7 +41,7 @@ export function spust({ ukazKartu }) {
     if (k.obrazek) {                                               // snímek do místa pro úryvek z Wikipedie, s odkazem zpět
       const el = document.getElementById('cardWiki');
       if (el) {
-        const im = document.createElement('img'); im.src = `${k.obrazek}&t=${Math.floor(Date.now() / 120000)}`; im.alt = k.nazev; im.loading = 'lazy'; im.referrerPolicy = 'no-referrer';
+        const im = document.createElement('img'); im.src = snimekUrl(k); im.alt = k.nazev; im.loading = 'lazy'; im.referrerPolicy = 'no-referrer';
         im.style.cssText = 'float:none;display:block;width:100%;height:auto;max-height:240px;object-fit:cover;margin:0 0 6px;border-radius:10px';   // celý snímek, ne náhled vedle textu
         const p = document.createElement('p'); p.className = 'wiki-zdroj';
         const a = document.createElement('a'); a.href = k.odkaz; a.target = '_blank'; a.rel = 'noopener'; a.textContent = `Webkamera: ${k.zdroj}`;

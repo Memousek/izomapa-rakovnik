@@ -168,6 +168,7 @@ if os.path.exists('assets/trasy.json'): shutil.copy('assets/trasy.json', 'site/t
 shutil.copy('web/ceny_paliv.js', 'site/ceny_paliv.js')
 for _f in os.listdir('web'):                           # moduly prohlížeče (pohlednice, přelet, Wikipedie, deník, zvuky): web/mapa_*.js -> site/
     if _f.startswith('mapa_') and _f.endswith('.js'): shutil.copy(f'web/{_f}', f'site/{_f}')
+shutil.copy('web/kamery.js', 'site/kamery.js')                 # webkamery: data pro web/mapa_kamery.js (i 3D jízdu, nastroje/jizda.py)
 if (MESTO.get('zpravy_web') or {}).get('url'):   # adresa seznamu aktualit pro functions/api/zpravy.js (funkce jinou nestáhne)
     json.dump({k: MESTO['zpravy_web'][k] for k in ('url', 'zdroj') if MESTO['zpravy_web'].get(k)}, open('site/zpravy_zdroj.json', 'w', encoding='utf-8'), ensure_ascii=False)
 if (MESTO.get('hasici') or {}).get('url'):       # zdroj a okres pro functions/api/hasici.js (funkce jinou adresu nestáhne)

@@ -346,6 +346,7 @@ def main():
     shutil.copy('node_modules/three/build/three.module.min.js', f'{OUT}/three.module.js')
     for f in os.listdir('web'):                               # moduly 3D režimu (vozidla, lidé…): web/jizda_*.js -> site/jizda/
         if f.startswith('jizda_') and f.endswith('.js'): shutil.copy(f'web/{f}', f'{OUT}/{f[6:]}')
+    shutil.copy('web/kamery.js', f'{OUT}/kamery.js')            # webkamery (společná data s 2D mapou): jizda/kamery.js
     # hotové modely aut do garáže (glTF, jizda/vozidla.js HOTOVE) a jejich načítání (GLTFLoader z three, cesty jako v examples/jsm)
     shutil.copytree('web/jizda_modely', f'{OUT}/modely', dirs_exist_ok=True)
     if os.path.isdir('web/jizda_textury'): shutil.copytree('web/jizda_textury', f'{OUT}/textury', dirs_exist_ok=True)   # textury povrchů (CC0, ambientCG)
