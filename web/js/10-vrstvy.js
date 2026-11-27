@@ -96,7 +96,7 @@
   const S_REV = { spring: 'jaro', summer: 'leto', autumn: 'podzim', winter: 'zima' };
   const neighborHref = (n) => {
     let u = n.url || '';
-    if (u.includes('@')) return u;
+    if (u.includes('@') || n.bez_mista) return u;
     const lat = n.target_lat ?? (n.cil ? n.cil[0] : n.lat);
     const lon = n.target_lon ?? (n.cil ? n.cil[1] : n.lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) return u;
@@ -148,11 +148,12 @@
     }
     for (const n of OV.neighbors || []) {
       if (OBEC && n.obec && n.obec !== OBEC) continue;
-      const el = document.createElement('a'); el.className = 'pin neighbor'; el.href = neighborHref(n);
+      const el = document.createElement('a'); el.className = 'pin neighbor' + (n.hlavni ? ' hlavni' : ''); el.href = neighborHref(n);
       if (n.target) el.target = n.target;
       if (el.target === '_blank') el.rel = 'noopener';
       el.title = n.text || `Přejít na mapu: ${n.name}`;
-      el.innerHTML = `<span class="pin-ico">↗</span> ${n.name}`;
+      const ico = document.createElement('span'); ico.className = 'pin-ico ven-sipka'; ico.setAttribute('aria-hidden', 'true'); ico.textContent = '↗';
+      el.append(ico, ' ' + n.name);
       const upd = () => { el.href = neighborHref(n); };
       el.addEventListener('pointerenter', upd);
       el.addEventListener('pointerdown', (e) => { e.stopPropagation(); upd(); });

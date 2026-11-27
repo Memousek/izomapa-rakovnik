@@ -160,7 +160,116 @@
  "prejmenuj_casti": {
   "Rakovník-střed": "Rakovník"
  },
- "sousedi": [],
+ "sousedi": [
+  {
+   "nazev": "Ústecký kraj",
+   "url": "https://map.vvoleman.eu/",
+   "lat": 50.19235,
+   "lon": 13.75764,
+   "cil": [
+    50.65568,
+    14.02708
+   ],
+   "text": "Živá izometrická mapa Ústeckého kraje (Ústí nad Labem, Děčín) od jiného autora, postavená stejným nástrojem izomapa.",
+   "hlavni": true
+  },
+  {
+   "nazev": "Lounsko",
+   "url": "https://lounsko.com/",
+   "lat": 50.19235,
+   "lon": 13.71423,
+   "cil": [
+    50.34878,
+    13.79279
+   ],
+   "text": "Izometrická mapa Lounska (Ústecký kraj), autor Krtkusus."
+  },
+  {
+   "nazev": "Blatno",
+   "url": "https://www.svamberk.net/blatno/",
+   "lat": 50.17065,
+   "lon": 13.69743,
+   "cil": [
+    50.51316,
+    13.35259
+   ],
+   "text": "Izometrická mapa Blatna u Chomutova a okolních vesnic (Ústecký kraj), autor Jaroslav Švamberk."
+  },
+  {
+   "nazev": "Libochovice",
+   "url": "https://www.historiezabavne.cz/mapa-libochovic/",
+   "lat": 50.17155,
+   "lon": 13.76884,
+   "cil": [
+    50.41607,
+    14.04656
+   ],
+   "text": "Izometrická mapa Libochovic (Ústecký kraj), autor Vladimír Dlouhý."
+  },
+  {
+   "nazev": "Kladno",
+   "url": "https://izomapa-kladno.pages.dev/",
+   "lat": 50.14352,
+   "lon": 13.76884,
+   "cil": [
+    50.14862,
+    14.09495
+   ],
+   "text": "Izometrická mapa Kladna, autor Martin."
+  },
+  {
+   "nazev": "Praha",
+   "url": "https://izopraha.fun/",
+   "lat": 50.10011,
+   "lon": 13.76884,
+   "cil": [
+    50.07979,
+    14.42979
+   ],
+   "text": "Izometrická mapa Prahy, autor František Hůlka."
+  },
+  {
+   "nazev": "Beroun",
+   "url": "https://beroun.marcelzabojnik.cz/",
+   "lat": 50.08383,
+   "lon": 13.75064,
+   "cil": [
+    49.96138,
+    14.059
+   ],
+   "text": "Izometrická mapa Berouna, autor Marcel Zábojník."
+  },
+  {
+   "nazev": "Příbram",
+   "url": "https://pribram.dev/",
+   "lat": 50.06303,
+   "lon": 13.72123,
+   "cil": [
+    49.69834,
+    14.01637
+   ],
+   "text": "Izometrická mapa Příbrami, autor Zdeněk Pracný."
+  },
+  {
+   "nazev": "Černošín",
+   "url": "https://izomapa.matyasmicka.dev/",
+   "lat": 50.07659,
+   "lon": 13.66522,
+   "cil": [
+    49.80655,
+    12.87168
+   ],
+   "text": "Izometrická mapa Černošína (Plzeňský kraj), autor metju."
+  },
+  {
+   "nazev": "Další izomapy",
+   "url": "https://izomapa.fun/mesta/",
+   "lat": 50.11458,
+   "lon": 13.66522,
+   "bez_mista": true,
+   "text": "Katalog izometrických map dalších měst a obcí postavených nástrojem izomapa."
+  }
+ ],
  "vitej": "Město chmele, gotických bran a cihlových střech, poskládané z otevřených dat dům po domu. Projděte si Rakovník, Lišany, Krupou i Lubnou v každém ročním období, ve dne i v noci.",
  "vitej_nadpis": "Rakovníka",
  "auta_u_krajnice": false,

@@ -382,6 +382,8 @@ for s in SOUS_RAW:
     item = {'name': name, 'url': url, 'lat': lat, 'lon': lon, 'k': k, 'xy': [ix, iy], 'target': target}
     if text: item['text'] = text
     if obec: item['obec'] = obec
+    if s.get('hlavni'): item['hlavni'] = True          # zvýrazněná cedule (větší, v barvě webu)
+    if s.get('bez_mista'): item['bez_mista'] = True    # odkaz bez #…@místo (katalog, web, který není izomapa)
     if 'target_lat' in s and 'target_lon' in s:
         item['target_lat'] = float(s['target_lat']); item['target_lon'] = float(s['target_lon'])
     elif 'cil' in s and len(s['cil']) >= 2:
