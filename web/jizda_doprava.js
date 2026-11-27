@@ -11,6 +11,13 @@ export function semeno(s) {
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return h >>> 0;
 }
+// povaha řidiče (násobek limitu) z rovnoměrného u: asi 8 % šneků (60–80 %), většina kolem limitu (90–112 %),
+// asi 12 % spěchá (120–145 %, v padesátce 60–72 km/h); stejné rozdělení jako mapa (web/js/70-animace.js)
+export function povaha(u) {
+  if (u < 0.08) return 0.6 + u / 0.08 * 0.2;
+  if (u < 0.88) return 0.9 + (u - 0.08) / 0.8 * 0.22;
+  return 1.2 + (u - 0.88) / 0.12 * 0.25;
+}
 export function nah(o) {
   if (typeof o.sd !== 'number') o.sd = (Math.random() * 4294967296) >>> 0;   // auto bez semínka (např. nehoda v pouličním režimu)
   let t = (o.sd = (o.sd + 0x6D2B79F5) >>> 0);
@@ -130,7 +137,7 @@ export function vytvorDopravu(api) {
   const MOTOC = ['#b8201a', '#1d1e22', '#1f4fa0', '#e8701a', '#3d9a2a', '#e8e8e4', '#e2b41c', '#62666d'];
   const CLASS_KMH = { motorway: 110, trunk: 90, primary: 50, secondary: 50, tertiary: 50, unclassified: 40, residential: 30, living_street: 20 };
   const roadSpeed = (r) => (r.x ? Math.min(r.l || 50, 50) : r.l || CLASS_KMH[r.c] || 40) / 3.6;
-  const carSpeed = (c, r) => Math.min(c.truck ? Math.min(roadSpeed(r), 22) * 0.85 : roadSpeed(r), c.T.vmax / 3.6) * c.f * (ULICE_STAV.on ? (c.drzy ? 1.35 : 1.15) : 1);
+  const carSpeed = (c, r) => Math.min((c.truck ? Math.min(roadSpeed(r), 22) * 0.85 : roadSpeed(r)) * c.f, c.T.vmax / 3.6) * (ULICE_STAV.on ? (c.drzy ? 1.35 : 1.15) : 1);
   const edgeIn = [];
   const atEdge = (p) => [[24, 0], [-24, 0], [0, 24], [0, -24]].some(([dx, dy]) => !LOADED.some((g) => Math.abs(p[0] + dx - g[0]) <= HALF && Math.abs(p[1] + dy - g[1]) <= HALF));
   function findEdges(i0) {
@@ -198,7 +205,7 @@ export function vytvorDopravu(api) {
       const r_ = pick(nah(c)), u = nah(c), truck = nah(c) * 100 < (roads[r_].t || 0), barva = nah(c);
       const t = truck ? (u < 0.55 && !MINOR.has(roads[r_].c) ? 'semi' : 'truck') : u < 0.1 ? 'van' : u < 0.11 ? 'garbage' : u < 0.116 ? 'tractor' : u < motoPrah ? 'moto' : 'car';
       const z = (a) => a[Math.floor(barva * a.length)];
-      Object.assign(c, { r: r_, dir: roads[r_].o || (nah(c) > 0.5 ? 1 : -1), s: nah(c) * roads[r_].L, f: 0.85 + nah(c) * 0.25, truck, t, T: VTYP[t], drzy: nah(c) < 0.12,
+      Object.assign(c, { r: r_, dir: roads[r_].o || (nah(c) > 0.5 ? 1 : -1), s: nah(c) * roads[r_].L, f: povaha(nah(c)), truck, t, T: VTYP[t], drzy: nah(c) < 0.12,
         col: t === 'van' ? z(VANC) : truck ? z(TRUCKC) : t === 'garbage' ? '#e8742a' : t === 'tractor' ? '#3f7a2e' : t === 'moto' ? z(MOTOC) : z(CARC) });
       if (c.dir < 0) c.s = roads[c.r].L - c.s;
       cars.push(c);

@@ -589,7 +589,7 @@
     const pickMain = (u) => { if (!wsum) return main[Math.floor(u * main.length)]; let x = u * wsum; for (let k = 0; k < main.length; k++) { x -= weights[k]; if (x <= 0) return main[k]; } return main[main.length - 1]; };
     for (let j = 0; j < n && main.length; j++) {
       const i = n0 + j, r_ = pickMain(rnd(i)), c = { r: r_, dir: roads[r_].o || (rnd(i + 9) > 0.5 ? 1 : -1), s: rnd(i + 3) * roads[r_].L,   // po celé délce, jinak se na dlouhé silnici auta nalepí do hloučku
-        f: 0.85 + rnd(i + 5) * 0.25, q: rnd(i + 7), col: CARC[i % CARC.length], truck: rnd(i + 11) * 100 < (roads[r_].t || 0) };
+        f: povaha(rnd(i + 5)), q: rnd(i + 7), col: CARC[i % CARC.length], truck: rnd(i + 11) * 100 < (roads[r_].t || 0) };
       if (c.truck) c.col = TRUCKC[i % TRUCKC.length];
       const u_ = rnd(i + 13), rc = roads[r_].c;
       c.t = c.truck ? (u_ < 0.55 && !MINOR.has(rc) ? 'semi' : 'truck') : u_ < 0.1 ? 'van' : u_ < 0.11 ? 'garbage' : u_ < 0.116 ? 'tractor' : 'car';
@@ -643,9 +643,16 @@
   let tShare = 1, tShareT = 0, tShareCount = -1, tShareSlow = null, tAllowed = null;
   const carActive = (c) => c.q <= tShare && (!tAllowed || tAllowed.has(c)) && (c.t !== 'garbage' || state.night < 0.5);   // popeláři jen ve dne
   // rychlost podle limitu z dat, jinak odhad podle třídy silnice; c.f je povaha řidiče
+  // povaha řidiče z rovnoměrného u: asi 8 % šneků (60–80 % limitu), většina kolem limitu (90–112 %),
+  // asi 12 % spěchá (120–145 %, v padesátce 60–72 km/h)
+  function povaha(u) {
+    if (u < 0.08) return 0.6 + u / 0.08 * 0.2;
+    if (u < 0.88) return 0.9 + (u - 0.08) / 0.8 * 0.22;
+    return 1.2 + (u - 0.88) / 0.12 * 0.25;
+  }
   const CLASS_KMH = { motorway: 110, trunk: 90, primary: 50, secondary: 50, tertiary: 50, unclassified: 40, residential: 30, living_street: 20 };
   const roadSpeed = (r) => (r.x ? Math.min(r.l || 50, 50) : r.l || CLASS_KMH[r.c] || 40) / 3.6;   // r.x = nájezdová rampa
-  const carSpeed = (c, r) => Math.min(c.truck ? Math.min(roadSpeed(r), 22) * 0.85 : roadSpeed(r), (c.T.vmax || 999) / 3.6) * c.f;   // nákladní auta o něco pomaleji, popeláři a traktory pomalu
+  const carSpeed = (c, r) => Math.min((c.truck ? Math.min(roadSpeed(r), 22) * 0.85 : roadSpeed(r)) * c.f, (c.T.vmax || 999) / 3.6);   // nákladní auta o něco pomaleji, popeláři a traktory pomalu (strop vmax i pro spěchající)
   function drawXPost(o, z, sx, ox, oy, now, night) {      // výstražník s křížem; v noci světlo září
     const x = ox + o.ix * sx, y = oy + o.iy * sx, h = 30 * sx, q = Math.max(2.5, 3.4 * sx), ph = Math.floor(now / 500) % 2;
     ctx.fillStyle = '#26262a'; ctx.fillRect(x - q * 0.35, y - h - q * 2.6, q * 0.7, h + q * 2.6);
