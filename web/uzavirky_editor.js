@@ -72,11 +72,11 @@ export function spust(A) {
     konecEditace();
     const ex = UZ_ED.extra || { skryte: [], upravy: [] };
     const polozka = (u, skryta) => el('li', { className: skryta ? 'skryta' : '' },
-      el('div', {}, el('b', { textContent: u.nazev || 'Uzavírka' }), u.uprava ? el('span', { className: 'tag', textContent: skryta ? 'skrytá' : u.uprava.typ === 'nova' ? 'ruční' : 'upravená' }) : null),
+      el('div', {}, el('b', { textContent: u.nazev || 'Uzavírka' }), u.uprava ? el('span', { className: 'tag', textContent: u.prekryta ? 'pod automatickou' : skryta ? 'skrytá' : u.uprava.typ === 'nova' ? 'ruční' : 'upravená' }) : null),
       el('small', { textContent: `${fmt(u.od)} – ${fmt(u.do)}${u.auto ? ' · z webu města' : ''}` }),
       el('div', { className: 'row' },
-        skryta ? null : btn('Upravit', () => upravit(u)),
-        skryta ? btn('Zobrazit', () => uloz(ex.upravy.filter((m) => m !== u.uprava), 'Uzavírka je zase vidět.'))
+        skryta ? (u.prekryta && u.uprava && u.uprava.typ === 'nova' ? btn('Smazat', () => confirm(`Smazat ruční uzavírku ${u.nazev || ''}?`) && uloz(ex.upravy.filter((m) => m !== u.uprava), 'Smazáno.')) : null) : btn('Upravit', () => upravit(u)),
+        u.prekryta ? null : skryta ? btn('Zobrazit', () => uloz(ex.upravy.filter((m) => m !== u.uprava), 'Uzavírka je zase vidět.'))
           : u.uprava && u.uprava.typ === 'nova' ? btn('Smazat', () => confirm(`Smazat ruční uzavírku ${u.nazev || ''}?`) && uloz(ex.upravy.filter((m) => m !== u.uprava), 'Smazáno.'))
             : btn('Skrýt', () => uloz([...ex.upravy.filter((m) => m.klic !== u.klic), { typ: 'skryt', klic: u.klic, nazev: u.nazev }], 'Uzavírka je skrytá.')),
         u.uprava && u.uprava.typ === 'uprava' ? btn('Vrátit automatiku', () => uloz(ex.upravy.filter((m) => m !== u.uprava), 'Platí zase úsek z oznámení.')) : null,

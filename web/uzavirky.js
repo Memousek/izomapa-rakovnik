@@ -402,6 +402,22 @@ export async function nactiUzavirky(base, hotovo, { jenApi = false } = {}) {   /
     if (kd) { try { [kraj, nahrazene] = zKraje(pripravSit(sd), kd, sd.kraj, [...jsdi, ...web, ...[...geo.values()].flat()]); } catch (e) { console.warn('události kraje', e); } }
   }
   const zbyva = (l) => l.filter((u) => !nahrazene.has(u));
-  const [vid, skryte] = aplikuj([...rucni, ...kraj, ...zbyva(jsdi), ...zbyva(web), ...zbyva([...geo.values()].flat())], api.upravy || []);
+  let [vid, skryte] = aplikuj([...rucni, ...kraj, ...zbyva(jsdi), ...zbyva(web), ...zbyva([...geo.values()].flat())], api.upravy || []);
+  if (sd) [vid, skryte] = rucniUstoupi(pripravSit(sd), vid, skryte);
   hotovo(vid, { skryte, upravy: api.upravy || [], upravyZapnute: !!api.upravyZapnute, zApi: true });
+}
+
+// Ručně přidaná uzavírka (editor správce, upresneni.json bez odkazu na oznámení) ustoupí automatické na stejné silnici:
+// stačí, aby jedna ležela z většiny na druhé (bod z kraje je krátký kus ±90 m uvnitř dlouhé ruční). Kolona ani nehoda ji nevytlačí.
+// Skrytá zůstane v editoru (skryte), takže ji správce vidí a může smazat.
+export function rucniUstoupi(S, vid, skryte) {
+  const auto = vid.filter((u) => u.auto && !u.druh && u.line && u.line.length > 1).map((u) => u.line);
+  if (!auto.length) return [vid, skryte];
+  const out = [], sk = [...skryte];
+  for (const u of vid) {
+    const rucni = !u.auto && !u.url;                         // ruční s odkazem nahrazuje automatickou záměrně
+    if (rucni && u.line && u.line.length > 1 && (prekryva(S, u.line, auto, 25) || auto.some((a) => prekryva(S, a, [u.line], 25)))) sk.push({ ...u, prekryta: true });
+    else out.push(u);
+  }
+  return [out, sk];
 }
