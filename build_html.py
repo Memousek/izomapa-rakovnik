@@ -91,6 +91,7 @@ def postav_stranku(M, html_out='site/index.html', og_cesta='og.jpg', je_obec=Fal
         'TRASY': 'true' if os.path.exists('assets/trasy.json') else 'false',
         'HISTORIE': 'true' if M.get('historie') else 'false',   # srovnání s leteckým snímkem z 50. let (site/srovnani.html)   # značené trasy z OSM (nastroje/trasy.py)          # 3D jízda (nastroje/jizda.py -> site/jizda.html)
         'PLUHY': 'true' if M.get('pluhy', False) else 'false',
+        'HASICI': json.dumps({k: M['hasici'][k] for k in ('zdroj', 'url', 'stanice') if M['hasici'].get(k)} if (M.get('hasici') or {}).get('url') else None, ensure_ascii=False),   # zásahy hasičů (functions/api/hasici.js, web/js/79-hasici.js)
         'NASTUPISTE': 'true' if M.get('nastupiste', False) else 'false',
         'MHD': 'true' if mhd.get('gtfs') or os.path.exists('site/mhd.json') else 'false',   # mhd.json vyrábí mhd.py jen s GTFS
         'POHLED': json.dumps(pohled if isinstance(pohled, list) and len(pohled) >= 2 else None),
@@ -112,6 +113,7 @@ def postav_stranku(M, html_out='site/index.html', og_cesta='og.jpg', je_obec=Fal
         'DOPRAVA_ZDROJ': ', intenzity dopravy © <a href="https://www.rsd.cz/silnice-a-dalnice/scitani-dopravy" target="_blank" rel="noopener">ŘSD ČR</a> (Celostátní sčítání dopravy)' if M.get('doprava') else '',
         'RUIAN_ZDROJ': ', typy budov z RÚIAN' if os.path.exists('assets/ruian_budovy.json') else '',
         'VITR_ZDROJ': ', ' + ('počasí a vítr' if M.get('pocasi') and M.get('vitr') else 'počasí' if M.get('pocasi') else 'vítr') + ' © <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (CC BY 4.0)' if M.get('vitr') or M.get('pocasi') else '',
+        'HASICI_ZDROJ': f', zásahy hasičů © <a href="{E(M['hasici']['url'])}" target="_blank" rel="noopener">{E(M['hasici'].get('zdroj', 'HZS'))}</a>' if (M.get('hasici') or {}).get('url') else '',
         'PLUHY_ZDROJ': ', sypače zimní údržby © <a href="https://udrzba.rsd.cz/" target="_blank" rel="noopener">ŘSD ČR</a>' if M.get('pluhy', False) else '',
         'LETADLA_ZDROJ': ', letadla © <a href="https://adsb.lol/" target="_blank" rel="noopener">adsb.lol</a> (ODbL) a&nbsp;<a href="https://adsb.fi/" target="_blank" rel="noopener">adsb.fi</a>' if M.get('letadla', False) else '',
         'MHD_ZDROJ': f', jízdní řády MHD{" a polohy vozidel" if mhd.get("realtime") else ""} © <a href="{E(mhd["zdroj_url"])}" target="_blank" rel="noopener">{E(mhd["zdroj"])}</a>'
@@ -168,6 +170,8 @@ for _f in os.listdir('web'):                           # moduly prohlížeče (p
     if _f.startswith('mapa_') and _f.endswith('.js'): shutil.copy(f'web/{_f}', f'site/{_f}')
 if (MESTO.get('zpravy_web') or {}).get('url'):   # adresa seznamu aktualit pro functions/api/zpravy.js (funkce jinou nestáhne)
     json.dump({k: MESTO['zpravy_web'][k] for k in ('url', 'zdroj') if MESTO['zpravy_web'].get(k)}, open('site/zpravy_zdroj.json', 'w', encoding='utf-8'), ensure_ascii=False)
+if (MESTO.get('hasici') or {}).get('url'):       # zdroj a okres pro functions/api/hasici.js (funkce jinou adresu nestáhne)
+    json.dump({k: MESTO['hasici'][k] for k in ('url', 'zdroj', 'okres') if MESTO['hasici'].get(k)}, open('site/hasici_zdroj.json', 'w', encoding='utf-8'), ensure_ascii=False)
 if (MESTO.get('hydro') or {}).get('stanice'):    # stanice ČHMÚ pro functions/api/hydro.js
     json.dump({'stanice': MESTO['hydro']['stanice']}, open('site/hydro_zdroj.json', 'w', encoding='utf-8'))
 if (MESTO.get('kalendar_web') or {}).get('url'):   # adresa kalendáře akcí pro functions/api/kalendar.js

@@ -108,6 +108,12 @@
  },
  "letadla": true,
  "pluhy": true,
+ "hasici": {
+  "url": "https://pkr.kr-stredocesky.cz/pkr/zasahy-jpo/",
+  "zdroj": "Portál krizového řízení Středočeského kraje",
+  "okres": "Rakovník",
+  "stanice": [50.10925, 13.70833]
+ },
  "pocasi": true,
  "vitr": true,
  "jizda": true,

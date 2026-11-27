@@ -119,6 +119,7 @@
       <label class="chip" id="l-trasy-row" hidden><input type="checkbox" id="l-trasy"><span>Trasy</span></label>
       <label class="chip"><input type="checkbox" id="l-zvuky"><span>Zvuky</span></label>
       <label class="chip"><input type="checkbox" id="l-people" checked><span>Lidé</span></label>
+      <label class="chip" id="l-hasici-w" hidden><input type="checkbox" id="l-hasici" checked><span>Hasiči <span id="hasici-n"></span></span></label>
       <label class="chip" id="l-pluhy-w" hidden><input type="checkbox" id="l-pluhy" checked><span>Sypače ŘSD <span id="pluhy-n"></span></span></label>
       <label class="chip" hidden><input type="checkbox" id="l-xmas"><span>Výzdoba</span></label>
     </div>
@@ -140,6 +141,11 @@
     <summary>Počasí <span class="sum-val" id="predpovedVal"></span></summary>
     <ul class="predpoved" id="predpoved"></ul>
     <p class="predpoved-zdroj">Předpověď: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0)</p>
+  </details>
+  <details class="sec" id="hzsBox" hidden>
+    <summary>Zásahy hasičů <span class="sum-val" id="hzsVal"></span></summary>
+    <ul class="places hzs-list" id="hzsList"></ul>
+    <p class="predpoved-zdroj" id="hzsZdroj"></p>
   </details>
   <details class="sec" id="uzBox" hidden>
     <summary>Uzavírky silnic <span class="sum-val" id="uzVal"></span></summary>
@@ -241,7 +247,7 @@
     <dt>Esc</dt><dd>zavřít kartu, pak panel</dd>
   </dl>
   <p class="muted">Vytvořeno nástrojem <a href="https://github.com/adamklatovsky/izomapa" target="_blank" rel="noopener">izomapa</a> od <a href="https://www.adamklatovsky.cz/" target="_blank" rel="noopener">Adama Klatovského</a> (původní mapa: <a href="https://izomapa.fun" target="_blank" rel="noopener">izometrický Liberec</a>).<br>
-  Mapová data © přispěvatelé <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL) a&nbsp;Overture Maps, terén Terrarium (AWS Open Data), výšky budov a&nbsp;stromů, ortofoto a&nbsp;ZABAGED{{RUIAN_ZDROJ}} © <a href="https://geoportal.cuzk.cz/" target="_blank" rel="noopener">ČÚZK</a> (CC BY 4.0){{MHD_ZDROJ}}{{VITR_ZDROJ}}{{LETADLA_ZDROJ}}{{PLUHY_ZDROJ}}{{DOPRAVA_ZDROJ}}<span id="puZdrojPata" hidden>, Ceny: <a href="https://www.mbenzin.cz" target="_blank" rel="noopener">mbenzin.cz</a></span>.</p>
+  Mapová data © přispěvatelé <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL) a&nbsp;Overture Maps, terén Terrarium (AWS Open Data), výšky budov a&nbsp;stromů, ortofoto a&nbsp;ZABAGED{{RUIAN_ZDROJ}} © <a href="https://geoportal.cuzk.cz/" target="_blank" rel="noopener">ČÚZK</a> (CC BY 4.0){{MHD_ZDROJ}}{{VITR_ZDROJ}}{{LETADLA_ZDROJ}}{{PLUHY_ZDROJ}}{{HASICI_ZDROJ}}{{DOPRAVA_ZDROJ}}<span id="puZdrojPata" hidden>, Ceny: <a href="https://www.mbenzin.cz" target="_blank" rel="noopener">mbenzin.cz</a></span>.</p>
 </dialog>
 <dialog class="help plocha" id="plochaDlg" aria-labelledby="plochaTitle">
   <button class="px-btn close" id="plochaClose" type="button" aria-label="Zavřít">×</button>

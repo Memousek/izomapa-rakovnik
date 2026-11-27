@@ -35,6 +35,8 @@
     if (pu) { showPumpa(pu); return; }
     const uz = uzAt(ix, iy, 14 / imgScale());
     if (uz) { showUz(uz); return; }
+    const hz = hzsAt(e.position.x, e.position.y);
+    if (hz) { hzsKarta(hz); return; }
     const b = hit(ix, iy);
     if (b) showBuilding(b); else showPoint(ix, iy);
   });
@@ -49,7 +51,7 @@
     if (!$('l-hover').checked || e.pointerType === 'touch') { state.hover = null; $('osd').style.cursor = ''; return; }
     const [ix, iy] = vpToImg(new OpenSeadragon.Point(mx, my));
     state.hover = hit(ix, iy);
-    $('osd').style.cursor = state.hover || stopAt(ix, iy) || uzAt(ix, iy, 14 / imgScale()) || slAt(ix, iy, 16 / imgScale()) || puAt(ix, iy, 16 / imgScale()) ? 'pointer' : '';
+    $('osd').style.cursor = state.hover || stopAt(ix, iy) || uzAt(ix, iy, 14 / imgScale()) || hzsAt(mx, my) || slAt(ix, iy, 16 / imgScale()) || puAt(ix, iy, 16 / imgScale()) ? 'pointer' : '';
   });
 
 

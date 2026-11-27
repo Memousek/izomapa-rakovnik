@@ -198,6 +198,22 @@
           axles.push([-l - 3.2, 0.5, w * 0.95, 0.2], [-l - 5.0, 0.5, w * 0.95, 0.2]);
           Pt(-l - 6.6, -l - 0.9, -w * 0.95, w * 0.95, 0.95, 2.3, B, sn(tone(B, 1.05)));
         }
+      } else if (isBus === 16) {                                            // hasičská cisterna CAS (dvojkabina, nástavba s roletami, žebřík na střeše)
+        const RD = A, YL = [236, 214, 52], SV = [184, 188, 194], BLU = [46, 96, 228];             // A červená, B bílý pruh
+        axles.push([l - 1.55, 0.55, w, 0.17], [-l + 1.9, 0.55, w, 0.17]);
+        Pt(-l + 0.3, l - 0.4, -w * 0.78, w * 0.78, 0.5, 1.0, DK, DK, 0);                          // rám
+        Pt(l - 0.45, l, -w * 0.96, w * 0.96, 0.42, 1.05, DK, DK, 0);                               // nárazník
+        const ce = cab(l - 2.55, l - 0.1, 0.95, 3.05, 1.95, RD);                                    // dvojkabina pro osádku
+        win(ce, l - 0.1, -w * 0.9, l - 0.1, w * 0.9, 1.25, 1.6, DK);                                 // maska
+        for (const sd of [-1, 1]) win(ce, l - 0.15, sd * w, l - 2.5, sd * w, 1.0, 1.15, B);         // bílý pruh na kabině
+        for (const sd of [-1, 1]) Pt(l - 1.0, l - 0.7, sd * w * 0.55 - 0.18, sd * w * 0.55 + 0.18, 3.05, 3.3, BLU, [120, 160, 255], 2);   // majáky (blikání: 79-hasici.js)
+        const nb = Pt(-l + 0.05, l - 2.6, -w, w, 0.95, 3.1, RD, sn(tone(RD, 1.06)));                // nástavba
+        for (const sd of [-1, 1]) {
+          for (let s_ = -l + 0.35; s_ < l - 2.95; s_ += 1.32) win(nb, s_, sd * w, Math.min(s_ + 1.18, l - 2.8), sd * w, 1.2, 2.85, SV);   // rolety
+          win(nb, l - 2.6, sd * w, -l + 0.05, sd * w, 0.98, 1.14, YL);                               // reflexní pruh
+        }
+        win(nb, -l + 0.05, -w * 0.9, -l + 0.05, w * 0.9, 1.2, 2.85, SV);                             // zadní roleta
+        Pt(-l + 0.4, l - 3.0, -0.5, 0.5, 3.1, 3.24, SV, SV, 3);                                     // žebřík na střeše
       } else if (isBus === 15) {                                            // policejní auto (kombi v barvách Policie ČR): stříbrná, modrý a žlutozelený
         const YL = [204, 232, 48], BL = B;                                  // reflexní pruh na boku, rampa majáků na střeše (blikání: 78-honicka.js)
         axles.push([l - 0.95, 0.32, w, 0.11], [-l + 1.0, 0.32, w, 0.11]);

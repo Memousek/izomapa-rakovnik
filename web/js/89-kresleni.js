@@ -41,6 +41,7 @@
     }
     kresliTrasy(sx, ox, oy, cw, ch);
     kresliUzavirky(sx, ox, oy, cw, ch, now);
+    hzsKresli(sx, ox, oy, cw, ch, now);                 // zásahy hasičů (79-hasici.js)
     // vybraná / zvýrazněná budova
     for (const [b, c, lw] of [[state.hover, 'rgba(242,198,109,.9)', 1.5], [state.sel, '#f2c66d', 2.5]]) {
       if (!b) continue;
@@ -90,7 +91,7 @@
         if (c.honi) honiPoza(c, o);                           // smyk při honičce (78-honicka.js)
         if (!vis(o.ix, o.iy)) continue;
         if (sx > 0.3) CARS_DRAWN.push([Math.round(ox + o.ix * sx), Math.round(oy + o.iy * sx) - Math.round(3 * sx), c]);   // klik na auto: karta
-        if (c.t !== 'semi') { if (drawVehicle(o, c.T.len, c.T.wid, c.col, sx, ox, oy, night, c.T.code) && (c.honi || c.t === 'police')) honiKresli(c, o, sx, ox, oy, night, t); continue; }
+        if (c.t !== 'semi') { if (drawVehicle(o, c.T.len, c.T.wid, c.col, sx, ox, oy, night, c.T.code) && (c.honi || c.t === 'police')) honiKresli(c, o, sx, ox, oy, night, t); if (c.hzs) hzsMajaky(c, o, sx, ox, oy, night, t); continue; }
         const q = trailerPos(c), nav = () => drawVehicle(q, TRAILER, 2.55, c.col2, sx, ox, oy, night, 8, 2);   // kamion: vzdálenější díl dřív
         if (q.d > o.d) nav();
         drawVehicle(o, c.T.len, c.T.wid, c.col, sx, ox, oy, night, 7, 1);
