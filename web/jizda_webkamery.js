@@ -24,7 +24,7 @@ export function vytvorWebkamery(THREE, { CAM, gz, hrac, panel, start, konec }) {
     const a = document.createElement('a'); a.href = k.odkaz; a.target = '_blank'; a.rel = 'noopener';
     if (k.obrazek) {                                         // vložení dovoleno: snímek a pod ním odkaz zpět
       const im = document.createElement('img'); im.alt = `Aktuální snímek: ${k.nazev}`; im.referrerPolicy = 'no-referrer'; im.src = snimekUrl(k);
-      a.append(im); box.replaceChildren(a);
+      box.replaceChildren(im);                                // snímek sám odkazem není, odkaz ven je v popisku pod ním
       z.innerHTML = ''; const l = document.createElement('a'); l.href = k.odkaz; l.target = '_blank'; l.rel = 'noopener'; l.textContent = `Webkamera: ${k.zdroj} ↗`;
       z.append('Snímek: ', l, ' · obnova po 2 min');
       clearInterval(obnova); obnova = setInterval(() => { im.src = snimekUrl(k); }, 120000);
