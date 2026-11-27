@@ -744,5 +744,712 @@
    "lm": "mariansky_sloup",
    "only": 1
   }
+ },
+ {
+  "name": "Albert hypermarket",
+  "lat": 50.092303,
+  "lon": 13.724338,
+  "text": "",
+  "spec": {
+   "id": "b232df9d-377b-428e-8bdc-3165d1212460",
+   "wc": [
+    238,
+    196,
+    36
+   ],
+   "rc": [
+    196,
+    198,
+    200
+   ],
+   "r": "flat",
+   "win": 15,
+   "h": 7.0,
+   "lm": "znacka",
+   "mp": {
+    "t": "obchod",
+    "z": "albert",
+    "pylon_ll": [
+     50.091725,
+     13.725938
+    ],
+    "pylon_a": -90
+   },
+   "face": [
+    50.092183,
+    13.725259
+   ]
+  }
+ },
+ {
+  "name": "JYSK",
+  "lat": 50.091221,
+  "lon": 13.725972,
+  "text": "",
+  "spec": {
+   "id": "6498893d-1282-4297-b919-b3a4610ab91c",
+   "wc": [
+    224,
+    226,
+    228
+   ],
+   "rc": [
+    196,
+    198,
+    200
+   ],
+   "r": "flat",
+   "win": 15,
+   "h": 7.0,
+   "lm": "znacka",
+   "mp": {
+    "t": "obchod",
+    "z": "jysk"
+   },
+   "face": [
+    50.0916,
+    13.7259
+   ]
+  }
+ },
+ {
+  "name": "Mercedes-Benz CROY",
+  "lat": 50.091695,
+  "lon": 13.727266,
+  "text": "",
+  "spec": {
+   "id": "84a671c9-da71-4bae-87d2-17f04f60166f",
+   "wc": [
+    198,
+    201,
+    205
+   ],
+   "rc": [
+    196,
+    198,
+    200
+   ],
+   "r": "flat",
+   "win": 14,
+   "h": 8.0,
+   "lm": "znacka",
+   "mp": {
+    "t": "obchod",
+    "z": "mercedes"
+   },
+   "face": [
+    50.0917,
+    13.72625
+   ]
+  }
+ },
+ {
+  "name": "Kaufland",
+  "lat": 50.109787,
+  "lon": 13.738035,
+  "text": "",
+  "spec": {
+   "id": "ef0f5d62-e0c2-416b-bcec-cab99715fade",
+   "wc": [
+    214,
+    216,
+    218
+   ],
+   "rc": [
+    196,
+    198,
+    200
+   ],
+   "r": "flat",
+   "win": 15,
+   "h": 8.0,
+   "lm": "znacka",
+   "mp": {
+    "t": "obchod",
+    "z": "kaufland"
+   },
+   "face": [
+    50.109391,
+    13.737494
+   ]
+  }
+ },
+ {
+  "name": "Tesco",
+  "lat": 50.110556,
+  "lon": 13.735797,
+  "text": "",
+  "spec": {
+   "id": "ae0333d3-7d4a-48c6-96b9-132a5637fb62",
+   "wc": [
+    232,
+    232,
+    228
+   ],
+   "rc": [
+    196,
+    198,
+    200
+   ],
+   "r": "flat",
+   "win": 15,
+   "h": 8.5,
+   "lm": "znacka",
+   "mp": {
+    "t": "obchod",
+    "z": "tesco"
+   },
+   "face": [
+    50.11061,
+    13.734736
+   ]
+  }
+ },
+ {
+  "name": "Stop Shop",
+  "lat": 50.111315,
+  "lon": 13.734571,
+  "text": "",
+  "spec": {
+   "id": "bbe41df0-4741-4097-b3f7-e0b9e0b22323",
+   "wc": [
+    176,
+    180,
+    184
+   ],
+   "rc": [
+    196,
+    198,
+    200
+   ],
+   "r": "flat",
+   "win": 15,
+   "h": 7.0,
+   "lm": "znacka",
+   "mp": {
+    "t": "obchod",
+    "z": "stopshop"
+   },
+   "face": [
+    50.11061,
+    13.734736
+   ]
+  }
+ },
+ {
+  "name": "Obchody u Kauflandu",
+  "lat": 50.11008,
+  "lon": 13.736689,
+  "text": "",
+  "spec": {
+   "id": "750c6ce3-6af4-4421-9ce7-fcfdadab68e1",
+   "wc": [
+    205,
+    206,
+    208
+   ],
+   "rc": [
+    196,
+    198,
+    200
+   ],
+   "r": "flat",
+   "win": 15,
+   "h": 6.5,
+   "lm": "znacka",
+   "mp": {
+    "t": "obchod",
+    "z": "park"
+   },
+   "face": [
+    50.109781,
+    13.73637
+   ]
+  }
+ },
+ {
+  "name": "Lidl",
+  "lat": 50.107281,
+  "lon": 13.714486,
+  "text": "",
+  "spec": {
+   "id": "0c769a79-ed16-430e-8163-faad136d4f45",
+   "wc": [
+    214,
+    216,
+    218
+   ],
+   "rc": [
+    196,
+    198,
+    200
+   ],
+   "r": "flat",
+   "win": 15,
+   "h": 7.0,
+   "lm": "znacka",
+   "mp": {
+    "t": "obchod",
+    "z": "lidl"
+   },
+   "face": [
+    50.107292,
+    13.715121
+   ]
+  }
+ },
+ {
+  "name": "Penny",
+  "lat": 50.108583,
+  "lon": 13.710957,
+  "text": "",
+  "spec": {
+   "id": "1247d561-1842-4d30-9b44-f5fb37998f36",
+   "wc": [
+    212,
+    212,
+    210
+   ],
+   "rc": [
+    196,
+    198,
+    200
+   ],
+   "r": "flat",
+   "win": 15,
+   "h": 6.0,
+   "lm": "znacka",
+   "mp": {
+    "t": "obchod",
+    "z": "penny"
+   },
+   "face": [
+    50.108331,
+    13.710798
+   ]
+  }
+ },
+ {
+  "name": "Billa",
+  "lat": 50.101074,
+  "lon": 13.732621,
+  "text": "",
+  "spec": {
+   "id": "f7c8b455-bddc-4dc7-b78b-0954f4cc3f29",
+   "wc": [
+    226,
+    224,
+    218
+   ],
+   "rc": [
+    196,
+    198,
+    200
+   ],
+   "r": "flat",
+   "win": 15,
+   "h": 6.0,
+   "lm": "znacka",
+   "mp": {
+    "t": "obchod",
+    "z": "billa"
+   },
+   "face": [
+    50.101892,
+    13.732752
+   ]
+  }
+ },
+ {
+  "name": "Myčka AT Car Wash Center",
+  "lat": 50.091969,
+  "lon": 13.726072,
+  "text": "",
+  "spec": {
+   "id": "d97bbfe6-00b0-40a2-ab17-fe4c14658001",
+   "rc": [
+    40,
+    42,
+    46
+   ],
+   "r": "flat",
+   "win": 12,
+   "h": 4.6,
+   "lm": "znacka",
+   "mp": {
+    "t": "mycka",
+    "boxy": [
+     "b",
+     "b",
+     "t",
+     "b",
+     "b"
+    ]
+   }
+  }
+ },
+ {
+  "name": "Vysavače myčky",
+  "lat": 50.092185,
+  "lon": 13.726012,
+  "text": "",
+  "spec": {
+   "id": "b2d9e6c0-f1db-4113-8fe3-a0714221e9c2",
+   "rc": [
+    38,
+    52,
+    84
+   ],
+   "r": "flat",
+   "win": 12,
+   "h": 3.0,
+   "lm": "znacka",
+   "mp": {
+    "t": "vysavace"
+   }
+  }
+ },
+ {
+  "name": "ORLEN Lubenská – stříška",
+  "lat": 50.093419,
+  "lon": 13.726391,
+  "text": "",
+  "spec": {
+   "id": "b194ff7e-64dd-4e35-9fd1-fbf109cba45e",
+   "rc": [
+    236,
+    236,
+    232
+   ],
+   "r": "flat",
+   "win": 12,
+   "h": 5.4,
+   "lm": "znacka",
+   "mp": {
+    "t": "pumpa",
+    "z": "orlen",
+    "totem_ll": [
+     50.093352,
+     13.72649
+    ],
+    "totem_a": 73
+   }
+  }
+ },
+ {
+  "name": "ORLEN Lubenská – obchod",
+  "lat": 50.093442,
+  "lon": 13.726262,
+  "text": "",
+  "spec": {
+   "id": "5ae8586a-b690-48d4-a83d-77690f46ff6c",
+   "wc": [
+    240,
+    240,
+    236
+   ],
+   "rc": [
+    196,
+    198,
+    200
+   ],
+   "r": "flat",
+   "win": 15,
+   "h": 3.8,
+   "lm": "znacka",
+   "mp": {
+    "t": "obchod",
+    "z": "orlen",
+    "sklo": 1
+   },
+   "face": [
+    50.093419,
+    13.726391
+   ]
+  }
+ },
+ {
+  "name": "ORLEN Bezděkov – stříška",
+  "lat": 50.102099,
+  "lon": 13.739545,
+  "text": "",
+  "spec": {
+   "id": "c98de133-b251-4707-ab51-0c3778822089",
+   "rc": [
+    236,
+    236,
+    232
+   ],
+   "r": "flat",
+   "win": 12,
+   "h": 5.4,
+   "lm": "znacka",
+   "mp": {
+    "t": "pumpa",
+    "z": "orlen",
+    "totem_ll": [
+     50.102225,
+     13.739481
+    ],
+    "totem_a": 164
+   }
+  }
+ },
+ {
+  "name": "ORLEN Bezděkov – obchod",
+  "lat": 50.102077,
+  "lon": 13.739784,
+  "text": "",
+  "spec": {
+   "id": "e346ca4b-88e2-42c0-8c41-cc390421055b",
+   "wc": [
+    240,
+    240,
+    236
+   ],
+   "rc": [
+    196,
+    198,
+    200
+   ],
+   "r": "flat",
+   "win": 15,
+   "h": 3.8,
+   "lm": "znacka",
+   "mp": {
+    "t": "obchod",
+    "z": "orlen",
+    "sklo": 1
+   },
+   "face": [
+    50.102099,
+    13.739545
+   ]
+  }
+ },
+ {
+  "name": "EuroOil (dříve Robin Oil) – stříška",
+  "lat": 50.105842,
+  "lon": 13.75115,
+  "text": "",
+  "spec": {
+   "id": "b76f8e31-89b1-423d-92d5-957cd6c96ded",
+   "rc": [
+    236,
+    236,
+    232
+   ],
+   "r": "flat",
+   "win": 12,
+   "h": 5.4,
+   "lm": "znacka",
+   "mp": {
+    "t": "pumpa",
+    "z": "eurooil",
+    "totem_ll": [
+     50.105756,
+     13.751409
+    ],
+    "totem_a": 44
+   }
+  }
+ },
+ {
+  "name": "EuroOil (dříve Robin Oil) – obchod",
+  "lat": 50.105814,
+  "lon": 13.75086,
+  "text": "",
+  "spec": {
+   "id": "cf1396f5-18ef-4518-8e75-222f9c63ec7d",
+   "wc": [
+    240,
+    240,
+    236
+   ],
+   "rc": [
+    196,
+    198,
+    200
+   ],
+   "r": "flat",
+   "win": 15,
+   "h": 3.8,
+   "lm": "znacka",
+   "mp": {
+    "t": "obchod",
+    "z": "eurooil",
+    "sklo": 1
+   },
+   "face": [
+    50.105842,
+    13.75115
+   ]
+  }
+ },
+ {
+  "name": "PRIM – stříška",
+  "lat": 50.107911,
+  "lon": 13.714177,
+  "text": "",
+  "spec": {
+   "id": "1f3c7856-2073-437c-bec7-dd2cb720a880",
+   "rc": [
+    236,
+    236,
+    232
+   ],
+   "r": "flat",
+   "win": 12,
+   "h": 5.4,
+   "lm": "znacka",
+   "mp": {
+    "t": "pumpa",
+    "z": "prim",
+    "totem_ll": [
+     50.10782,
+     13.714334
+    ],
+    "totem_a": -10
+   }
+  }
+ },
+ {
+  "name": "PRIM – obchod",
+  "lat": 50.107975,
+  "lon": 13.714204,
+  "text": "",
+  "spec": {
+   "id": "9b1d0c69-67cc-4d47-83a8-062268aa2c49",
+   "wc": [
+    240,
+    240,
+    236
+   ],
+   "rc": [
+    196,
+    198,
+    200
+   ],
+   "r": "flat",
+   "win": 15,
+   "h": 3.8,
+   "lm": "znacka",
+   "mp": {
+    "t": "obchod",
+    "z": "prim",
+    "sklo": 1
+   },
+   "face": [
+    50.107911,
+    13.714177
+   ]
+  }
+ },
+ {
+  "name": "Tank ONO Krupá – stříška",
+  "lat": 50.17277,
+  "lon": 13.741106,
+  "text": "",
+  "spec": {
+   "id": "654503af-61ce-4524-8e26-77edc9794b4d",
+   "rc": [
+    236,
+    236,
+    232
+   ],
+   "r": "flat",
+   "win": 12,
+   "h": 5.4,
+   "lm": "znacka",
+   "mp": {
+    "t": "pumpa",
+    "z": "tankono",
+    "totem_ll": [
+     50.172845,
+     13.740916
+    ],
+    "totem_a": -81
+   }
+  }
+ },
+ {
+  "name": "Tank ONO Krupá – obchod",
+  "lat": 50.17285,
+  "lon": 13.741326,
+  "text": "",
+  "spec": {
+   "id": "7a9d788b-dca9-4f21-b7e8-0af5b0f3ef25",
+   "wc": [
+    240,
+    240,
+    236
+   ],
+   "rc": [
+    196,
+    198,
+    200
+   ],
+   "r": "flat",
+   "win": 15,
+   "h": 3.8,
+   "lm": "znacka",
+   "mp": {
+    "t": "obchod",
+    "z": "tankono",
+    "sklo": 1
+   },
+   "face": [
+    50.17277,
+    13.741106
+   ]
+  }
+ },
+ {
+  "name": "Kruhový objezd Lubenská",
+  "lat": 50.089951,
+  "lon": 13.726591,
+  "text": "",
+  "spec": {
+   "only": 1,
+   "lm": "kruhac",
+   "h": 11,
+   "mp": {
+    "r": 9.0,
+    "lem": 1.2,
+    "vjezdy": [
+     90,
+     180,
+     -3,
+     -124
+    ]
+   },
+   "cls": "kruhový objezd"
+  }
+ },
+ {
+  "name": "Technická budova myčky",
+  "lat": 50.091746,
+  "lon": 13.726123,
+  "text": "",
+  "spec": {
+   "id": "ac4ca904-faca-4242-b293-5b9f9610b797",
+   "wc": [
+    62,
+    64,
+    68
+   ],
+   "rc": [
+    96,
+    98,
+    102
+   ],
+   "r": "flat",
+   "win": 19,
+   "h": 3.2,
+   "lm": "znacka",
+   "mp": {
+    "t": "technika"
+   }
+  }
  }
 ]

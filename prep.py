@@ -41,6 +41,7 @@ EXT_P = shapely.prepared.prep(EXT)
 SAT = json.load(open('assets/satelit.json')) if os.path.exists('assets/satelit.json') else {'b': {}, 'lu': {}, 'zones': []}
 # ruční upřesnění podle satelitu a 3D fotek: výška/barvy budov (OSM je často nemá), přístřešky, plochy, autobusy
 UP = json.load(open('assets/upresneni.json')) if os.path.exists('assets/upresneni.json') else {'b': {}, 'roofs': [], 'paved': [], 'buses': []}
+for _k, _v in {'b': {}, 'roofs': [], 'paved': [], 'buses': []}.items(): UP.setdefault(_k, _v)   # soubor jen s částí klíčů
 # barvy střech z ortofota (nastroje/strechy.py); ruční úpravy v upresneni.json mají přednost
 if os.path.exists('assets/strechy_orto.json'):
     for _k, _v in json.load(open('assets/strechy_orto.json')).items(): SAT['b'].setdefault(_k, {})['rc'] = _v
@@ -1084,9 +1085,12 @@ addr = load('address')
 addr = addr[addr.geom.map(lambda g: EXT_P.contains(g))]
 addr_pts = list(addr.geom)
 addr_tree = shapely.STRtree(addr_pts)
+addr_city = list(addr.postal_city)
+MESTO_NAZEV = geo.MESTO.get('nazev') or ''
 addr_txt = [f"{s} {n}" if isinstance(s, str) else f"{c} {n}" if isinstance(c, str) else str(n) for s, n, c in zip(addr.street, addr.number, addr.postal_city)]
 
 buildings, binfo, chimneys = [], [], []
+VEDL_CSV = []
 VEDLEJSI = {'shed': 0, 'garage': 0, 'farm_auxiliary': 0}         # vedlejší stavby u domů (výpis na konci)
 bmask = Image.new('L', (TWE, TWE), 0); bmd = ImageDraw.Draw(bmask)
 # centrum a další městské čtverce: činžáky v sevřených blocích (dům sdílí zeď se sousedem) mají šikmé střechy;
@@ -1098,6 +1102,9 @@ DOMS = [d for d in json.load(open('assets/dominanty.json', encoding='utf-8')) if
 for d in DOMS:
     d['xy'] = [float(v) for v in to_local(d['lon'], d['lat'])]
     if 'face' in d['spec']: d['spec']['face_xy'] = [float(v) for v in to_local(d['spec']['face'][1], d['spec']['face'][0])]
+    # parametry vlastního modelu (spec.mp, předají se do scény jako b.mp); klíče *_ll = [lat, lon] -> místní [x, y]
+    if isinstance(d['spec'].get('mp'), dict):
+        d['spec']['mp'] = {k: ([round(float(v), 2) for v in to_local(val[1], val[0])] if k.endswith('_ll') else val) for k, val in d['spec']['mp'].items()}
 DOM_BY_ID = {}                       # Overture id budovy -> dominanta
 
 
@@ -1109,6 +1116,9 @@ def match_doms():
     for d in DOMS:
         sp = d['spec']; pt = Point(*d['xy'])
         if sp.get('only'): continue
+        if 'id' in sp:                                       # přesně daná budova (Overture id), třeba stříška pumpy vedle obchodu
+            for i_ in ([sp['id']] if isinstance(sp['id'], str) else sp['id']): DOM_BY_ID[i_] = d
+            continue
         if 'names' in sp:
             for k, r in idx.items():
                 if isinstance(r.names, dict) and (r.names.get('primary') or '').startswith(sp['names']): DOM_BY_ID[r.id] = d
@@ -1378,9 +1388,22 @@ for _, r in bld.iterrows():
         # Do 9 m výšky (laser); vyšší bez adresy bývá činžák nebo hala.
         if not c and not _ru and 8 <= area <= 400 and not (r.id in DMP and DMP[r.id][0] > 9) and not DOM_BY_ID.get(r.id):
             _pb = p.buffer(1.5)
-            if not any(_pb.contains(addr_pts[i]) for i in addr_tree.query(_pb)) and len(addr_tree.query(p.buffer(40))):
-                c = 'shed' if area < 40 else 'garage' if area < 90 and density(cen) >= 0.12 else 'farm_auxiliary'
-                VEDLEJSI[c] += 1
+            _blz = addr_tree.query(p.buffer(40))
+            if not any(_pb.contains(addr_pts[i]) for i in addr_tree.query(_pb)) and len(_blz):
+                # ve městě (adresa v části s názvem města z mesto.json) stodoly nejsou: dvorní křídlo měšťanského domu
+                # zůstane obecnou budovou, kůlna jen samostatně stojící
+                _ai = min(_blz, key=lambda i: addr_pts[i].distance(cen))
+                _mesto = MESTO_NAZEV and str(addr_city[_ai]).startswith(MESTO_NAZEV)
+                _pb8 = p.buffer(0.8)
+                _prist = any(bpolys[i].intersects(_pb8) and not bpolys[i].equals(p) and bpolys[i].area > area + 1 for i in btree.query(_pb8))
+                if area < 40: c = '' if _mesto and _prist else 'shed'
+                elif area < 90 and density(cen) >= 0.12: c = 'garage'
+                elif not _mesto: c = 'farm_auxiliary'
+                if c: VEDLEJSI[c] += 1
+                if os.environ.get('IZO_VEDLEJSI'):
+                    _pb8 = p.buffer(0.8); _lo, _la = geo.to_lonlat(cen.x + CX, cen.y + CY)
+                    VEDL_CSV.append((r.id, round(_la, 6), round(_lo, 6), c, round(area), round(density(cen), 3),
+                                     sum(1 for i in btree.query(_pb8) if bpolys[i].intersects(_pb8)) - 1, DMP.get(r.id, (None,))[0]))
         floors = r.num_floors if r.num_floors == r.num_floors and r.num_floors else None
         if not floors and _ru and _ru[1] and r.id not in DMP: floors = _ru[1]      # laser má přednost
         hgt = r.height if r.height == r.height and r.height else None
@@ -1500,6 +1523,8 @@ for _, r in bld.iterrows():
             b['hd'] = [*[round(v, 2) for v in dsp.get('face_xy', dom['xy'])], dsp.get('vrata', 5.0)]; b['s'] = 21
         if dsp:
             b['dn'] = dom['name']
+            if dsp.get('mp'): b['mp'] = dsp['mp']
+            if 'face_xy' in dsp: b['fp'] = [round(v, 2) for v in dsp['face_xy']]
             if dsp.get('canopy'): b['cn'] = dsp['canopy']
             for blk in (dsp.get('blocks', []) if pi == tw_piece else []):
                 o = p.minimum_rotated_rectangle; cs = list(o.exterior.coords)[:3]
@@ -1600,6 +1625,7 @@ for d in DOMS:
     ring = [[round(x - w0, 2), round(y - w0, 2)], [round(x + w0, 2), round(y - w0, 2)], [round(x + w0, 2), round(y + w0, 2)], [round(x - w0, 2), round(y + w0, 2)]]
     b = {'p': ring, 'b': round(g - 0.6, 2), 'g': round(g, 2), 'e': round(g, 2), 'r': 'flat', 'rh': 0.0, 'parts': [], 'wc': (150, 146, 136), 'rc': (150, 146, 136),
          's': 4, 'id': bid, 'lm': sp.get('lm', 'dom'), 'dn': d['name'], 'only': 1, 'tw': []}
+    if sp.get('mp'): b['mp'] = sp['mp']
     for tw in sp.get('towers', []):
         b['tw'].append({'x': round(x, 2), 'y': round(y, 2), 'a': 0.0, 'w': tw['w'], 'h': round(g + tw['h'], 2), 'to': round(g + tw.get('to', tw['h']), 2),
                         'top': tw['top'], 'tc': tw.get('tc', [90, 96, 104]), 'wc': [150, 146, 136], 'clock': 0, 'round': tw.get('round', 0),
@@ -1613,9 +1639,12 @@ for d in DOMS:
                       'floors': None, 'h': round(float(th_), 1), 'roof': 'cone', 'addr': [], 'lon': round(float(d['lon']), 6), 'lat': round(float(d['lat']), 6),
                       'ring': ring, 'top': round(g + th_, 2), 'base': round(g - 0.6, 2)})
 # komíny a chladicí věže z OSM (nastroje/kominy.py), vzhled jednotlivých v assets/upresneni.json: "kominy": [{"lat", "lon", "wc", "pr"}]
+# nádrže paliva u pump jsou pod zemí (v OSM často bez location=underground): do 35 m od pumpy (assets/pumpy.json) se nádrž nekreslí
+PUMPY_XY = [to_local(q['lon'], q['lat']) for q in (json.load(open('assets/pumpy.json')) if os.path.exists('assets/pumpy.json') else []) if q.get('druh') == 'pumpa']
 for k_ in (json.load(open('assets/kominy.json')) if os.path.exists('assets/kominy.json') else []):
     x, y = to_local(k_['lon'], k_['lat'])
     if not EXT_P.contains(Point(x, y)): continue
+    if k_['k'] == 'nadrz' and any(math.dist((x, y), q) < 35 for q in PUMPY_XY): continue
     own = AREA.contains(Point(x, y)); g = float(ground(x, y)); h_ = float(k_['h'])
     vz = next((q for q in UP.get('kominy', []) if math.dist((x, y), to_local(q['lon'], q['lat'])) < 20), {})
     vez = k_['k'] == 'vez'; dr = {'vez': 'v', 'stozar': 'm', 'nadrz': 't', 'rozhledna': 'r'}.get(k_['k'], 'c')
@@ -1853,6 +1882,7 @@ if os.path.exists('assets/parcely.json') and geo.MESTO.get('ploty_z_katastru', T
             if okoli is None or okoli.is_empty: continue
             _plot(_bez_prekazek(spol.intersection(okoli)), 'plot_pletivo', 6.0)
     print('vedlejší stavby u domů (kůlna, garáž, hospodářská):', VEDLEJSI['shed'], VEDLEJSI['garage'], VEDLEJSI['farm_auxiliary'])
+    if VEDL_CSV: pd.DataFrame(VEDL_CSV, columns=['id', 'lat', 'lon', 'c', 'plocha', 'hustota', 'sousedi', 'vyska']).to_csv(os.environ['IZO_VEDLEJSI'], index=False)
     print('ploty z katastru: dřevo', len(lines_out['plot_drevo']), 'kov', len(lines_out['plot_kov']), 'pletivo', len(lines_out['plot_pletivo']))
 for k in props: props[k] = [[round(v, 3) for v in q] for q in props[k]]
 # žádné zaparkované auto v jízdním pruhu: střed auta dál než 1 m do vozovky kterékoli silnice (i příčné u křižovatky) -> pryč

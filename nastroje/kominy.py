@@ -21,6 +21,7 @@ def vyber(prvky):
         c = {'lat': (b['minlat'] + b['maxlat']) / 2, 'lon': (b['minlon'] + b['maxlon']) / 2} if b else e.get('center') or e   # Overpass u "center bb" vrací jen bounds
         tt = t.get('tower:type')
         if tt == 'observation' and 'building' in t: continue         # zděné rozhledny jsou v datech jako budovy
+        if t.get('location', '').lower() in ('underground', 'underwater'): continue   # podzemní nádrž (pumpa) není vidět
         k = 'rozhledna' if tt == 'observation' else 'vez' if tt == 'cooling' else 'nadrz' if t.get('man_made') == 'storage_tank' else 'stozar' if tt == 'communication' else 'komin'
         r = None
         if b:
