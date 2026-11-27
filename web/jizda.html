@@ -352,6 +352,7 @@ import { vytvorUlici } from './jizda/ulice.js';
 import { vytvorZnacky } from './jizda/znacky.js';
 import { vytvorUzavirky } from './jizda/uzavirky.js';
 import { vytvorPumpy } from './jizda/pumpy.js';
+import { vytvorMerice } from './jizda/merice.js';
 import { vytvorDopravu, nah } from './jizda/doprava.js';
 import { vytvorHrace } from './jizda/hraci.js';
 import { vytvorGaraz, nactiAuto } from './jizda/garaz.js';
@@ -748,6 +749,7 @@ function krokPocasi(dt, cas) {
 }
 const slozScena = new THREE.Scene(); slozScena.add(slozeni);
 const slozCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+let MERICE = null;                                           // ukazatele rychlosti z OSM (jizda_merice.js), vzniká níž
 let PUMPY = null;                                            // čerpací stanice a nabíječky (jizda_pumpy.js), vzniká níž
 let UZ = null;                                               // uzavírky silnic (jizda_uzavirky.js), vzniká níž
 const jenVeDne = [];                                        // naše tělesa bez vlastního světla: v obrazu světel se kreslí černě
@@ -2141,6 +2143,8 @@ const ZNACKY = vytvorZnacky(THREE, scene3, { roads, ends, ek, along, jenVeDne, h
 UZ = vytvorUzavirky(THREE, scene3, { CAM, roads, along, gz, hrac, jenVeDne, toast: (t, k) => toast(t, k) });
 // čerpací stanice a nabíječky (pumpy.json z nastroje/pumpy.py): cenový totem, stojan nabíječky, panel při zastavení
 PUMPY = vytvorPumpy(THREE, scene3, { CAM, roads, gz, hrac, jenVeDne, hitBuilding });
+// ukazatele rychlosti „Vaše rychlost“ (merice.json z nastroje/merice.py): rychlost hráče, průměr v měřeném úseku
+MERICE = vytvorMerice(THREE, scene3, { CAM, roads, gz, hrac, jenVeDne, toast: (t, k) => toast(t, k) });
 function oznacUzavirky(i0 = 0) {
   if (!UZ) return;
   for (let i = i0; i < roads.length; i++) roads[i].uz = !!UZ.kryje(roads[i].w);
@@ -2361,6 +2365,7 @@ function frame(now) {
   ZNACKY.update(now);
   UZ.update(now);
   PUMPY.update(now);
+  MERICE.update(now);
   NAV.update(now);
   HRA.update(dt, now);
   HRACI.update(dt, now, camera);

@@ -39,6 +39,21 @@
     // načtené čtverce (budovy s obrysem hull v obrázku, oid z Overture): fn(k, data) teď pro načtené a pak pro každý další
     onChunkData(fn) { for (const k in CH) if (CH[k].buildings) fn(k, CH[k]); onChunk.push((k, d) => fn(k, d)); },
     vBudove: (x, y) => vBudove(x, y),                                // bod světa leží v půdorysu budovy
+    // jedoucí auta ze simulace do R m od bodu světa: [{x, y, v (m/s), dx, dy (směr jízdy, jednotkový)}]; bez vrstvy Doprava prázdné
+    auta(x, y, R = 60) {
+      if (!$('l-traffic').checked) return [];
+      const out = [];
+      for (const c of cars) {
+        if (!carActive(c) && !c.hold) continue;
+        const r = roads[c.r], a = r.w[0], b = r.w[r.w.length - 1];
+        if (Math.min(Math.hypot(a[0] - x, a[1] - y), Math.hypot(b[0] - x, b[1] - y)) > r.L + R) continue;   // kus silnice daleko
+        const o = along(r, c.s), d = Math.hypot(o.x - x, o.y - y);
+        if (d > R) continue;
+        const l = Math.hypot(o.dx, o.dy) || 1;
+        out.push({ x: o.x, y: o.y, v: c.hold ? 0 : c.v ?? carSpeed(c, r), dx: c.dir * o.dx / l, dy: c.dir * o.dy / l, t: c.t, auto: c });
+      }
+      return out;
+    },
     zakryto: (x, y, h) => zakrytoBod(x, y, h ?? gz(x, y)),          // postava v bodě světa je za stromem, domem nebo výzdobou
     latLonToWorld: (lat, lon) => [(lon - cam.lon0) * cam.kx, (lat - cam.lat0) * cam.ky],
     worldToLatLon: (x, y) => { const [lon, lat] = lonlat(x, y); return [lat, lon]; },
@@ -109,6 +124,7 @@
     import('./mapa_vrtulnik.js').then((m) => m.spust()).catch(() => {});   // řízení vrtulníku (záložka Objevuj)
     import('./mapa_vrstvy.js').then((m) => m.spust()).catch(() => {});   // datové vrstvy: záplavy, stáří domů
     import('./mapa_kamery.js').then((m) => m.spust({ ukazKartu: ukaz })).catch(() => {});   // webkamery (centrum, D6)
+    import('./mapa_merice.js').then((m) => m.spust({ ukazKartu: ukaz })).catch(() => {});   // ukazatele rychlosti z OSM (nastroje/merice.py)
     import('./mapa_scenky.js').then((m) => m.spust()).catch(() => {});   // drobné scénky (rybáři, draci, čarodějnice…), site/scenky.json
     import('./mapa_ovzdusi.js').then((m) => m.spust({ lat: OV.cam.lat0, lon: OV.cam.lon0, panelPo: $('predpovedBox') })).catch(() => {});
     if ({{KALENDAR}}) import('./mapa_kalendar.js').then((m) => m.spust({ panelPo: $('dnesTop'), ukazKartu: ukaz, jdi })).catch(() => {});

@@ -188,6 +188,7 @@ if os.path.exists('assets/zabaged.json'):          # pole pro práci na polích 
         _pp.append([_pl or 'soil', round(_g.area / 1e4, 1), [[round(x, 1), round(y, 1)] for x, y in _g.exterior.coords[:-1]]])
     json.dump(_pp, open('site/pole_prace.json', 'w', encoding='utf-8'), separators=(',', ':'))
 if os.path.exists('assets/sluzby.json'): shutil.copy('assets/sluzby.json', 'site/sluzby.json')   # pítka a WC (nastroje/sluzby.py)
+if os.path.exists('assets/merice.json'): shutil.copy('assets/merice.json', 'site/merice.json')   # ukazatele rychlosti (nastroje/merice.py), web/mapa_merice.js
 if os.path.exists('assets/akce.json'): shutil.copy('assets/akce.json', 'site/akce.json')         # akce ve městě (program z webu města), web/mapa_akce.js
 if os.path.exists('assets/hadanky.json'): shutil.copy('assets/hadanky.json', 'site/hadanky.json')   # hádanky v deníku (jen ověřené texty)   # ceny paliv z mBenzin.cz (functions/api/ceny.js) k pumpám, mapa i 3D jízda
 shutil.copy('web/uzavirky.js', 'site/uzavirky.js')   # uzavírky: načtení a dopočet úseků z oznámení (mapa i 3D jízda)

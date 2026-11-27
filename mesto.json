@@ -151,5 +151,6 @@
  "sousedi": [],
  "vitej": "Město chmele, gotických bran a cihlových střech, poskládané z otevřených dat dům po domu. Projděte si Rakovník, Lišany, Krupou i Lubnou v každém ročním období, ve dne i v noci.",
  "vitej_nadpis": "Rakovníka",
- "auta_u_krajnice": false
+ "auta_u_krajnice": false,
+ "merene_useky": [[[50.150684, 13.7405411], [50.146787, 13.7396574]]]
 }
