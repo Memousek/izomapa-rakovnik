@@ -126,6 +126,14 @@ export function buildProps(P, { make, inst, F, id, pushBox }) {
     for (const t of [-1.0, 1.0]) pushBox(B, F, -0.4, 0.4, t - 0.12, t + 0.12, 0, 0.6, seda, N);
   }), P.prives, id);
   if (P.znacka?.length) inst(make((B) => pushBox(B, F, -1.5, 1.5, -0.4, 0.4, 0, 0.35, bila, N)), P.znacka, id);   // značka okraje dráhy
+  // cedule obchodů na fasádách (assets/custom_prep.py, props.cedule): deska v barvách značky s „nápisem“, v noci svítí
+  if (P.cedule?.length) for (const it of P.cedule) {
+    const [, , , , w, z0, h, z, k] = it, C = CEDULE[z] || CEDULE_OBECNE[k % CEDULE_OBECNE.length], S = [1, 1, 0, 0];
+    inst(make((B) => {
+      pushBox(B, F, -w / 2, w / 2, 0, 0.14, z0, z0 + h, C.bg, S);
+      for (const [a0, a1, b0, b1, c] of C.logo) pushBox(B, F, -w / 2 + a0 * w, -w / 2 + a1 * w, 0.14, 0.18, z0 + b0 * h, z0 + b1 * h, c, S);
+    }), [it], (q) => [q[0], q[1], q[2], q[3]]);
+  }
   // chmelnice (assets/custom_prep.py): dřevěné sloupy 7 m, dráty mezi nimi; révy podle období (render?season=…):
   // jaro nízké výhonky, léto zelená stěna až k drátům s hlávkami, podzim a zima po sklizni jen konstrukce
   const SEZ = new URLSearchParams(location.search).get('season') || 'autumn';
@@ -405,3 +413,22 @@ function kruhac(b, { X, frameAt, pushBox, pushQuad, tv }) {
   }
   return true;
 }
+
+// barvy cedulí obchodů (klíče z nastroje/obchody.py); logo = [s0, s1, z0, z1] v podílech desky
+const _c = (h) => [((h >> 16) & 255) / 255, ((h >> 8) & 255) / 255, (h & 255) / 255];
+const _napis = (c, a = 0.12, b = 0.88) => [[a, b, 0.3, 0.7, _c(c)]];
+const CEDULE = {
+  rossmann: { bg: _c(0xc8102e), logo: _napis(0xffffff) },
+  dm: { bg: _c(0xffffff), logo: [[0.28, 0.56, 0.22, 0.78, _c(0x1d3f8f)], [0.58, 0.72, 0.56, 0.8, _c(0xffd500)], [0.58, 0.72, 0.2, 0.44, _c(0xe30613)]] },
+  pepco: { bg: _c(0x1d1d1b), logo: _napis(0xffffff) },
+  planeo: { bg: _c(0xe30613), logo: _napis(0xffffff) },
+  cs: { bg: _c(0x2870ed), logo: _napis(0xffffff) },
+  csob: { bg: _c(0xffffff), logo: [[0.08, 0.24, 0.2, 0.8, _c(0x00aeef)], [0.3, 0.92, 0.3, 0.7, _c(0x003a70)]] },
+  kb: { bg: _c(0x1d1d1b), logo: [[0.08, 0.26, 0.15, 0.85, _c(0xe2001a)], [0.32, 0.92, 0.35, 0.65, _c(0xffffff)]] },
+  unicredit: { bg: _c(0xe2001a), logo: _napis(0xffffff) },
+  benu: { bg: _c(0x00a04a), logo: _napis(0xffffff) },
+  posta: { bg: _c(0xffcc00), logo: [[0.08, 0.26, 0.2, 0.8, _c(0x0b2c6b)], [0.32, 0.92, 0.35, 0.65, _c(0x0b2c6b)]] },
+};
+// místní obchody: obecná cedule (skutečné barvy neznáme), střídají se tlumené barvy
+const CEDULE_OBECNE = [[0x2f5d3a, 0xf2efe6], [0x7a1f2b, 0xf2e6cf], [0x23395b, 0xffffff], [0x1d1d1b, 0xd4af37], [0x7a5230, 0xf2e6cf], [0x4a4d52, 0xffffff]]
+  .map(([b, t]) => ({ bg: _c(b), logo: _napis(t, 0.15, 0.85) }));

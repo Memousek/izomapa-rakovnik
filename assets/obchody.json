@@ -1,0 +1,296 @@
+[
+ {
+  "nazev": "BENU",
+  "lat": 50.10335,
+  "lon": 13.731558,
+  "z": "benu"
+ },
+ {
+  "nazev": "Hředle",
+  "lat": 50.188194,
+  "lon": 13.748089,
+  "z": "posta"
+ },
+ {
+  "nazev": "Komerční banka Rakovník",
+  "lat": 50.104146,
+  "lon": 13.729761,
+  "z": "kb"
+ },
+ {
+  "nazev": "Lubná u Rakovníka",
+  "lat": 50.077488,
+  "lon": 13.700643,
+  "z": "posta"
+ },
+ {
+  "nazev": "PLANEO - Rakovník",
+  "lat": 50.100927,
+  "lon": 13.731649,
+  "z": "planeo"
+ },
+ {
+  "nazev": "Pepco",
+  "lat": 50.100934,
+  "lon": 13.731637,
+  "z": "pepco"
+ },
+ {
+  "nazev": "Rakovník",
+  "lat": 50.10402,
+  "lon": 13.729697,
+  "z": "posta"
+ },
+ {
+  "nazev": "Rakovník, Nádražní",
+  "lat": 50.103438,
+  "lon": 13.731679,
+  "z": "benu"
+ },
+ {
+  "nazev": "Rakovník, poliklinika, Husovo nám.",
+  "lat": 50.104282,
+  "lon": 13.731599,
+  "z": "benu"
+ },
+ {
+  "nazev": "Rossmann",
+  "lat": 50.104861,
+  "lon": 13.728222,
+  "z": "rossmann"
+ },
+ {
+  "nazev": "Rossmann",
+  "lat": 50.105442,
+  "lon": 13.742824,
+  "z": "rossmann"
+ },
+ {
+  "nazev": "UniCredit",
+  "lat": 50.105242,
+  "lon": 13.727926,
+  "z": "unicredit"
+ },
+ {
+  "nazev": "dm drogerie markt",
+  "lat": 50.101037,
+  "lon": 13.731504,
+  "z": "dm"
+ },
+ {
+  "nazev": "ČSOB",
+  "lat": 50.103929,
+  "lon": 13.730196,
+  "z": "csob"
+ },
+ {
+  "nazev": "Česká spořitelna",
+  "lat": 50.104173,
+  "lon": 13.731784,
+  "z": "cs"
+ },
+ {
+  "nazev": "Aquatop",
+  "lat": 50.106688,
+  "lon": 13.728324,
+  "z": "g"
+ },
+ {
+  "nazev": "Ateliér Radost z květin",
+  "lat": 50.106223,
+  "lon": 13.729271,
+  "z": "g"
+ },
+ {
+  "nazev": "Boty Bambini",
+  "lat": 50.104227,
+  "lon": 13.727342,
+  "z": "g"
+ },
+ {
+  "nazev": "Boutique Linda",
+  "lat": 50.104643,
+  "lon": 13.731303,
+  "z": "g"
+ },
+ {
+  "nazev": "Bridal salon Catherine",
+  "lat": 50.101683,
+  "lon": 13.724563,
+  "z": "g"
+ },
+ {
+  "nazev": "Chovatelské Potřeby Kinkal",
+  "lat": 50.106291,
+  "lon": 13.729961,
+  "z": "g"
+ },
+ {
+  "nazev": "Czecom",
+  "lat": 50.10392,
+  "lon": 13.742666,
+  "z": "g"
+ },
+ {
+  "nazev": "Dům barev",
+  "lat": 50.10222,
+  "lon": 13.73211,
+  "z": "g"
+ },
+ {
+  "nazev": "GH Centrum Rakovník",
+  "lat": 50.10375,
+  "lon": 13.73125,
+  "z": "g"
+ },
+ {
+  "nazev": "Galanterie Čendulka",
+  "lat": 50.1053,
+  "lon": 13.74064,
+  "z": "g"
+ },
+ {
+  "nazev": "Helpix",
+  "lat": 50.104377,
+  "lon": 13.727566,
+  "z": "g"
+ },
+ {
+  "nazev": "Jaroslav Beneš Autodíly",
+  "lat": 50.101588,
+  "lon": 13.725234,
+  "z": "g"
+ },
+ {
+  "nazev": "Jednota, spotřební družstvo v Rakovníku",
+  "lat": 50.10197,
+  "lon": 13.7325,
+  "z": "g"
+ },
+ {
+  "nazev": "Jízdní kola Ramala",
+  "lat": 50.098796,
+  "lon": 13.729107,
+  "z": "g"
+ },
+ {
+  "nazev": "Keramika Hašek",
+  "lat": 50.102162,
+  "lon": 13.720883,
+  "z": "g"
+ },
+ {
+  "nazev": "Kola Sanka",
+  "lat": 50.101481,
+  "lon": 13.730422,
+  "z": "g"
+ },
+ {
+  "nazev": "Koruna Cash and Carry",
+  "lat": 50.101146,
+  "lon": 13.726049,
+  "z": "g"
+ },
+ {
+  "nazev": "Krmivo Hrubeš",
+  "lat": 50.144626,
+  "lon": 13.750113,
+  "z": "g"
+ },
+ {
+  "nazev": "Kuchyně Hudček & Interiéry",
+  "lat": 50.09847,
+  "lon": 13.729186,
+  "z": "g"
+ },
+ {
+  "nazev": "Květiny klára",
+  "lat": 50.10374,
+  "lon": 13.73147,
+  "z": "g"
+ },
+ {
+  "nazev": "Male Krucky",
+  "lat": 50.103783,
+  "lon": 13.727046,
+  "z": "g"
+ },
+ {
+  "nazev": "NÁBytek J+J Zoubkovi",
+  "lat": 50.105895,
+  "lon": 13.721473,
+  "z": "g"
+ },
+ {
+  "nazev": "Oh La-La!",
+  "lat": 50.105143,
+  "lon": 13.726918,
+  "z": "g"
+ },
+ {
+  "nazev": "Papírnictví Variant",
+  "lat": 50.10223,
+  "lon": 13.722129,
+  "z": "g"
+ },
+ {
+  "nazev": "Pokorný Jaromír - hospodářské potřeby a krmiva",
+  "lat": 50.102288,
+  "lon": 13.721947,
+  "z": "g"
+ },
+ {
+  "nazev": "Pracovní svět",
+  "lat": 50.103247,
+  "lon": 13.731521,
+  "z": "g"
+ },
+ {
+  "nazev": "Přátelský obchod Rupalubato",
+  "lat": 50.1035,
+  "lon": 13.72953,
+  "z": "g"
+ },
+ {
+  "nazev": "Renc Optik",
+  "lat": 50.104689,
+  "lon": 13.72762,
+  "z": "g"
+ },
+ {
+  "nazev": "Symbióza",
+  "lat": 50.10376,
+  "lon": 13.730061,
+  "z": "g"
+ },
+ {
+  "nazev": "Vína dům Rakovník",
+  "lat": 50.105837,
+  "lon": 13.731269,
+  "z": "g"
+ },
+ {
+  "nazev": "You Cosmetic Salon",
+  "lat": 50.104294,
+  "lon": 13.727326,
+  "z": "g"
+ },
+ {
+  "nazev": "Zahradnictví Rakovník Bezděkov",
+  "lat": 50.102193,
+  "lon": 13.740852,
+  "z": "g"
+ },
+ {
+  "nazev": "Zelezarstvi UNIMONT",
+  "lat": 50.10555,
+  "lon": 13.731156,
+  "z": "g"
+ },
+ {
+  "nazev": "Železářství Chyský",
+  "lat": 50.104355,
+  "lon": 13.728094,
+  "z": "g"
+ }
+]
