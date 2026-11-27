@@ -127,8 +127,9 @@ kbd { font-family: var(--mono) !important; border-radius: 4px; }
 }
 
 /* hodiny ve hře v herní liště (jizda.html #hudCas): čas a štítek špičky */
-.hud-cas { padding: 0 10px 0 4px; font: 500 1rem var(--mono); color: var(--s9); white-space: nowrap; }
+.hud-cas { min-height: 32px; border: 0; background: none; cursor: pointer; padding: 0 10px 0 4px; font: 500 1rem var(--mono); color: var(--s9); white-space: nowrap; }
 .hud-cas b { margin-left: 6px; padding: 2px 6px; border-radius: 6px; background: #f1b23a; color: #3b2600; font: 500 .62rem var(--mono); letter-spacing: .08em; text-transform: uppercase; vertical-align: 2px; }
+.hud-cas b.ruc { background: var(--red); color: #fff; }
 .hud-cas b.vik { background: var(--s2); color: var(--s7); }
 
 /* povodeň v herní liště (vodní stav ČHMÚ, jizda.html #hudVoda) */
@@ -219,3 +220,8 @@ body.kontrast .nast-radek small, body.kontrast .panel h2 small { color: #1c1917;
 /* odkazy na jiný web (web/js/02-odkazy-ven.js vložený nástrojem jizda.py): viditelná šipka, text jen pro čtečku */
 .ven-sipka { display: inline-block; margin-left: .25em; text-decoration: none; }
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Čas a počasí: velká hodina nad posuvníkem, aby bylo vidět, co se nastavuje */
+.cas-hod { margin-left: 6px; font: 600 1.15rem var(--mono); color: var(--s9); }
+.hud-cas:hover, .hud-cas:focus-visible { text-decoration: underline; }
+.hud-cas:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; border-radius: 6px; }

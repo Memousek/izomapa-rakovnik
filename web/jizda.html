@@ -244,7 +244,7 @@ body.webkamera #pohledBtn, body.webkamera #tacho, body.webkamera #zamer, body.we
     <button type="button" class="px-btn" id="menu" aria-expanded="false" aria-controls="hud">Menu <kbd>Esc</kbd></button>
     <button type="button" class="px-btn" id="mapaBtn" aria-expanded="false" aria-controls="mapa3d">Mapa <kbd>M</kbd></button>
     <span class="rezim" id="rezim">pěšky</span>
-    <span class="hud-cas" id="hudCas" title="Čas ve hře (Menu → Čas a počasí)"></span>
+    <button type="button" class="hud-cas" id="hudCas" aria-controls="pnCas" title="Čas ve hře – klikni pro nastavení"></button>
     <span class="hud-voda" id="hudVoda" hidden title="Vodní stav Rakovnického potoka (ČHMÚ)"></span>
   </div>
   <div id="cil" hidden></div>
@@ -296,10 +296,10 @@ body.webkamera #pohledBtn, body.webkamera #tacho, body.webkamera #zamer, body.we
         <section class="panel" data-panel="kamery" id="pnKamery" role="tabpanel" hidden><h2>Webkamery <small>3D pohled ze skutečné kamery a vedle její záběr</small></h2><div id="kamerypanel"></div></section>
         <section class="panel" data-panel="cas" id="pnCas" role="tabpanel" hidden><h2>Čas a počasí</h2>
   <div class="cas">
-    <label class="lbl" for="noc">Denní doba <span id="hodiny"></span></label>
-    <input type="range" id="noc" min="0" max="100" value="0">
-    <div class="osa"><span>Den</span><span>Zlatá hodinka</span><span>Noc</span></div>
-    <label class="rt"><input type="checkbox" id="skutecny" checked> Podle skutečného času</label>
+    <label class="lbl" for="noc">Čas ve hře <output id="casHod" for="noc" class="cas-hod"></output> <span id="hodiny"></span></label>
+    <input type="range" id="noc" min="0" max="1440" step="15" value="720">
+    <div class="osa" aria-hidden="true"><span>0:00</span><span>6:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+    <label class="rt"><input type="checkbox" id="skutecny" checked> Podle skutečného času (teď)</label>
   </div>
   <div class="cas pocasi">
     <span class="lbl">Počasí <span id="pocasiTed"></span></span>
@@ -462,16 +462,23 @@ function sunAlt(d) {
   return Math.asin(Math.sin(lat * rad) * Math.sin(dec) + Math.cos(lat * rad) * Math.cos(dec) * Math.cos(ha)) / rad;
 }
 const nightFromSun = (a) => (a > 8 ? 0 : a > 0 ? 0.42 * (1 - a / 8) : a > -7 ? 0.42 + 0.58 * (-a / 7) : 1);
-const DOBA = { n: 0 };
-const ulozCas = (v) => { try { localStorage.setItem('izo-3d-skutecny-cas', v ? '1' : '0'); } catch {} };
-try { $('skutecny').checked = localStorage.getItem('izo-3d-skutecny-cas') !== '0'; } catch {}
+const DOBA = { n: 0, h: 12 };                              // n: tma 0..1, h: hodina ve hře (ručně z posuvníku)
+const hodPraha = () => {                                     // skutečná hodina v Praze (desetinná)
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Prague', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).formatToParts(new Date()).map((q) => [q.type, q.value]));
+  return (+p.hour % 24) + +p.minute / 60 + +p.second / 3600;
+};
+const fmtHod = (h) => { const m = Math.floor(h * 60) % 1440; return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
+// ruční čas se nepamatuje: po načtení stránky jede hra vždy podle skutečných hodin
 function tickCas() {
-  const real = $('skutecny').checked;
-  if (real) { DOBA.n = Math.round(nightFromSun(sunAlt(new Date())) * 100) / 100; $('noc').value = Math.round(DOBA.n * 100); }
-  $('hodiny').textContent = real ? '· teď ' + new Intl.DateTimeFormat('cs-CZ', { timeZone: 'Europe/Prague', hour: 'numeric', minute: '2-digit' }).format(new Date()) : '';
+  const real = $('skutecny').checked, h = real ? hodPraha() : DOBA.h;
+  if (real) { DOBA.h = h; $('noc').value = Math.round(h * 60 / 15) * 15; }
+  DOBA.n = Math.round(nightFromSun(sunAlt(new Date(Date.now() + (h - hodPraha()) * 36e5))) * 100) / 100;   // slunce dnes v tu hodinu
+  const t = fmtHod(h);
+  $('casHod').textContent = t; $('noc').setAttribute('aria-valuetext', t);
+  $('hodiny').textContent = real ? '· podle hodin' : '· nastaveno ručně';
 }
-$('noc').addEventListener('input', (e) => { DOBA.n = e.target.value / 100; $('skutecny').checked = false; ulozCas(false); tickCas(); });
-$('skutecny').addEventListener('change', (e) => { ulozCas(e.target.checked); tickCas(); });
+$('noc').addEventListener('input', (e) => { DOBA.h = Math.min(e.target.value, 1439) / 60; $('skutecny').checked = false; tickCas(); });
+$('skutecny').addEventListener('change', tickCas);
 tickCas(); setInterval(tickCas, 30000);
 // denní obraz se kreslí do textury i s hloubkou: z ní se počítá mlha a opar podle vzdálenosti (shadery světa z render.html mlhu nemají)
 const rtDen = new THREE.WebGLRenderTarget(1, 1, { depthTexture: new THREE.DepthTexture(1, 1), samples: KVALITA > 1 ? 4 : 0 }), rtSvetla = new THREE.WebGLRenderTarget(1, 1);
@@ -1111,8 +1118,7 @@ function hustotaProvozu() {
   return vikend() ? Math.min(f, 0.6) : f;
 }
 function hodina() {                                          // simulovaná hodina: skutečný čas, nebo podle posuvníku (den = odpoledne, noc = večer)
-  if ($('skutecny').checked) return pragueNow().s / 3600;
-  return DOBA.n < 0.3 ? 13 : 18 + (DOBA.n - 0.3) / 0.7 * 5;
+  return $('skutecny').checked ? pragueNow().s / 3600 : DOBA.h;
 }
 const vikend = () => $('skutecny').checked && pragueNow().wd >= 5;
 function oknaPodleCasu(h) {                                  // večer svítí skoro všichni, k půlnoci zhasínají, k ránu se zase rozsvěcují
@@ -1594,6 +1600,7 @@ zobrazPanel(zalozka);
 for (const b of ZALOZKY) b.addEventListener('click', () => zobrazPanel(b.dataset.tab));
 $('menu').addEventListener('click', (e) => { e.currentTarget.blur(); if (MENU.open) zavriMenu(false); else otevriMenu(); });
 $('pokracovat').addEventListener('click', () => zavriMenu(true));
+$('hudCas').addEventListener('click', (e) => { e.currentTarget.blur(); zobrazPanel('cas'); if (!MENU.open) otevriMenu(); $('noc').focus(); });
 $('hud').addEventListener('click', (e) => { if (e.target === $('hud')) zavriMenu(true); });   // klik mimo okno
 addEventListener('keydown', (e) => {
   const pise = e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
@@ -2483,7 +2490,9 @@ function frame(now) {
   grafikaPrubezne(now, fps);
   if (now - hudCasT > 1000) {                               // hodiny ve hře a špička provozu
     hudCasT = now; const h = hodina(), mi = Math.floor(h * 60) % 1440, sp = hustotaProvozu() > 0.88 && !vikend();
-    $('hudCas').innerHTML = `${Math.floor(mi / 60)}:${String(mi % 60).padStart(2, '0')}${sp ? ' <b>špička</b>' : vikend() ? ' <b class="vik">víkend</b>' : ''}`;
+    const rucne = !$('skutecny').checked;
+    $('hudCas').innerHTML = `${Math.floor(mi / 60)}:${String(mi % 60).padStart(2, '0')}${rucne ? ' <b class="ruc">ručně</b>' : sp ? ' <b>špička</b>' : vikend() ? ' <b class="vik">víkend</b>' : ''}`;
+    $('hudCas').setAttribute('aria-label', `Čas ve hře ${Math.floor(mi / 60)}:${String(mi % 60).padStart(2, '0')}${rucne ? ', nastavený ručně' : ', podle skutečných hodin'}. Otevřít nastavení času`);
   }
   if (now - stavT > 500 && !building) {
     stavT = now;
