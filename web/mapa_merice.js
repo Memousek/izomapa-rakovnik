@@ -50,7 +50,7 @@ export function spust({ ukazKartu }) {
   const kde = [];
 
   // tabule jako pixelový obrázek (1 bod = 1 pixel při přiblížení 1), stejně jako vozidla: tmavý obrys, světlo zleva shora,
-  // stín vpravo dole; zvětšuje se celými násobky bez vyhlazení. Cache podle čísla, barvy a noci.
+  // stín vpravo dole; zvětšuje se s mapou bez vyhlazení. Cache podle čísla, barvy a noci.
   const SPRITY = new Map();
   function sprite(txt, nad, noc) {
     const k = `${txt}|${nad}|${noc}`;
@@ -89,7 +89,7 @@ export function spust({ ukazKartu }) {
     if (!zap || !tabule.length || v.sx < 0.5) return;        // jen zblízka (z výšky by tabule trčela nad městem)
     const ted = v.now / 1000, mer = ted - posledni > 0.12;       // měřit asi 8× za sekundu
     if (mer) posledni = ted;
-    const q = Math.max(1, Math.round(v.sx));                    // celé násobky: pixely tabule sedí na mřížce jako zbytek mapy
+    const q = v.sx;                                             // 1 bod tabule = 1 pixel mapy (0,2 m), zvětšuje se plynule s mapou jako auta
     for (const t of tabule) {
       const z = I.gz(t.x, t.y), [ix, iy] = I.toImg(t.x, t.y, z);
       if (!v.vis(ix, iy, 60)) continue;
