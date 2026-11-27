@@ -9,6 +9,7 @@ const CIF = {                                                     // číslice 3
   9: ['111', '101', '111', '001', '111'],
 };
 const DOSAH = 70, BLIZ = 8, VYDRZ = 2.5, MAX_UHEL = 60;          // m, m, s, °
+const TEST = new URLSearchParams(location.search).get('honicka');   // ?honicka = hlídka hned (řidič zastaví), ?honicka=ujede = ujede a naboura
 const SW = 17, SH = 31;                                           // obrázek tabule v bodech: skříň 13, štítek 3, sloup 14 (2,8 m)
 
 export function spust({ ukazKartu }) {
@@ -97,7 +98,12 @@ export function spust({ ukazKartu }) {
         const a = mereneAuto(t);
         if (a) {
           t.cislo = Math.round(a.v * 3.6); t.do = ted + VYDRZ;
-          if (a.auto !== t.minule) { t.minule = a.auto; t.posl.unshift({ v: t.cislo, cas: new Date() }); t.posl.length = Math.min(t.posl.length, 8); }
+          if (a.auto !== t.minule) {
+            t.minule = a.auto; t.posl.unshift({ v: t.cislo, cas: new Date() }); t.posl.length = Math.min(t.posl.length, 8);
+            // nad limit (s tolerancí 3 km/h jako při měření policií): občas za ním vyjede hlídka (78-honicka.js, pauza mezi honičkami)
+            if (t.cislo > t.m.limit + 3 && I.policie && (TEST !== null || Math.random() < 0.5))
+              I.policie(a.auto, { kmh: t.cislo, limit: t.m.limit, ...(TEST !== null ? { hned: true, ujede: TEST === 'ujede' } : {}) });
+          }
         } else if (ted > t.do) t.cislo = null;
       }
       const [X, Y] = v.toScreen(ix, iy);
@@ -126,8 +132,9 @@ export function spust({ ukazKartu }) {
     if (t.posl.length) rows.push(['Poslední auta v mapě', t.posl.map((p) => `${p.v}`).join(', ') + ' km/h']);
     if (usek.length) rows.push(['Měřený úsek', `s tabulí na ${usek[0].m.ulice || 'silnici'}, ${Math.round(Math.hypot(usek[0].x - t.x, usek[0].y - t.y))} m (ve 3D jízdě počítá průměr)`]);
     ukazKartu({ title: usek.length ? 'Měřený úsek: ukazatel rychlosti' : 'Ukazatel rychlosti', lat: m.lat, lon: m.lon,
-      text: 'Tabule „Vaše rychlost“ stojí na tomhle místě i ve skutečnosti (poloha z OpenStreetMap). Čísla na ní ukazují rychlost aut v mapě, která jsou jen ilustrace provozu, ne skutečně naměřené hodnoty.',
-      link: `https://www.openstreetmap.org/node/${m.id}`, linkText: 'Tabule v OpenStreetMap ↗', target: '_blank', rows: [...rows, ['Zdroj polohy', 'OpenStreetMap (ODbL)']] });
+      text: `Tabule „Vaše rychlost“ stojí na tomhle místě i ve skutečnosti (${m.rucne ? 'doplněná ručně podle fotky' : 'poloha z OpenStreetMap'}). Čísla na ní ukazují rychlost aut v mapě, která jsou jen ilustrace provozu, ne skutečně naměřené hodnoty.`,
+      ...(m.rucne ? {} : { link: `https://www.openstreetmap.org/node/${m.id}`, linkText: 'Tabule v OpenStreetMap ↗', target: '_blank' }),
+      rows: [...rows, ['Zdroj polohy', m.rucne ? 'ruční doplnění (v OpenStreetMap chybí)' : 'OpenStreetMap (ODbL)']] });
     return true;
   });
 }

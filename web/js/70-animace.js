@@ -560,6 +560,7 @@
     car: { len: 4.2, wid: 1.76, code: false, gap: 8 }, van: { len: 5.4, wid: 2.0, code: 5, vmax: 110, gap: 9 },
     truck: { len: 9, wid: 2.45, code: 3, vmax: 80, gap: 13 }, semi: { len: 6.1, wid: 2.5, code: 7, vmax: 80, gap: 25 },
     garbage: { len: 9.2, wid: 2.5, code: 9, vmax: 35, gap: 13 }, tractor: { len: 4.3, wid: 2.3, code: 10, vmax: 30, gap: 8 },
+    police: { len: 4.7, wid: 1.82, code: 15, gap: 8 },                                     // hlídka při honičce (78-honicka.js)
   };
   const TRAILER = 13.6, TAH = 3.05 - 1.0 + 6.8;                 // střed návěsu za středem tahače (točnice 1 m před zadkem tahače)
   const MINOR = new Set(['residential', 'living_street', 'unclassified', 'tertiary']);   // popeláři a traktory jezdí po vedlejších silnicích
@@ -701,7 +702,7 @@
   function leaderOf(c, r, ln) {
     let best = null, bd = 1e9;
     for (const o of GRP.get(grpKey(c.r, c.dir)) || []) {
-      if (o === c || o.pg <= c.pg || !inLane(o, r, ln)) continue;
+      if (o === c || o.odst || o.pg <= c.pg || !inLane(o, r, ln)) continue;   // odst: stojí u krajnice (honička), objede se
       const d = o.pg - c.pg - backOf(o) - c.T.len / 2; if (d < bd) { bd = d; best = o; }
     }
     const rest = r.L - c.pg;
@@ -710,6 +711,7 @@
       if (c.nx) {
         const q = roads[c.nx[0]];
         for (const o of GRP.get(grpKey(c.nx[0], c.nx[1])) || []) {
+          if (o.odst) continue;
           if (lanes2(q) && lanes2(r) && !inLane(o, q, ln)) continue;
           const d = rest + o.pg - backOf(o) - c.T.len / 2; if (d < bd) { bd = d; best = o; }
         }
@@ -733,6 +735,7 @@
       const k = grpKey(c.r, c.dir); let g = GRP.get(k); if (!g) GRP.set(k, (g = [])); g.push(c);
     }
     for (const c of act) {
+      if (c.honi && c.honi.v != null) { c.v = c.honi.v; continue; }   // rychlost řídí honička (78-honicka.js)
       const r = roads[c.r], v0 = carSpeed(c, r), two = lanes2(r);
       if (c.v === undefined) c.v = v0;
       if (c.ln === undefined || !two) c.ln = 0;
@@ -755,10 +758,11 @@
     }
   }
   function stepCar(c, dt) {
+    if (c.honi?.krok && c.honi.krok(c, dt)) return;           // hlídka jede po stopě piráta (78-honicka.js)
     if (c.hold) { if (blocked(c.hold)) return; c.hold.q = null; c.hold = null; }
     const r = roads[c.r], next = c.s + (c.v ?? carSpeed(c, r)) * dt * c.dir;
     for (const zs of [r.jy, r.sg]) if (zs) for (const z of zs) {   // zavřený přejezd, plný kruhový objezd (6 m před) nebo červená/žlutá na semaforu (z.d m před bodem); fronta po c.T.gap m
-      if (!blocked(z) || (z.t && z.t !== c.dir)) continue;  // semafor platí jen pro směr ke křižovatce
+      if (!blocked(z) || (z.t && z.t !== c.dir) || c.honi?.ignor) continue;  // semafor platí jen pro směr ke křižovatce; ujíždějící pirát jede i na červenou
       const D = z.d ?? 6, qi = c.dir > 0 ? 0 : 1, stop = z[0] - c.dir * (D + ((z.q && z.q[qi]) || 0));   // z.q = délka fronty v m
       if (c.dir * (stop - c.s) >= 0 && c.dir * (next - stop) > 0) { c.s = stop; c.hold = z; (z.q = z.q || [0, 0])[qi] += c.T.gap; return; }
       if (c.dir * (stop - c.s) < 0 && c.dir * (z[0] - c.dir * D - c.s) >= 0) { c.hold = z; (z.q = z.q || [0, 0])[qi] += c.T.gap; return; }   // fronta mezitím narostla za auto: zastavit na místě
@@ -970,6 +974,7 @@
     car: ['Osobní auto', ''], van: ['Dodávka', 'Asi každé desáté osobní vozidlo.'], truck: ['Nákladní auto', ''],
     semi: ['Kamion s návěsem', 'Tahač s návěsem, jezdí nejvýš 80 km/h.'], garbage: ['Popelářský vůz', 'Jezdí ve dne po vedlejších ulicích.'],
     tractor: ['Traktor', 'Vzácný host na vedlejších silnicích, nejvýš 30 km/h.'],
+    police: ['Policie ČR', 'Hlídka jede za řidičem, který projel kolem ukazatele rychlosti rychleji, než smí. Je to ilustrace, ne skutečný zásah.'],
   };
   const mistoZ = (ix, iy) => { const [x, y] = imgToWorld(ix, iy); return lonlat(x, y); };
   // karta spoje: linka, odkud a kam, stav (zpoždění z polohy vozidla PID v reálném čase), tlačítka Sledovat a Trasa linky,

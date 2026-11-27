@@ -4,6 +4,7 @@
 # Měřený úsek (dvojice tabulí, mezi kterými 3D jízda počítá průměrnou rychlost): "merene_useky": [[[lat, lon], [lat, lon]], …]
 # v mesto.json, každý bod se přiřadí k nejbližší tabuli do 60 m. Prohlížeč (web/mapa_merice.js) ukazuje rychlost aut ze simulace,
 # 3D jízda (web/jizda_merice.js) rychlost hráče. Pak build_html.py a nastroje/jizda.py (render ani overlay.py není potřeba).
+# Tabule, které v OSM chybí: "merice_rucne" v mesto.json (lepší je je doplnit do OSM).
 # spouštět z kořene repa: python nastroje/merice.py
 import json, math, subprocess, sys; sys.path.insert(0, '.')
 import numpy as np, pyarrow.parquet as pq, shapely
@@ -62,6 +63,13 @@ for e in json.loads(t)['elements']:
     out.append({'id': e['id'], 'lat': round(e['lat'], 7), 'lon': round(e['lon'], 7),
                 'typ': 'displej' if tg['highway'] == 'speed_display' else 'radar', 'smer': sm,
                 'limit': int(lim) if str(lim).isdigit() else 50, 'ulice': nazev, 'stoji': [round(float(sla), 7), round(float(slo), 7)], 'osa': osa})
+# ruční doplnění (tabule, které v OSM chybí): "merice_rucne": [{"lat", "lon", "smer", "limit"?, "typ"?, "pozn"?}] v mesto.json
+for k, m in enumerate(geo.MESTO.get('merice_rucne', [])):
+    x, y = (float(v) for v in geo.to_local(m['lon'], m['lat'])); sm = m.get('smer')
+    nazev, (sx, sy), osa = silnice(x, y, sm)
+    slo, sla = geo.to_lonlat(sx, sy)
+    out.append({'id': f'rucne{k}', 'lat': m['lat'], 'lon': m['lon'], 'typ': m.get('typ', 'displej'), 'smer': sm, 'limit': m.get('limit', 50),
+                'ulice': nazev, 'stoji': [round(float(sla), 7), round(float(slo), 7)], 'osa': osa, 'rucne': 1})
 out.sort(key=lambda m: (m['lat'], m['lon']))
 
 def blizko(lat, lon):

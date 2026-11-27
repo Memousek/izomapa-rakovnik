@@ -198,6 +198,17 @@
           axles.push([-l - 3.2, 0.5, w * 0.95, 0.2], [-l - 5.0, 0.5, w * 0.95, 0.2]);
           Pt(-l - 6.6, -l - 0.9, -w * 0.95, w * 0.95, 0.95, 2.3, B, sn(tone(B, 1.05)));
         }
+      } else if (isBus === 15) {                                            // policejní auto (kombi v barvách Policie ČR): stříbrná, modrý a žlutozelený
+        const YL = [204, 232, 48], BL = B;                                  // reflexní pruh na boku, rampa majáků na střeše (blikání: 78-honicka.js)
+        axles.push([l - 0.95, 0.32, w, 0.11], [-l + 1.0, 0.32, w, 0.11]);
+        const e = Pt(-l, l, -w, w, 0.28, 0.86, A, A);                                             // karoserie
+        for (const sd of [-1, 1]) { win(e, l, sd * w, -l, sd * w, 0.4, 0.55, YL); win(e, l, sd * w, -l, sd * w, 0.55, 0.68, BL); }
+        win(e, l, -w * 0.9, l, w * 0.9, 0.45, 0.62, BL);                                           // modrý pruh na čele
+        const k = Pt(-l + 0.35, l - 1.25, -w * 0.86, w * 0.86, 0.86, 1.42, A, sn(A), 2);           // kabina kombi
+        win(k, l - 1.25, -w * 0.78, l - 1.25, w * 0.78, 0.9, 1.36);                                // čelní sklo
+        win(k, -l + 0.35, -w * 0.7, -l + 0.35, w * 0.7, 0.95, 1.34);                               // zadní sklo
+        for (const sd of [-1, 1]) win(k, l - 1.35, sd * w * 0.86, -l + 0.45, sd * w * 0.86, 0.92, 1.34);
+        Pt(-0.35, 0.15, -w * 0.62, w * 0.62, 1.42, 1.56, [44, 92, 196], [70, 120, 220], 3);       // rampa majáků
       }
       const wh = (side) => { for (const [s_, r_, th, hw] of axles) box(s_ - r_ * 0.8, s_ + r_ * 0.8, side * (th - 0.08) - hw, side * (th - 0.08) + hw, 0, r_ * 1.7, DK); };
       wh(-near);

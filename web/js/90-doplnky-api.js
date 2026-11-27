@@ -39,6 +39,9 @@
     // načtené čtverce (budovy s obrysem hull v obrázku, oid z Overture): fn(k, data) teď pro načtené a pak pro každý další
     onChunkData(fn) { for (const k in CH) if (CH[k].buildings) fn(k, CH[k]); onChunk.push((k, d) => fn(k, d)); },
     vBudove: (x, y) => vBudove(x, y),                                // bod světa leží v půdorysu budovy
+    // policejní honička za autem ze simulace (78-honicka.js): {ujede, kmh, limit, hned}; vrací true, když začala
+    policie: (auto, opts) => honickaStart(auto, opts),
+    honicka: () => (HONI.akce ? { faze: HONI.akce.faze, ujede: HONI.akce.ujede } : null),
     // jedoucí auta ze simulace do R m od bodu světa: [{x, y, v (m/s), dx, dy (směr jízdy, jednotkový)}]; bez vrstvy Doprava prázdné
     auta(x, y, R = 60) {
       if (!$('l-traffic').checked) return [];

@@ -87,14 +87,16 @@
       if (sx > 0.12) for (const c of cars) {
         if (!carActive(c) || !shown(roads[c.r].k)) continue;
         const o = along(roads[c.r], c.s); o.dirSign = c.dir; o.lane = c.lo ?? (roads[c.r].o ? 0 : 1.6);
+        if (c.honi) honiPoza(c, o);                           // smyk při honičce (78-honicka.js)
         if (!vis(o.ix, o.iy)) continue;
         if (sx > 0.3) CARS_DRAWN.push([Math.round(ox + o.ix * sx), Math.round(oy + o.iy * sx) - Math.round(3 * sx), c]);   // klik na auto: karta
-        if (c.t !== 'semi') { drawVehicle(o, c.T.len, c.T.wid, c.col, sx, ox, oy, night, c.T.code); continue; }
+        if (c.t !== 'semi') { if (drawVehicle(o, c.T.len, c.T.wid, c.col, sx, ox, oy, night, c.T.code) && (c.honi || c.t === 'police')) honiKresli(c, o, sx, ox, oy, night, t); continue; }
         const q = trailerPos(c), nav = () => drawVehicle(q, TRAILER, 2.55, c.col2, sx, ox, oy, night, 8, 2);   // kamion: vzdálenější díl dřív
         if (q.d > o.d) nav();
         drawVehicle(o, c.T.len, c.T.wid, c.col, sx, ox, oy, night, 7, 1);
         if (q.d <= o.d) nav();
       }
+      if (HONI.akce || HONI.odjizdi.length) { honiKresliLidi(sx, ox, oy, vis, night, t); honiUklid(honiTed()); }   // policejní honička (78-honicka.js)
       if (MHD.on) {
         const ns = Math.floor(now / 1000);
         for (const q of RT.d.values()) q.v += Math.max(-0.5 * dt, Math.min(0.85 * dt, (q.c - q.v) * Math.min(1, dt / 6)));   // zpoždění plynule a vozidlo nikdy necouvne
