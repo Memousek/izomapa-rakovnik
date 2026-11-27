@@ -49,7 +49,7 @@ export function spust({ ukazKartu }) {
   const kde = [];
   I.onFrame((ctx, v) => {
     kde.length = 0;
-    if (!zap || !tabule.length || v.sx < 0.15) return;
+    if (!zap || !tabule.length || v.sx < 0.5) return;        // jen zblízka (z výšky by tabule trčela nad městem)
     const ted = v.now / 1000, mer = ted - posledni > 0.12;       // měřit asi 8× za sekundu
     if (mer) posledni = ted;
     const q = Math.max(1, Math.round(v.sx * 1.3));
