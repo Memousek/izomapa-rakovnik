@@ -383,4 +383,9 @@ body.noc .hra-btn .ico { color: var(--lamp); }
 .data-legenda i.sraf { background: repeating-linear-gradient(135deg, rgba(150,40,200,.7) 0 2px, transparent 2px 5px); border: 1px solid rgba(150,40,200,.5); }
 .data-legenda .zdroj { margin: 0; color: var(--muted); font-size: .72rem; }
 
+/* sousední mapy: hlavní cedule (mesto.json sousedi[].hlavni) větší a v červené webu, ostatní zůstávají světlé */
+.pin.neighbor.hlavni { background: var(--red); border-color: var(--red); color: #fff; font-size: 1.15em; padding: 6px 12px; z-index: 3; }
+.pin.neighbor.hlavni .pin-ico, .pin.neighbor.hlavni:hover .pin-ico { color: #fff; }
+.pin.neighbor.hlavni:hover, .pin.neighbor.hlavni:focus-visible { background: var(--red-d); border-color: #fff; }
+.pin.neighbor.edge.hlavni { transform: rotate(var(--rot, 0deg)) translateY(calc(var(--ven, -62%) * 1.5)); }   /* větší cedule: víc ven od hrany, ať nezakryje popisky obcí */
 .line-chip { border-radius: 9px; }
