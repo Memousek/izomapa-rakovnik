@@ -1,4 +1,5 @@
-// Cloudflare Pages Function: příjem uzavírek z JSDI (ŘSD ČR – NDIC), odběr „DATEX II – Uzavírky a omezení“ protokolem PUSH.
+// Cloudflare Pages Function: příjem uzavírek, kolon a nehod z JSDI (ŘSD ČR – NDIC), odběry „DATEX II – Uzavírky a omezení“
+// a „DATEX II – Dopravní informace“ protokolem PUSH (oba můžou posílat sem, druh určí druhSituace).
 // NDIC posílá HTTP POST se zprávou DATEX II (3.x i 2.3, volitelně gzip) při každé změně, po aktivaci nebo resetu odběru
 // všechny platné záznamy. Ověření: Basic Authentication proti tajným proměnným JSDI_JMENO a JSDI_HESLO; na přijatou
 // zprávu musí přijít 200, jinak NDIC zkouší znovu a po 24 h odběr zablokuje.
@@ -38,11 +39,30 @@ function cary(s) {
 function nazevZKomentare(k) {
   const casti = [];
   for (const c of k.split(/,\s*/)) {
-    if (/uzavřen|práce|provoz|zúžen|stavební|oprava|údržb|omezen|zákaz|^od\s|^\d|nehoda|objížď/i.test(c)) break;
+    if (/uzavřen|práce|provoz|zúžen|stavební|oprava|údržb|omezen|zákaz|^od\s|^\d|nehoda|objížď|kolon|zpomal|stoj|hust/i.test(c)) break;
     if (/^okr\.|^okres/i.test(c)) continue;
     casti.push(c.replace(/^silnice\s+/i, '').replace(/\s*\(okres [^)]*\)/i, '').trim());
   }
   return casti.filter(Boolean).join(', ').slice(0, 90) || 'Uzavírka';
+}
+
+// Druh situace podle typů záznamů (xsi:type situationRecord): odběr „Uzavírky a omezení“ i „Dopravní informace“ může
+// chodit na tuhle adresu. Práce a řízení provozu = uzavírka (jako dřív), AbnormalTraffic = kolona, nehoda nebo překážka
+// = nehoda, ostatní (počasí, sjízdnost, akce) se do mapy nedává. Situace bez typů (starší zprávy) zůstává uzavírkou.
+const PRACE = /Works|Management|Roadworks|Rerouting/;
+const NEHODA = /^(Accident|VehicleObstruction|GeneralObstruction|Obstruction)$/;
+// jak moc kolona zpomalí auta v mapě (násobek rychlosti) a popis pro kartu
+export const KOLONA = {
+  stationaryTraffic: [0.06, 'stojící kolona'], queuingTraffic: [0.2, 'kolona'], slowTraffic: [0.45, 'pomalý provoz'],
+  heavyTraffic: [0.7, 'hustý provoz'], unspecifiedAbnormalTraffic: [0.3, 'kolona'],
+};
+export const ZIVOT_KOLONY = 3 * 3600e3;                 // kolona nebo nehoda bez konce platí 3 h od poslední verze
+export function druhSituace(s) {
+  const typy = [...s.matchAll(/<(?:\w+:)?situationRecord\b[^>]*?\btype="(?:\w+:)?(\w+)"/g)].map((m) => m[1]);
+  if (!typy.length || typy.some((t) => PRACE.test(t)) || /roadOrCarriagewayOrLaneManagementType/.test(s)) return 'uzavirka';
+  if (typy.includes('AbnormalTraffic')) return 'kolona';
+  if (typy.some((t) => NEHODA.test(t))) return 'nehoda';
+  return null;
 }
 
 // zpráva DATEX II -> {id: záznam | null (smazat)}; bbox [latMin, lonMin, latMax, lonMax]
@@ -57,16 +77,38 @@ export function rozeber(xml, bbox, ted = Date.now(), zmeny = {}) {
     const prvni = /posList[^>]*>\s*([-\d.]+)\s+([-\d.]+)/.exec(s) || /latitude>\s*([-\d.]+)[\s\S]{0,200}?longitude>\s*([-\d.]+)/.exec(s);
     const lines = prvni && blizko([+prvni[1], +prvni[2]]) ? cary(s).filter((c) => c.some(uvnitr)) : [];   // daleko od mapy: hned dál
     if (!lines.length) { zmeny[id] = null; continue; }              // mimo mapu (nebo bez polohy): u nás nemá co být
+    const druh = druhSituace(s);
+    if (!druh) { zmeny[id] = null; continue; }                      // počasí, sjízdnost…: do mapy nepatří
     const starty = vsechny(s, 'overallStartTime').map(xmlText), konce = vsechny(s, 'overallEndTime').map(xmlText);
-    const od = starty.sort()[0] || null, do_ = konce.sort().at(-1) || null;
+    const verze = xmlText(tag(s, 'situationVersionTime') || tag(s, 'situationRecordVersionTime') || '');
+    const od = starty.sort()[0] || null;
+    let do_ = konce.sort().at(-1) || null;
+    if (!do_ && druh !== 'uzavirka') {                              // kolona a nehoda bez konce: pevná životnost od verze (stejná při každém příjmu)
+      const t = Date.parse(verze || od || '');
+      do_ = new Date((Number.isFinite(t) ? t : ted) + ZIVOT_KOLONY).toISOString();
+    }
     const pozastaveno = vsechny(s, 'validityStatus').some((v) => /suspended/i.test(v));
     if (pozastaveno || (do_ && Date.parse(do_) < ted)) { zmeny[id] = null; continue; }
-    const typy = vsechny(s, 'roadOrCarriagewayOrLaneManagementType').map(xmlText);
-    const nakladni = /forVehiclesWithCharacteristicsOf|vehicleType>\s*(lorry|heavyGoods)|grossWeight/i.test(s);
-    const uplna = (typy.includes('roadClosed') || vsechny(s, 'capacityRemaining').some((c) => +xmlText(c) === 0)) && !nakladni;
     const komentar = xmlText(tag(tag(s, 'generalPublicComment') || '', 'value') || tag(s, 'value') || '');
-    zmeny[id] = { nazev: nazevZKomentare(komentar), lines, od: od && od.slice(0, 10), do: do_ && do_.slice(0, 10), konec: do_,
-      popis: komentar.slice(0, 600), ...(uplna ? {} : { castecna: true }), verze: xmlText(tag(s, 'situationVersionTime') || tag(s, 'situationRecordVersionTime') || '') };
+    const z = { nazev: nazevZKomentare(komentar), lines, od: od && od.slice(0, 10), do: do_ && do_.slice(0, 10), konec: do_, popis: komentar.slice(0, 600), verze };
+    if (druh === 'uzavirka') {
+      const typy = vsechny(s, 'roadOrCarriagewayOrLaneManagementType').map(xmlText);
+      const nakladni = /forVehiclesWithCharacteristicsOf|vehicleType>\s*(lorry|heavyGoods)|grossWeight/i.test(s);
+      const uplna = (typy.includes('roadClosed') || vsechny(s, 'capacityRemaining').some((c) => +xmlText(c) === 0)) && !nakladni;
+      if (!uplna) z.castecna = true;
+    } else {
+      z.druh = druh; z.od = null; z.do = null;                     // platí hned; konec hlídá „konec“ (čas, ne den)
+      if (druh === 'kolona') {
+        const t = vsechny(s, 'abnormalTrafficType').map(xmlText).find((x) => x in KOLONA) || 'unspecifiedAbnormalTraffic';
+        z.typ = t;
+        const delka = Math.max(0, ...vsechny(s, 'queueLength').map((q) => +xmlText(q)).filter(Number.isFinite));
+        if (delka > 0) z.delka = Math.round(delka);
+      }
+      const zdrz = Math.max(0, ...[...s.matchAll(/<(?:\w+:)?delays?TimeValue\b[^>]*>\s*([\d.]+)/g)].map((m) => +m[1]).filter(Number.isFinite));
+      if (zdrz > 0) z.zdrzeni = Math.round(zdrz / 60);              // minuty
+      if (z.nazev === 'Uzavírka') z.nazev = druh === 'kolona' ? 'Kolona' : 'Nehoda';
+    }
+    zmeny[id] = z;
   }
   return zmeny;
 }

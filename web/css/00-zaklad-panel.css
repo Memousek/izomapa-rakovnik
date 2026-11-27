@@ -211,6 +211,8 @@ input[type="range"] { width: 100%; accent-color: var(--lamp); }
 .uz-list .uz-ico { width: 14px; height: 14px; margin-top: 2px; box-sizing: border-box; border: 3px solid #d4202c; border-radius: 50%; background: #fff; }
 .uz-list .uz-ico.pristi { opacity: .5; }
 .uz-list .uz-ico.castecna { border-color: #f08a1c; }
+.uz-list .uz-ico.kolona { border-radius: 2px; border-color: #9e1c1c; background: #e8890c; }
+.uz-list .uz-ico.nehoda { border-radius: 0; border: 0; background: #d4202c; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 .uz-list small { grid-column: 2; font-size: .78rem; color: var(--muted); }
 .pu-list button { display: grid; grid-template-columns: 16px 1fr; column-gap: 8px; align-items: start; }
 .pu-list .pu-ico { width: 16px; height: 16px; margin-top: 1px; display: grid; place-items: center; font: 700 10px/1 var(--body); color: #fff; border: 1px solid rgba(0,0,0,.45); }

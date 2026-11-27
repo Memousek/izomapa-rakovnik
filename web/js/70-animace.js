@@ -64,7 +64,12 @@
   const dnesISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   const fmtD = (s) => { const [y, m, d] = String(s).split('-').map(Number); return `${d}. ${m}. ${y}`; };
   // Data: site/uzavirky.json (nastroje/uzavirky.py: ruční z upresneni.json + automaticky z webu města), načte se za běhu.
-  let UZAV = [], UZ_AKT = [], UZ_SEG = [];
+  let UZAV = [], UZ_AKT = [], UZ_SEG = [], KOL_SEG = [];
+  // kolony a nehody z JSDI (functions/api/jsdi.js, u.druh): pás bez zábran, auta na úseku zpomalí podle druhu kolony
+  const KOL_V = { stationaryTraffic: 0.06, queuingTraffic: 0.2, slowTraffic: 0.45, heavyTraffic: 0.7, unspecifiedAbnormalTraffic: 0.3 };
+  const KOL_TXT = { stationaryTraffic: 'Stojící kolona', queuingTraffic: 'Kolona', slowTraffic: 'Pomalý provoz', heavyTraffic: 'Hustý provoz', unspecifiedAbnormalTraffic: 'Kolona' };
+  const uzTitul = (u) => u.druh === 'kolona' ? KOL_TXT[u.typ] || 'Kolona' : u.druh === 'nehoda' ? 'Nehoda' : u.castecna ? 'Částečná uzavírka' : 'Uzavírka';
+  const uzDo = (u) => { const d = new Date(u.konec); return `hlášeno teď, nejdéle do ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`; };
   // editor správce (index.html?admin, uzavirky_editor.js): edit = {klic, line} rozpracovaný úsek, klik = háček na klik do mapy
   const UZ_ED = { extra: null, edit: null, klik: null, zmena: null, upravit: null, obnov: null };
   function uzPriprav(u) {
@@ -76,11 +81,12 @@
   }
   const uzPlati = (u) => (u.od && u.do ? `${fmtD(u.od)} – ${fmtD(u.do)}` : u.do ? `do ${fmtD(u.do)}` : u.od ? `od ${fmtD(u.od)}` : 'do odvolání');
   function showUz(u) {
-    showCard({ title: (u.castecna ? 'Částečná uzavírka: ' : 'Uzavírka: ') + (u.nazev || 'silnice'), text: u.popis, lon: u.mid.lon, lat: u.mid.lat, k: u.k,
-      rows: [['Platí', (u.nyni ? '' : 'chystá se, ') + uzPlati(u)], ['Objížďka', u.objizdka], ['Zdroj', u.zdroj],
+    showCard({ title: u.druh && (!u.nazev || u.nazev === uzTitul(u) || u.nazev === 'Kolona') ? uzTitul(u) : uzTitul(u) + ': ' + (u.nazev || 'silnice'), text: u.popis, lon: u.mid.lon, lat: u.mid.lat, k: u.k,
+      rows: [['Platí', u.druh ? uzDo(u) : (u.nyni ? '' : 'chystá se, ') + uzPlati(u)], ['Délka kolony', u.delka ? (u.delka >= 1000 ? `${(u.delka / 1000).toFixed(1).replace('.', ',')} km` : `${u.delka} m`) : null],
+        ['Zdržení', u.zdrzeni ? `asi ${u.zdrzeni} min` : null], ['Objížďka', u.objizdka], ['Zdroj', u.zdroj],
         ['Úsek', u.uprava ? 'upravený správcem mapy' : u.auto === 'odhad' ? 'odhad (celá ulice), přesný rozsah je u zdroje' : u.puvod === 'jsdi' ? 'podle Jednotného systému dopravních informací' : u.puvod && u.puvod !== 'web' ? 'podle mapy zdroje' : u.auto ? 'dopočítaný automaticky z textu oznámení' : null]],
       link: /^https?:\/\//.test(u.url || '') ? u.url : null, linkText: 'Podrobnosti u zdroje ↗', target: '_blank' });
-    if (UZ_ED.upravit) { const b = document.createElement('button'); b.type = 'button'; b.className = 'px-btn'; b.textContent = 'Upravit uzavírku'; b.addEventListener('click', () => UZ_ED.upravit(u)); $('cardLinks').prepend(b); }
+    if (UZ_ED.upravit && !u.druh) { const b = document.createElement('button'); b.type = 'button'; b.className = 'px-btn'; b.textContent = 'Upravit uzavírku'; b.addEventListener('click', () => UZ_ED.upravit(u)); $('cardLinks').prepend(b); }
   }
   // nejbližší platná uzavírka do tol px obrázku od bodu
   function uzAt(ix, iy, tol) {
@@ -102,6 +108,12 @@
     ctx.beginPath(); ctx.arc(x, cy, r * 0.72, 0, 6.2832); ctx.fillStyle = '#fff'; ctx.fill();
     ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(20,24,32,.6)'; ctx.beginPath(); ctx.arc(x, cy, r + 0.5, 0, 6.2832); ctx.stroke();
   }
+  function kresliVystrahu(x, y, r) {                        // výstražný trojúhelník (kolona, nehoda)
+    ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r * 0.95, y + r * 0.7); ctx.lineTo(x - r * 0.95, y + r * 0.7); ctx.closePath();
+    ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = Math.max(2, r * 0.28); ctx.strokeStyle = '#d4202c'; ctx.lineJoin = 'round'; ctx.stroke();
+    ctx.fillStyle = '#14181f'; ctx.fillRect(Math.round(x - r * 0.08), Math.round(y - r * 0.35), Math.max(1, Math.round(r * 0.16)), Math.round(r * 0.55));
+    ctx.fillRect(Math.round(x - r * 0.08), Math.round(y + r * 0.3), Math.max(1, Math.round(r * 0.16)), Math.max(1, Math.round(r * 0.16)));
+  }
   function kresliUzavirky(sx, ox, oy, cw, ch, now) {
     const ed = UZ_ED.edit;
     if (!UZ_AKT.length && !(ed && ed.line)) return;
@@ -118,13 +130,20 @@
       if (!shown(u.k) && u.k) continue;
       if (ed && u.klic === ed.klic) continue;
       if (ox + u.bb[2] * sx < -40 || oy + u.bb[3] * sx < -40 || ox + u.bb[0] * sx > cw + 40 || oy + u.bb[1] * sx > ch + 40) continue;
-      if (sx < 0.12) { const [x, y] = sk([u.mid.ix, u.mid.iy]); kresliZnackuB1(x, y, 6, 0); continue; }   // z dálky jen značka
+      if (sx < 0.12) { const [x, y] = sk([u.mid.ix, u.mid.iy]); if (u.druh) kresliVystrahu(x, y, 7); else kresliZnackuB1(x, y, 6, 0); continue; }   // z dálky jen značka
       // za budovou se pás přeruší jen tam, kde opravdu je: viditelnost po ~1 m (5 px obrázku), ne po lomových bodech
       const lw = Math.max(3, 11 * sx), useky = [];
       if (!u.vz) { u.vz = []; for (let i = 1; i < u.pts.length; i++) { const a = u.pts[i - 1], b = u.pts[i], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 5)); for (let k = i === 1 ? 0 : 1; k <= n; k++) { const t = k / n; u.vz.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]); } } }
       let beh = null;
       for (const q of u.vz) { if (occluded(q[0], q[1], q[2])) { beh = null; continue; } if (!beh) useky.push(beh = []); beh.push(sk(q)); }
       const cesta = () => { ctx.beginPath(); for (const r of useky) if (r.length > 1) { ctx.moveTo(r[0][0], r[0][1]); for (let i = 1; i < r.length; i++) ctx.lineTo(r[i][0], r[i][1]); } };
+      if (u.druh) {                                            // kolona: plný pás (tmavě červený stojí, oranžový pomalý), nehoda: výstraha uprostřed
+        const kl = lw * 0.7, barva = u.druh === 'nehoda' ? '#f08a1c' : (KOL_V[u.typ] ?? 0.3) <= 0.2 ? '#9e1c1c' : '#e8890c';
+        cesta(); ctx.strokeStyle = 'rgba(20,24,32,.5)'; ctx.lineWidth = kl + 2; ctx.setLineDash([]); ctx.stroke();
+        cesta(); ctx.strokeStyle = barva; ctx.lineWidth = kl; ctx.stroke();
+        if (u.druh === 'nehoda') { const [x, y] = sk([u.mid.ix, u.mid.iy]); kresliVystrahu(x, y - Math.max(6, 14 * sx), Math.max(7, 12 * sx)); }
+        continue;
+      }
       cesta(); ctx.strokeStyle = 'rgba(20,24,32,.55)'; ctx.lineWidth = lw + 2; ctx.setLineDash([]); ctx.stroke();
       cesta(); ctx.strokeStyle = u.castecna ? '#f08a1c' : '#d4202c'; ctx.lineWidth = lw; ctx.stroke();
       cesta(); ctx.strokeStyle = '#fff'; ctx.lineWidth = lw * 0.45; ctx.setLineDash([lw * 1.2, lw * 1.2]); ctx.stroke(); ctx.setLineDash([]);
@@ -142,15 +161,15 @@
     ctx.restore();
   }
   // je kus silnice (w: body ve světě) uzavřený? Počítá se délka podél čáry uzavírky do 6 m od ní (křížící ulice ne), jako ve 3D jízdě
-  function uzKryje(w) {
-    if (!UZ_SEG.length) return false;
+  function uzKryje(w, SEG = UZ_SEG) {
+    if (!SEG.length) return false;
     let kryto = 0, L = 0;
     for (let i = 1; i < w.length; i++) {
       const dx = w[i][0] - w[i - 1][0], dy = w[i][1] - w[i - 1][1], l = Math.hypot(dx, dy); if (l < 0.01) continue;
       L += l; const n = Math.max(1, Math.ceil(l / 4)), ux = dx / l, uy = dy / l;
       for (let k = 0; k < n; k++) {
         const t = (k + 0.5) / n, mx = w[i - 1][0] + dx * t, my = w[i - 1][1] + dy * t;
-        for (const g of UZ_SEG) {
+        for (const g of SEG) {
           if (Math.abs(ux * g.ux + uy * g.uy) < 0.8) continue;
           const q = Math.max(0, Math.min(g.L, (mx - g.ax) * g.ux + (my - g.ay) * g.uy));
           if (Math.hypot(g.ax + g.ux * q - mx, g.ay + g.uy * q - my) < 6) { kryto += l / n; break; }
@@ -159,13 +178,16 @@
     }
     return kryto >= 8 || (L > 0 && kryto >= 0.4 * L);
   }
+  const kolNa = (w) => { for (const k of KOL_SEG) if (uzKryje(w, k.seg)) return k.f; return 0; };   // nejpomalejší kolona na kusu silnice
   function uzNastav(data, extra) {
     if (extra && (extra.zApi || !UZ_ED.extra)) UZ_ED.extra = extra;   // statický seznam nesmí přepsat úpravy ze serveru
-    UZAV = (Array.isArray(data) ? data : []).filter((u) => u && u.line && u.line.length > 1 && (!u.do || u.do >= dnesISO())).map(uzPriprav)
+    UZAV = (Array.isArray(data) ? data : []).filter((u) => u && u.line && u.line.length > 1 && (!u.do || u.do >= dnesISO()) && !(u.konec && Date.parse(u.konec) < Date.now())).map(uzPriprav)
       .sort((a, b) => (b.nyni - a.nyni) || String(a.do || '9').localeCompare(String(b.do || '9')));
     UZ_AKT = UZAV.filter((u) => u.nyni);
-    UZ_SEG = UZ_AKT.filter((u) => !u.castecna).flatMap((u) => u.w.slice(1).map((b, i) => { const a = u.w[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return { ax: a[0], ay: a[1], ux: (b[0] - a[0]) / L, uy: (b[1] - a[1]) / L, L }; }));
-    for (const r of roads) r.uz = uzKryje(r.w);                // už načtené silnice: auta do uzavírky neodbočí
+    const segy = (u) => u.w.slice(1).map((b, i) => { const a = u.w[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return { ax: a[0], ay: a[1], ux: (b[0] - a[0]) / L, uy: (b[1] - a[1]) / L, L }; });
+    UZ_SEG = UZ_AKT.filter((u) => !u.castecna && !u.druh).flatMap(segy);
+    KOL_SEG = [...new Set(UZ_AKT.filter((u) => u.druh === 'kolona').map((u) => u.typ))].map((t) => ({ f: KOL_V[t] ?? 0.3, seg: UZ_AKT.filter((u) => u.druh === 'kolona' && u.typ === t).flatMap(segy) })).sort((a, b) => a.f - b.f);
+    for (const r of roads) { r.uz = uzKryje(r.w); r.kol = kolNa(r.w); }   // už načtené silnice: auta do uzavírky neodbočí, v koloně zpomalí
     for (let i = index.length - 1; i >= 0; i--) if (index[i].kind === 'uzavírka') index.splice(i, 1);   // druhé volání (čerstvá data) nahradí první
     $('uzList').replaceChildren(); $('uzBox').hidden = true;
     const jednou = UZAV.filter((u, i) => UZAV.findIndex((q) => q.klic === u.klic) === i);   // uzavírka z víc úseků (JSDI) jednou v seznamu i hledání
@@ -174,11 +196,12 @@
     $('uzBox').hidden = false;
     const aktivni = new Set(UZ_AKT.map((u) => u.klic)).size;
     $('uzVal').textContent = aktivni ? String(aktivni) : 'chystané';
+    $('uzBox').querySelector('summary').firstChild.textContent = UZAV.some((u) => u.druh) ? 'Uzavírky a kolony ' : 'Uzavírky silnic ';
     for (const u of jednou) {
       const li = document.createElement('li'), b = document.createElement('button'); b.type = 'button';
-      const ico = document.createElement('span'); ico.className = 'uz-ico' + (u.nyni ? '' : ' pristi') + (u.castecna ? ' castecna' : ''); ico.setAttribute('aria-hidden', 'true');
+      const ico = document.createElement('span'); ico.className = 'uz-ico' + (u.nyni ? '' : ' pristi') + (u.castecna ? ' castecna' : '') + (u.druh ? ' ' + u.druh : ''); ico.setAttribute('aria-hidden', 'true');
       const nm = document.createElement('span'); nm.textContent = u.nazev || u.popis || 'Uzavírka';
-      const sm = document.createElement('small'); sm.textContent = (u.nyni ? '' : 'Chystá se, ') + (u.castecna ? 'částečná, ' : '') + uzPlati(u);
+      const sm = document.createElement('small'); sm.textContent = u.druh ? uzTitul(u) + (u.delka ? `, ${u.delka >= 1000 ? (u.delka / 1000).toFixed(1).replace('.', ',') + ' km' : u.delka + ' m'}` : '') + (u.zdrzeni ? `, zdržení ${u.zdrzeni} min` : '') : (u.nyni ? '' : 'Chystá se, ') + (u.castecna ? 'částečná, ' : '') + uzPlati(u);
       b.append(ico, nm, sm);
       b.addEventListener('click', () => { goTo(u.mid.ix, u.mid.iy, 1.2); showUz(u); });
       li.appendChild(b); $('uzList').appendChild(li);
@@ -190,6 +213,8 @@
   UZ_ED.obnov = () => import('./uzavirky.js').then((m) => m.nactiUzavirky('', uzNastav))   // hned statický seznam, pak čerstvý z api/uzavirky
     .catch(() => fetch('uzavirky.json').then((r) => (r.ok ? r.json() : [])).catch(() => []).then((d) => uzNastav(d)));
   UZ_ED.obnov();
+  // kolony a nehody z JSDI se mění během minut: čerstvá data z api/uzavirky každých 5 min (jen viditelná stránka, bez statického mezikroku)
+  setInterval(() => { if (!document.hidden && !UZ_ED.edit) import('./uzavirky.js').then((m) => m.nactiUzavirky('', uzNastav, { jenApi: true })).catch(() => {}); }, 5 * 60e3);
   if (new URLSearchParams(location.search).has('admin'))   // správa uzavírek: index.html?admin
     import('./uzavirky_editor.js').then((m) => m.spust({ viewer, W, cam, toImg, imgToWorld, gz, UZ_ED, uzavirky: () => UZAV, goTo })).catch((e) => console.warn('editor uzavírek', e));
   // ---------- čerpací stanice a nabíječky (nastroje/pumpy.py -> site/pumpy.json, načte se za běhu) ----------
@@ -569,7 +594,7 @@
     const i0 = roads.length;
     for (const r of d.roads) {
       const len = [0]; for (let i = 1; i < r.w.length; i++) len.push(len[i - 1] + Math.hypot(r.w[i][0] - r.w[i - 1][0], r.w[i][1] - r.w[i - 1][1]));
-      if (len[len.length - 1] > 1) { roads.push({ ...r, sg: undefined, k, len, L: len[len.length - 1] }); const rr = roads[roads.length - 1]; if (uzKryje(r.w)) rr.uz = true; for (const z of r.j || []) addXing(rr, z); rr.jy = [...(r.j || []), ...(r.y || []).map((y) => yieldZ(rr, y))]; if (r.rb) rr.rbk = r.rb[0].toFixed(0) + ',' + r.rb[1].toFixed(0); addSignals(rr); }   // i krátké kousky (kruhový objezd u vjezdů), jinak v okruhu zůstanou mezery a auta tam stojí
+      if (len[len.length - 1] > 1) { roads.push({ ...r, sg: undefined, k, len, L: len[len.length - 1] }); const rr = roads[roads.length - 1]; if (uzKryje(r.w)) rr.uz = true; rr.kol = kolNa(r.w); for (const z of r.j || []) addXing(rr, z); rr.jy = [...(r.j || []), ...(r.y || []).map((y) => yieldZ(rr, y))]; if (r.rb) rr.rbk = r.rb[0].toFixed(0) + ',' + r.rb[1].toFixed(0); addSignals(rr); }   // i krátké kousky (kruhový objezd u vjezdů), jinak v okruhu zůstanou mezery a auta tam stojí
     }
     for (let i = i0; i < roads.length; i++) { const r = roads[i]; for (const [end, dir] of [[r.w[0], 1], [r.w[r.w.length - 1], -1]]) { const q = ek(end); if (!ends.has(q)) ends.set(q, []); ends.get(q).push([i, dir]); } }
     // konce, které se v datech minou o pár metrů (rozdělená vozovka, mostovka), propojit, ať auto nemusí otáčet ani mizet
@@ -653,7 +678,7 @@
   }
   const CLASS_KMH = { motorway: 110, trunk: 90, primary: 50, secondary: 50, tertiary: 50, unclassified: 40, residential: 30, living_street: 20 };
   const roadSpeed = (r) => (r.x ? Math.min(r.l || 50, 50) : r.l || CLASS_KMH[r.c] || 40) / 3.6;   // r.x = nájezdová rampa
-  const carSpeed = (c, r) => Math.min((c.truck ? Math.min(roadSpeed(r), 22) * 0.85 : roadSpeed(r)) * c.f, (c.T.vmax || 999) / 3.6);   // nákladní auta o něco pomaleji, popeláři a traktory pomalu (strop vmax i pro spěchající)
+  const carSpeed = (c, r) => Math.min((c.truck ? Math.min(roadSpeed(r), 22) * 0.85 : roadSpeed(r)) * c.f, (c.T.vmax || 999) / 3.6) * (r.kol || 1);   // r.kol: kolona z JSDI   // nákladní auta o něco pomaleji, popeláři a traktory pomalu (strop vmax i pro spěchající)
   function drawXPost(o, z, sx, ox, oy, now, night) {      // výstražník s křížem; v noci světlo září
     const x = ox + o.ix * sx, y = oy + o.iy * sx, h = 30 * sx, q = Math.max(2.5, 3.4 * sx), ph = Math.floor(now / 500) % 2;
     ctx.fillStyle = '#26262a'; ctx.fillRect(x - q * 0.35, y - h - q * 2.6, q * 0.7, h + q * 2.6);

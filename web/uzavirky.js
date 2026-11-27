@@ -296,11 +296,11 @@ export function zGeojson(S, d, i, cfg, jine, dnes = dnesISO()) {
 // ---------------------------------------------------------------- načtení pro prohlížeč
 // hotovo(viditelné, {skryte, upravy, upravyZapnute}) se volá se statickým souborem a znovu s čerstvými daty z api/uzavirky
 // (oznámení z webu města -> úseky po síti ulic, úseky z GeoJSON zdrojů přes api/uzavirky?geo=i). Co nejde stáhnout, zůstává ze snímku.
-export async function nactiUzavirky(base, hotovo) {
+export async function nactiUzavirky(base, hotovo, { jenApi = false } = {}) {   // jenApi: obnova (kolony), bez mezikroku se statickým souborem
   const j = (u) => fetch(base + u, { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const stat = (await j('uzavirky.json')) || [];
   const rucni = stat.filter((u) => !u.auto), puvod = (u) => u.puvod || 'web';
-  hotovo(aplikuj(stat, [])[0], { skryte: [], upravy: [], upravyZapnute: false });
+  if (!jenApi) hotovo(aplikuj(stat, [])[0], { skryte: [], upravy: [], upravyZapnute: false });
   const api = await j('api/uzavirky');
   if (!api) return;                                          // bez serveru (náhled): zůstává statický soubor
   let web = stat.filter((u) => u.auto && puvod(u) === 'web');
@@ -320,9 +320,11 @@ export async function nactiUzavirky(base, hotovo) {
   }
   // JSDI (ŘSD ČR – NDIC, functions/api/jsdi.js): úsek přímo ze souřadnic, má přednost; stejný úsek z webu města nebo KSÚS se vynechá
   const jsdi = (api.jsdi || []).flatMap((z) => (z.lines || []).map((line) => ({ nazev: z.nazev, line, od: z.od, do: z.do, popis: z.popis,
-    zdroj: 'JSDI, ŘSD ČR – NDIC', auto: 1, puvod: 'jsdi', jid: z.id, ...(z.castecna ? { castecna: true } : {}) })));
-  if (jsdi.length && sd) {
-    const S = pripravSit(sd), jl = jsdi.map((u) => u.line);
+    zdroj: 'JSDI, ŘSD ČR – NDIC', auto: 1, puvod: 'jsdi', jid: z.id, ...(z.castecna ? { castecna: true } : {}),
+    ...(z.druh ? { druh: z.druh, typ: z.typ, delka: z.delka, zdrzeni: z.zdrzeni, konec: z.konec } : {}) })));
+  const jl = jsdi.filter((u) => !u.druh).map((u) => u.line);   // kolona ani nehoda uzavírku z jiného zdroje nevytlačí
+  if (jl.length && sd) {
+    const S = pripravSit(sd);
     web = web.filter((u) => !prekryva(S, u.line, jl));
     for (const [k, l] of geo) geo.set(k, l.filter((u) => !prekryva(S, u.line, jl)));
   }

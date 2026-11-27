@@ -30,7 +30,7 @@ export function vytvorUzavirky(THREE, scene, api) {
   const statický = () => fetch('jizda/uzavirky.json').then((r) => (r.ok ? r.json() : [])).catch(() => []).then(nastav);
   pripraveno = import('../uzavirky.js').then((m) => new Promise((ok) => {
     let prvni = true;
-    m.nactiUzavirky('', (d) => { nastav(d.filter((u) => !u.castecna)); if (prvni) { prvni = false; ok(); } }).catch(() => { if (prvni) { prvni = false; statický().then(ok); } });
+    m.nactiUzavirky('', (d) => { nastav(d.filter((u) => !u.castecna && !u.druh)); if (prvni) { prvni = false; ok(); } }).catch(() => { if (prvni) { prvni = false; statický().then(ok); } });
   })).catch(statický);
 
   // je kus silnice (lomená čára w) uzavřený? Počítá se jen délka, která vede podél čáry uzavírky (ne křížící ulice).
