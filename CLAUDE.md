@@ -297,7 +297,8 @@ Tahle kopie (Rakovník): projekt `izomapa-rakovnik`, https://izomapa-rakovnik.pa
   si ho vezme odtud). Klikací vrstva, animace prohlížeče a kresby stromů jsou vždy v pixelech 0,2 m (`geo.MPP_OVERLAY`,
   v prohlížeči `UM`), detailní dlaždice prohlížeč jen zobrazí v přesnějším měřítku. Proto se prahy přiblížení a velikosti
   aut v prohlížeči (`web/js/`) mezi rozlišeními nemění.
-- `dzi.py`: paleta a Deep Zoom pyramidy (WebP). `compose.py`: složený náhled. `preview.py`: rychlý náhled pro web.
+- `dzi.py`: paleta a Deep Zoom pyramidy (WebP). Po hotových dlaždicích smaže PNG z renderu v `build/…/tiles_<varianta>` (ponechat: `IZO_NECHAT_DLAZDICE=1`),
+  takže samotné `dzi.py` bez nového renderu nejde (smaž `otisk_renderu` a pusť render čtverce). `compose.py`: složený náhled, bez PNG z renderu ho skládá z `site/tiles`. `preview.py`: rychlý náhled pro web.
 - `overlay.py` + `plugins.py`: klikací vrstva (obrys budovy = konvexní obal půdorysu dole a nahoře) a zavaděč doplňků (`load_and_run_plugins`). Po úpravě budov nebo doplňků vždy spustit a zkontrolovat v prohlížeči.
 - `build_html.py` vyrobí i `site/og.jpg` (náhled pro sdílení, výřez středu), když je v `mesto.json` vyplněné `url`; vlastní `site/og.jpg` nepřepíše. Pokud existuje složka `obce/*.json` (více obcí v jedné mapě), vyrobí pro každou obec i `site/index_<obec>.html` a `site/obce/<obec>/og.jpg` s vlastním výchozím pohledem (`"pohled": [lat, lon, km]`, volitelně `"domu_celek": true`) a texty.
 - `pamatky/`: vlastní modely památek. `render.html` je načte (blok „vlastní modely památek“): budovy v jejich půdorysu

@@ -1911,7 +1911,9 @@ if os.path.exists('assets/potrubi.json'):         # nadzemní potrubí (nastroje
 print({k: len(v) for k, v in props.items()}, 'aut', len(cars), {k: len(v) for k, v in lines_out.items()})
 
 # ---------------- stromy ----------------
-excl = np.maximum(np.asarray(notree), np.asarray(bmask.filter(ImageFilter.MaxFilter(13))))
+# rozšíření masky budov o 6 px: scipy je oddělitelný (řádky, pak sloupce), stejný výsledek jako Pillow MaxFilter(13), ~20× rychlejší
+from scipy.ndimage import maximum_filter
+excl = np.maximum(np.asarray(notree), maximum_filter(np.asarray(bmask), size=13, mode='nearest'))
 
 
 def free(x, y):

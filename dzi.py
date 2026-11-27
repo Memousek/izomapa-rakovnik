@@ -36,6 +36,10 @@ def build(variant, chunk=None):
         for i in range(info['cols']):
             f = f'{src}/{i}_{j}.png'
             if not os.path.exists(f) and variant.startswith('xmas'): continue     # vrstva xmas: prázdné dlaždice se nerenderují
+            if not os.path.exists(f):
+                ot = f'{os.path.dirname(src)}/otisk_renderu'
+                sys.exit(f'{src}: dlaždice z renderu chybí (po hotovém dzi.py se mažou, viz uklid_renderu). '
+                         f'Smaž {ot} a pusť ./render_par.sh 1 "{chunk[0] if chunk else 0},{chunk[1] if chunk else 0}"')
             t = Image.open(f)
             img.paste(t.convert('RGBA' if alpha else 'RGB'), (i * T, j * T))
     if alpha: return build_alpha(variant, chunk, img, info)
@@ -132,7 +136,8 @@ def build_alpha(variant, chunk, img, info):
         # bez palety i v plném rozlišení: vzácné barvy (malé vodní plochy) se v paletě čtverce měnily na šedou
         def one(cr, im=im, d=d, w=w, h=h):                                        # stejná paleta (s vodou) pro všechny úrovně
             c, r = cr
-            save(quant_alpha(im.crop((c * TS, r * TS, min(w, (c + 1) * TS), min(h, (r + 1) * TS))), colors, pal, keep), f'{d}/{c}_{r}.png')
+            # každé vlákno vlastní kopii palety: sdílený obrázek palety v quantize() souběžně padal (segfault, exit 139)
+            save(quant_alpha(im.crop((c * TS, r * TS, min(w, (c + 1) * TS), min(h, (r + 1) * TS))), colors, pal.copy(), keep), f'{d}/{c}_{r}.png')
         jobs = [(c, r) for c in range(math.ceil(w / TS)) for r in range(math.ceil(h / TS))]
         with ThreadPoolExecutor(WORKERS) as ex: list(ex.map(one, jobs))           # Pillow při kódování pouští GIL; výstup je bajt po bajtu stejný
         n += len(jobs)
@@ -141,6 +146,17 @@ def build_alpha(variant, chunk, img, info):
     return {'Image': {'xmlns': 'http://schemas.microsoft.com/deepzoom/2008', 'Url': f'tiles/{name}/{variant}/' if name else f'tiles/{variant}/', 'Format': FMT,
                       'Overlap': '0', 'TileSize': str(TS), 'Size': {'Width': str(W), 'Height': str(H)}},
             'x0': info['x0'], 'y1': info['y1']}
+
+
+def uklid_renderu(variants, chunk):
+    """Smaže PNG dlaždice z renderu (~270 MB na čtverec), web je má v site/tiles. Zůstává info.json (overlay.py, compose.py).
+    compose.py pak skládá náhled z dlaždic webu. Ponechat: IZO_NECHAT_DLAZDICE=1. Vánoční vrstvy (vanoce.sh) se nemažou."""
+    if os.environ.get('IZO_NECHAT_DLAZDICE'): return
+    for v in variants:
+        if v.startswith('xmas'): continue
+        src = f'build/tiles_{v}' if not chunk else f'build/c{chunk[0]}_{chunk[1]}/tiles_{v}'
+        for f in os.listdir(src):
+            if f.endswith('.png'): os.remove(os.path.join(src, f))
 
 
 if __name__ == '__main__':
@@ -186,3 +202,5 @@ if __name__ == '__main__':
         json.dump(out, open(path + '.tmp', 'w')); os.replace(path + '.tmp', path)
     finally:
         os.close(fd); os.remove(lock)
+    uklid_renderu(variants, chunk)
+
