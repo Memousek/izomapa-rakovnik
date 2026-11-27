@@ -174,6 +174,7 @@ button { font: inherit; color: inherit; }
 #webkam .wk-odkaz strong { padding: 6px 12px; border: 2px solid currentColor; }
 #webkam .wk-zdroj { margin: 6px 0 0; font-size: .8rem; color: var(--muted); }
 #webkam .wk-zdroj a { color: inherit; }
+#webkam .wk-sdilet { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: .85rem; overflow-wrap: anywhere; }
 #webkam .wk-dalsi { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 #webkam .wk-dalsi:empty { display: none; }
 body.webkamera #pohledBtn, body.webkamera #tacho, body.webkamera #zamer, body.webkamera #klik, body.webkamera #minimapa { display: none !important; }
@@ -385,6 +386,7 @@ import { vytvorLetani } from './jizda/let.js';
 import { vytvorMotorky } from './jizda/motorka.js';
 import { vytvorVybuchy } from './jizda/vybuchy.js';
 import { vytvorWebkamery } from './jizda/webkamery.js';
+import { KAMERY } from './jizda/kamery.js';
 THREE.ColorManagement.enabled = false;
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -407,6 +409,7 @@ const CHUNKS = CAM.grounds.map((g) => [Math.round(g.cx / S2), Math.round(g.cy / 
 const hasChunk = (i, j) => CHUNKS.some(([a, b]) => a === i && b === j);
 const chunkOf = (x, y) => [Math.floor((x + HALF) / S2), Math.floor((y + HALF) / S2)];
 const Q = new URLSearchParams(location.search);
+const KAM_URL = KAMERY.find((k) => k.pohled && k.id === Q.get('kamera')) || null;   // ?kamera=<id>: otevřít rovnou v pohledu webkamery (jizda/webkamery.js)
 const podleMesice = ['winter', 'winter', 'spring', 'spring', 'spring', 'summer', 'summer', 'summer', 'autumn', 'autumn', 'autumn', 'winter'][new Date().getMonth()];
 const OBD = OBDOBI.includes(Q.get('obdobi')) ? Q.get('obdobi') : OBDOBI.includes(podleMesice) ? podleMesice : OBDOBI[0];
 
@@ -1234,7 +1237,8 @@ hrac.kabina = true; try { hrac.kabina = localStorage.getItem('izo-3d-kabina') !=
 hrac.zOci = true; try { hrac.zOci = localStorage.getItem('izo-3d-pohled2') !== 'zezadu'; } catch {}   // pěšky výchozí pohled z očí (V: zezadu); nový klíč, ať se staré volby nepřenesou   // z: výška pod nohama (terén nebo mostovka); bus: spoj, kterým jedu
 {
   const m = /@(-?[\d.]+),(-?[\d.]+)/.exec(location.hash);
-  if (m) [hrac.x, hrac.y] = [(+m[2] - CAM.lon0) * CAM.kx, (+m[1] - CAM.lat0) * CAM.ky];
+  if (KAM_URL) [hrac.x, hrac.y] = [(KAM_URL.pohled.lon - CAM.lon0) * CAM.kx, (KAM_URL.pohled.lat - CAM.lat0) * CAM.ky];   // sdílený pohled webkamery: začít pod ní
+  else if (m) [hrac.x, hrac.y] = [(+m[2] - CAM.lon0) * CAM.kx, (+m[1] - CAM.lat0) * CAM.ky];
 }
 // vlastní auto (červené, kola se točí, světla svítí od soumraku)
 const mojeAuto = VOZ.mojeAuto(nactiAuto());                // vzhled z garáže (jizda/garaz.js), výchozí červený hatchback
@@ -2304,6 +2308,7 @@ await spravaCtvercu();
 hrac.z = gz(hrac.x, hrac.y);
 ULICE_START.x = hrac.x; ULICE_START.y = hrac.y;
 $('nacitani').remove(); $('klik').hidden = false; setTimeout(skryjNapovedu, 6000);
+if (KAM_URL) WEBKAM.zapni(KAM_URL);                         // sdílený odkaz na webkameru
 setInterval(spravaCtvercu, 1500);
 let last = performance.now(), fpsT = 0, fpsN = 0, fps = 0, stavT = 0;
 const fwd = new THREE.Vector3(), KAB = { i: null, h: 0, z: 0 };   // KAB: vyhlazený směr a výška pohledu strojvedoucího

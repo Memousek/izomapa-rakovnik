@@ -2,6 +2,8 @@
 // sklon a zorné pole z jizda/kamery.js, data společná s 2D mapou), aby pohled odpovídal skutečnému záběru. V rohu obraz v obraze: aktuální snímek
 // s odkazem zpět (jen kde to provozovatel dovoluje, jinak jen odkaz na jeho stránku). Esc nebo tlačítko = zpět do jízdy.
 // Hráč mezitím stojí; čtverce, auta a lidé se načítají kolem kamery (hráč se na dobu pohledu přesune pod ni).
+// Sdílení: v adrese je po dobu pohledu ?kamera=<id> (jizda.html?kamera=husovo otevře 3D rovnou v pohledu kamery),
+// tlačítko Sdílet pohled ho pošle přes nabídku sdílení zařízení, jinak zkopíruje do schránky.
 import { KAMERY, snimekUrl } from './kamery.js';
 
 export function vytvorWebkamery(THREE, { CAM, gz, hrac, panel, start, konec }) {
@@ -13,9 +15,24 @@ export function vytvorWebkamery(THREE, { CAM, gz, hrac, panel, start, konec }) {
   // ---------- obraz v obraze ----------
   const pip = document.createElement('aside');
   pip.id = 'webkam'; pip.hidden = true; pip.setAttribute('aria-label', 'Skutečný záběr webkamery');
-  pip.innerHTML = '<header><b></b><button type="button" class="px-btn" data-zpet>Zpět do jízdy <kbd>Esc</kbd></button></header><div class="wk-obr"></div><p class="wk-zdroj"></p><nav class="wk-dalsi"></nav>';
+  pip.innerHTML = '<header><b></b><button type="button" class="px-btn" data-zpet>Zpět do jízdy <kbd>Esc</kbd></button></header><div class="wk-obr"></div><p class="wk-zdroj"></p><div class="wk-sdilet"><button type="button" class="px-btn" data-sdilet>Sdílet pohled</button><span role="status" aria-live="polite"></span></div><nav class="wk-dalsi" aria-label="Další webkamery"></nav>';
   document.body.appendChild(pip);
   pip.querySelector('[data-zpet]').addEventListener('click', () => vypni());
+  // adresa pohledu: stejná stránka s ?kamera=<id>, bez polohy hráče v # (tu dopočítá kamera)
+  const adresa = (k) => { const u = new URL(location.href); u.hash = ''; if (k) u.searchParams.set('kamera', k.id); else u.searchParams.delete('kamera'); return u; };
+  const stav = pip.querySelector('[role="status"]');
+  pip.querySelector('[data-sdilet]').addEventListener('click', async () => {
+    const k = st.k; if (!k) return;
+    const url = adresa(k).href, titulek = `${kratky(k)} ve 3D`;
+    try {
+      if (navigator.share) { await navigator.share({ title: titulek, url }); return; }
+      await navigator.clipboard.writeText(url); stav.textContent = 'Odkaz zkopírován';
+    } catch (e) {
+      if (e?.name === 'AbortError') return;                  // sdílení zavřel uživatel
+      stav.textContent = `Odkaz: ${url}`;                    // bez schránky aspoň ukázat adresu
+    }
+    setTimeout(() => { stav.textContent = ''; }, 4000);
+  });
   let obnova = 0;
   function vyplnPip(k) {
     pip.querySelector('b').textContent = kratky(k);
@@ -63,13 +80,15 @@ export function vytvorWebkamery(THREE, { CAM, gz, hrac, panel, start, konec }) {
     st.on = true; st.k = k;
     const [x, y] = svet(k.pohled.lat, k.pohled.lon);
     hrac.x = x; hrac.y = y; hrac.z = gz(x, y);              // čtverce, auta a chodci kolem kamery
-    vyplnPip(k); pip.hidden = false; document.body.classList.add('webkamera');
+    vyplnPip(k); pip.hidden = false; document.body.classList.add('webkamera'); stav.textContent = '';
+    history.replaceState(null, '', adresa(k));
     start?.(k);
   }
   function vypni() {
     if (!st.on) return;
     st.on = false; st.k = null; clearInterval(obnova);
     pip.hidden = true; document.body.classList.remove('webkamera');
+    history.replaceState(null, '', adresa(null));
     if (st.ulozeno) Object.assign(hrac, st.ulozeno);
     konec?.();
   }

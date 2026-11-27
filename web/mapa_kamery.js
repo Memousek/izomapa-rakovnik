@@ -38,15 +38,22 @@ export function spust({ ukazKartu }) {
     if (!h) return false;
     const k = h[3];
     ukazKartu({ title: k.nazev, text: k.text, lat: k.lat, lon: k.lon, link: k.odkaz, linkText: `Otevřít na ${k.zdroj.split(',').pop().trim()} ↗`, target: '_blank', rows: [['Zdroj', k.zdroj]] });
-    if (k.obrazek) {                                               // snímek do místa pro úryvek z Wikipedie, s odkazem zpět
-      const el = document.getElementById('cardWiki');
-      if (el) {
+    const el = document.getElementById('cardWiki');                // snímek (jen kde to provozovatel dovoluje) a pohled ve 3D
+    if (el && (k.obrazek || k.pohled)) {
+      const obsah = [];
+      if (k.obrazek) {
         const im = document.createElement('img'); im.src = snimekUrl(k); im.alt = k.nazev; im.loading = 'lazy'; im.referrerPolicy = 'no-referrer';
         im.style.cssText = 'float:none;display:block;width:100%;height:auto;max-height:240px;object-fit:cover;margin:0 0 6px;border-radius:10px';   // celý snímek, ne náhled vedle textu
         const p = document.createElement('p'); p.className = 'wiki-zdroj';
         const a = document.createElement('a'); a.href = k.odkaz; a.target = '_blank'; a.rel = 'noopener'; a.textContent = `Webkamera: ${k.zdroj}`;
-        p.append(a); el.replaceChildren(im, p); el.hidden = false;
+        p.append(a); obsah.push(im, p);
       }
+      if (k.pohled) {                                                // 3D jízda rovnou v pohledu kamery (jizda.html?kamera=<id>), dá se sdílet
+        const p = document.createElement('p'); p.className = 'wiki-zdroj';
+        const a = document.createElement('a'); a.href = `jizda.html?kamera=${encodeURIComponent(k.id)}`; a.textContent = 'Stejný pohled ve 3D';
+        p.append(a); obsah.push(p);
+      }
+      el.replaceChildren(...obsah); el.hidden = false;
     }
     return true;
   });
