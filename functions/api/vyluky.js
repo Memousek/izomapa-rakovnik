@@ -1,7 +1,7 @@
 // Cloudflare Pages Function: plánované výluky a operativní mimořádnosti PID (RSS pid.cz) jen pro linky, které jezdí po mapě
 // (seznam linek ve statickém site/vyluky_zdroj.json z build_html.py podle site/mhd.json). Cache 15 min pro všechny návštěvníky.
 const FEEDS = [['vyluka', 'https://pid.cz/feed/rss-vyluky'], ['mimoradnost', 'https://pid.cz/feed/rss-mimoradnosti']];
-const UA = 'izomapa-vyluky/1.0 (+https://github.com/adamklatovsky/izomapa)';
+const UA = 'izomapa-vyluky/1.0 (+https://github.com/Memousek/izomapa-rakovnik)';
 const ENT = { nbsp: ' ', ndash: '–', mdash: '—', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", bdquo: '„', ldquo: '“', rdquo: '”', hellip: '…' };
 const text = (s) => (s || '').replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => (e[0] === '#' ? String.fromCodePoint(e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : +e.slice(1)) : ENT[e.toLowerCase()] ?? m)).replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim();
 const json = (o, max = 900) => new Response(JSON.stringify(o), { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': `public, max-age=${max}` } });

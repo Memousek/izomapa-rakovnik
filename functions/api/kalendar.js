@@ -1,7 +1,7 @@
 // Cloudflare Pages Function: kalendář akcí z webu infocentra (adresa ve statickém site/kalendar_zdroj.json z mesto.json
 // "kalendar_web": {"url", "zdroj"}), takže nejde o otevřenou proxy. Stahuje nejvýš 3 stránky seznamu jednou za 3 h pro všechny.
 // Parser pro CMS GCM (div.event-message, h3.event-name, div.action_date, div.venues, p.event-perex), stejný jako web města.
-const CERSTVE = 10800, UA = 'izomapa-kalendar/1.0 (+https://github.com/adamklatovsky/izomapa)';
+const CERSTVE = 10800, UA = 'izomapa-kalendar/1.0 (+https://github.com/Memousek/izomapa-rakovnik)';
 const ENT = { nbsp: ' ', ndash: '–', mdash: '—', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", bdquo: '„', ldquo: '“', rdquo: '”', hellip: '…' };
 const text = (s) => (s || '').replace(/<[^>]+>/g, ' ').replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => (e[0] === '#' ? String.fromCodePoint(e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : +e.slice(1)) : ENT[e.toLowerCase()] ?? m)).replace(/\s+/g, ' ').trim();
 const json = (o, max = CERSTVE) => new Response(JSON.stringify(o), { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': `public, max-age=${Math.min(max, 1800)}` } });

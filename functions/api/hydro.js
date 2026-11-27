@@ -2,7 +2,7 @@
 // ze statického site/hydro_zdroj.json (build_html.py z mesto.json "hydro": {"stanice": ["0-203-1-191800"]}), takže to není
 // otevřená proxy. ČHMÚ neposílá CORS, proto prostředník. Data se obnovují po 10 min, metadata (název, povodňové stupně) po 24 h.
 const DATA = 'https://opendata.chmi.cz/hydrology/now/data/', META = 'https://opendata.chmi.cz/hydrology/now/metadata/meta1.json';
-const UA = 'izomapa-hydro/1.0 (+https://github.com/adamklatovsky/izomapa)';
+const UA = 'izomapa-hydro/1.0 (+https://github.com/Memousek/izomapa-rakovnik)';
 const json = (o, max = 600) => new Response(JSON.stringify(o), { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': `public, max-age=${max}` } });
 
 async function stahni(url, ttl) {
