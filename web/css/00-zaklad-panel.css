@@ -126,6 +126,7 @@ html.ukazatel :focus-visible { outline: none; }   /* prst nebo myš: bez zelené
 .pane[hidden] { display: none; }
 .pane > .sec { border-top: 0; padding-top: 0; }
 .pane > :not([hidden], .pane-znacka) ~ :is(.sec, .ovl):not([hidden]) { border-top: 1px solid var(--edge); padding-top: 12px; }
+.ven-sipka { display: inline-block; margin-left: .25em; text-decoration: none; }   /* odkaz na jiný web (web/js/02-odkazy-ven.js) */
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .daynight .ends { margin-top: -4px; }
 .prepinace { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -153,6 +154,11 @@ html.ukazatel :focus-visible { outline: none; }   /* prst nebo myš: bez zelené
 .hadanka { margin: 6px 0 10px; } .hadanka p { margin: 0 0 6px; font-size: .88rem; }
 .hadanka .px-btn { margin: 0 6px 6px 0; font-size: .8rem; }
 .denik-pozn { font-size: .75rem; margin: 10px 0 6px; }
+.card-foto { margin: 6px 0 8px; }
+.card-foto img { display: block; width: 100%; height: auto; max-height: 220px; object-fit: cover; border: 2px solid var(--edge); }
+.card-foto figcaption { margin-top: 3px; font-size: .72rem; line-height: 1.35; color: var(--muted); }
+.card-foto figcaption a { color: inherit; }
+.card-foto:not([hidden]) ~ .card-wiki img { display: none; }   /* stejná fotka by byla v kartě dvakrát */
 .card-wiki { margin: 8px 0; font-size: .86rem; line-height: 1.45; }
 .card-wiki img { float: right; width: 96px; height: 96px; object-fit: cover; margin: 2px 0 6px 10px; border: 2px solid var(--edge); }
 .card-wiki p { margin: 0 0 4px; }

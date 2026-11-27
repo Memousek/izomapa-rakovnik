@@ -108,6 +108,12 @@
  },
  "letadla": true,
  "pluhy": true,
+ "uzavirky_kraj": {
+  "url": "https://pkr.kr-stredocesky.cz/pkr/mapa-aktualni-situace/jos/nedavnaudalost/",
+  "zdroj": "Portál krizového řízení Středočeského kraje",
+  "odkaz": "https://pkr.kr-stredocesky.cz/pkr/mapa-aktualni-situace/",
+  "hledat": "Rakovník"
+ },
  "hasici": {
   "url": "https://pkr.kr-stredocesky.cz/pkr/zasahy-jpo/",
   "zdroj": "Portál krizového řízení Středočeského kraje",

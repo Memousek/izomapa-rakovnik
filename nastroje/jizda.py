@@ -412,6 +412,9 @@ def main():
     if os.path.exists('web/jizda_rakovnik.css'):          # vlastní vzhled kopie (Rakovník): styly na konec <style>, písma do <head>
         t = t.replace('</style>', open('web/jizda_rakovnik.css', encoding='utf-8').read() + '</style>', 1).replace('</head>',
             '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=DM+Mono:wght@500&family=Fraunces:opsz,wght@9..144,700;9..144,800&display=swap">\n</head>', 1)
+    if os.path.exists('web/js/02-odkazy-ven.js'):         # odkazy na jiný web: šipka ↗ a text pro čtečku, stejně jako v mapě
+        i = t.rindex('</body>')
+        t = t[:i] + '<script>\n' + open('web/js/02-odkazy-ven.js', encoding='utf-8').read() + '</script>\n' + t[i:]
     open('site/jizda.html', 'w', encoding='utf-8').write(t)
     print('hotovo: site/jizda.html')
 

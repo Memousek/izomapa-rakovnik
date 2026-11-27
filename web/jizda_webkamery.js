@@ -30,7 +30,8 @@ export function vytvorWebkamery(THREE, { CAM, gz, hrac, panel, start, konec }) {
       clearInterval(obnova); obnova = setInterval(() => { im.src = snimekUrl(k); }, 120000);
     } else {                                                 // bez souhlasu provozovatele snímek nevkládat, jen odkaz
       a.className = 'wk-odkaz'; a.innerHTML = '<span>Aktuální snímek je na webu provozovatele</span>';
-      const s = document.createElement('strong'); s.textContent = `Otevřít ${k.zdroj.split(',').pop().trim()} ↗`; a.append(s);
+      const s = document.createElement('strong'); s.textContent = `Otevřít ${k.zdroj.split(',').pop().trim()}`;
+      const sip = document.createElement('span'); sip.className = 'ven-sipka'; sip.setAttribute('aria-hidden', 'true'); sip.textContent = '↗'; s.append(sip); a.append(s);   // šipka jako u odkazů ven (web/js/02-odkazy-ven.js), ať se nezdvojí
       box.replaceChildren(a); z.textContent = `Zdroj: ${k.zdroj}`;
       clearInterval(obnova);
     }

@@ -84,7 +84,7 @@
     showCard({ title: u.druh && (!u.nazev || u.nazev === uzTitul(u) || u.nazev === 'Kolona') ? uzTitul(u) : uzTitul(u) + ': ' + (u.nazev || 'silnice'), text: u.popis, lon: u.mid.lon, lat: u.mid.lat, k: u.k,
       rows: [['Platí', u.druh ? uzDo(u) : (u.nyni ? '' : 'chystá se, ') + uzPlati(u)], ['Délka kolony', u.delka ? (u.delka >= 1000 ? `${(u.delka / 1000).toFixed(1).replace('.', ',')} km` : `${u.delka} m`) : null],
         ['Zdržení', u.zdrzeni ? `asi ${u.zdrzeni} min` : null], ['Objížďka', u.objizdka], ['Zdroj', u.zdroj],
-        ['Úsek', u.uprava ? 'upravený správcem mapy' : u.auto === 'odhad' ? 'odhad (celá ulice), přesný rozsah je u zdroje' : u.puvod === 'jsdi' ? 'podle Jednotného systému dopravních informací' : u.puvod && u.puvod !== 'web' ? 'podle mapy zdroje' : u.auto ? 'dopočítaný automaticky z textu oznámení' : null]],
+        ['Úsek', u.uprava ? 'upravený správcem mapy' : u.auto === 'odhad' ? 'odhad (celá ulice), přesný rozsah je u zdroje' : u.puvod === 'jsdi' ? 'podle Jednotného systému dopravních informací' : u.puvod === 'kraj' ? (u.usek ? `rozsah podle zdroje ${u.usek}` : 'odhad: zdroj uvádí jen bod, úsek je kus silnice kolem něj') : u.puvod && u.puvod !== 'web' ? 'podle mapy zdroje' : u.auto ? 'dopočítaný automaticky z textu oznámení' : null]],
       link: /^https?:\/\//.test(u.url || '') ? u.url : null, linkText: 'Podrobnosti u zdroje ↗', target: '_blank' });
     if (UZ_ED.upravit && !u.druh) { const b = document.createElement('button'); b.type = 'button'; b.className = 'px-btn'; b.textContent = 'Upravit uzavírku'; b.addEventListener('click', () => UZ_ED.upravit(u)); $('cardLinks').prepend(b); }
   }
